@@ -1,9 +1,11 @@
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'restaurant_model.dart';
 
 class RestaurantRepository {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final SupabaseClient _supabase =
+      Supabase.instance.client;
 
   Future<List<Restaurant>> getRestaurants({
     String search = '',
@@ -25,13 +27,23 @@ class RestaurantRepository {
       );
     }
 
-    if (halalStatus != null && halalStatus.isNotEmpty) {
-      query = query.eq('halal_status', halalStatus);
+    if (halalStatus != null &&
+        halalStatus.isNotEmpty) {
+      query = query.eq(
+        'halal_status',
+        halalStatus,
+      );
     }
 
     final response = await query
-        .order('is_featured', ascending: false)
-        .order('average_rating', ascending: false);
+        .order(
+          'is_featured',
+          ascending: false,
+        )
+        .order(
+          'average_rating',
+          ascending: false,
+        );
 
     return (response as List)
         .map(
@@ -40,5 +52,19 @@ class RestaurantRepository {
           ),
         )
         .toList();
+  }
+
+  Future<Restaurant> getRestaurantById(
+    String restaurantId,
+  ) async {
+    final response = await _supabase
+        .from('restaurants')
+        .select()
+        .eq('id', restaurantId)
+        .single();
+
+    return Restaurant.fromMap(
+      Map<String, dynamic>.from(response),
+    );
   }
 }

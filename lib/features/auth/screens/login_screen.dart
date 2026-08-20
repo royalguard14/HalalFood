@@ -1,10 +1,11 @@
+
 import 'package:flutter/material.dart';
-import 'register_screen.dart';
-import '../../../app/theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../app/theme.dart';
 import '../../home/screens/home_screen.dart';
-
-
+import '../../owner/screens/owner_dashboard_screen.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -28,45 +29,73 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-Future<void> _login() async {
-  if (!_formKey.currentState!.validate()) {
-    return;
-  }
+  Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
-  try {
-    await Supabase.instance.client.auth.signInWithPassword(
-      email: _emailController.text.trim(),
-      password: _passwordController.text,
-    );
+    try {
+      final supabase = Supabase.instance.client;
 
-    if (!mounted) return;
+      final response = await supabase.auth.signInWithPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
 
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(
-        builder: (_) => const HomeScreen(),
-      ),
-      (route) => false,
-    );
-  } on AuthException catch (e) {
-    if (!mounted) return;
+      final user = response.user;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(e.message),
-      ),
-    );
-  } catch (e) {
-    if (!mounted) return;
+      if (user == null) {
+        throw Exception('Unable to login.');
+      }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Something went wrong. Please try again.',
+      final profile = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      if (!mounted) return;
+
+      final role =
+          profile?['role']?.toString() ?? 'customer';
+
+      if (role == 'restaurant_owner') {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) =>
+                const OwnerDashboardScreen(),
+          ),
+          (route) => false,
+        );
+      } else {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => const HomeScreen(),
+          ),
+          (route) => false,
+        );
+      }
+    } on AuthException catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Unable to login: $e',
+          ),
+        ),
+      );
+    }
   }
-}
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -77,7 +106,8 @@ Future<void> _login() async {
           child: Form(
             key: _formKey,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 20),
 
@@ -86,7 +116,8 @@ Future<void> _login() async {
                   style: TextStyle(
                     fontSize: 30,
                     fontWeight: FontWeight.w800,
-                    color: HalalFoodTheme.textPrimary,
+                    color:
+                        HalalFoodTheme.textPrimary,
                   ),
                 ),
 
@@ -96,7 +127,8 @@ Future<void> _login() async {
                   'Login to continue to HALAL Food.',
                   style: TextStyle(
                     fontSize: 16,
-                    color: HalalFoodTheme.textSecondary,
+                    color:
+                        HalalFoodTheme.textSecondary,
                   ),
                 ),
 
@@ -113,13 +145,17 @@ Future<void> _login() async {
 
                 TextFormField(
                   controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
+                  keyboardType:
+                      TextInputType.emailAddress,
+                  decoration:
+                      const InputDecoration(
                     hintText: 'Enter your email',
-                    prefixIcon: Icon(Icons.email_outlined),
+                    prefixIcon:
+                        Icon(Icons.email_outlined),
                   ),
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
+                    if (value == null ||
+                        value.trim().isEmpty) {
                       return 'Please enter your email';
                     }
 
@@ -146,23 +182,30 @@ Future<void> _login() async {
                   controller: _passwordController,
                   obscureText: _obscurePassword,
                   decoration: InputDecoration(
-                    hintText: 'Enter your password',
-                    prefixIcon: const Icon(Icons.lock_outline),
+                    hintText:
+                        'Enter your password',
+                    prefixIcon: const Icon(
+                      Icons.lock_outline,
+                    ),
                     suffixIcon: IconButton(
                       onPressed: () {
                         setState(() {
-                          _obscurePassword = !_obscurePassword;
+                          _obscurePassword =
+                              !_obscurePassword;
                         });
                       },
                       icon: Icon(
                         _obscurePassword
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
+                            ? Icons
+                                .visibility_outlined
+                            : Icons
+                                .visibility_off_outlined,
                       ),
                     ),
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty) {
+                    if (value == null ||
+                        value.isEmpty) {
                       return 'Please enter your password';
                     }
 
@@ -177,12 +220,15 @@ Future<void> _login() async {
                 const SizedBox(height: 12),
 
                 Align(
-                  alignment: Alignment.centerRight,
+                  alignment:
+                      Alignment.centerRight,
                   child: TextButton(
                     onPressed: () {
                       // Forgot password will be connected later.
                     },
-                    child: const Text('Forgot password?'),
+                    child: const Text(
+                      'Forgot password?',
+                    ),
                   ),
                 ),
 
@@ -197,7 +243,8 @@ Future<void> _login() async {
                       'Login',
                       style: TextStyle(
                         fontSize: 16,
-                        fontWeight: FontWeight.w700,
+                        fontWeight:
+                            FontWeight.w700,
                       ),
                     ),
                   ),
@@ -207,19 +254,28 @@ Future<void> _login() async {
 
                 Row(
                   children: [
-                    const Expanded(child: Divider()),
+                    const Expanded(
+                      child: Divider(),
+                    ),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding:
+                          const EdgeInsets.symmetric(
+                        horizontal: 16,
+                      ),
                       child: Text(
                         'OR',
                         style: TextStyle(
-                          color: Colors.grey.shade600,
+                          color:
+                              Colors.grey.shade600,
                           fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                          fontWeight:
+                              FontWeight.w600,
                         ),
                       ),
                     ),
-                    const Expanded(child: Divider()),
+                    const Expanded(
+                      child: Divider(),
+                    ),
                   ],
                 ),
 
@@ -232,11 +288,14 @@ Future<void> _login() async {
                     onPressed: () {
                       // Google authentication will be connected later.
                     },
-                    icon: const Icon(Icons.g_mobiledata),
+                    icon: const Icon(
+                      Icons.g_mobiledata,
+                    ),
                     label: const Text(
                       'Continue with Google',
                       style: TextStyle(
-                        fontWeight: FontWeight.w600,
+                        fontWeight:
+                            FontWeight.w600,
                       ),
                     ),
                   ),
@@ -247,11 +306,12 @@ Future<void> _login() async {
                 Center(
                   child: TextButton(
                     onPressed: () {
-                       Navigator.of(context).push(
-    MaterialPageRoute(
-      builder: (_) => const RegisterScreen(),
-    ),
-  );
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const RegisterScreen(),
+                        ),
+                      );
                     },
                     child: const Text(
                       "Don't have an account? Register",

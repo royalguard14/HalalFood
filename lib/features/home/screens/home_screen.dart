@@ -10,6 +10,15 @@ import '../../restaurant/screens/restaurant_details_screen.dart';
 import '../data/restaurant_model.dart';
 import '../data/restaurant_repository.dart';
 
+import 'package:provider/provider.dart';
+
+import '../../cart/providers/cart_provider.dart';
+import '../../cart/screens/cart_screen.dart';
+import '../../profile/screens/profile_screen.dart';
+
+
+
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -136,33 +145,6 @@ class _HomeScreenState extends State<HomeScreen> {
               .contains(_searchQuery),
     );
   }
-
-  // bool _matchesCategory(
-  //   FoodCategory category,
-  //   List<MenuItem> menuItems,
-  // ) {
-  //   final categoryName =
-  //       category.name.toLowerCase();
-
-  //   final categorySlug =
-  //       category.slug.toLowerCase();
-
-  //   return menuItems.any((item) {
-  //     final itemName =
-  //         item.name.toLowerCase();
-
-  //     final itemDescription =
-  //         item.description.toLowerCase();
-
-  //     return itemName.contains(categoryName) ||
-  //         itemDescription.contains(categoryName) ||
-  //         itemName.contains(categorySlug) ||
-  //         itemDescription.contains(categorySlug);
-  //   });
-  // }
-
-
-
 bool _matchesCategory(
   FoodCategory category,
   List<MenuItem> menuItems,
@@ -206,14 +188,79 @@ bool _matchesCategory(
             fontWeight: FontWeight.w800,
           ),
         ),
-        actions: [
+actions: [
+  Consumer<CartProvider>(
+    builder: (context, cart, _) {
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
           IconButton(
-            onPressed: () {},
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => CartScreen(
+                    cart: cart,
+                  ),
+                ),
+              );
+            },
             icon: const Icon(
-              Icons.notifications_none_rounded,
+              Icons.shopping_cart_outlined,
             ),
           ),
+
+          if (cart.itemCount > 0)
+            Positioned(
+              right: 4,
+              top: 4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 5,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 1.5,
+                  ),
+                ),
+                constraints: const BoxConstraints(
+                  minWidth: 18,
+                  minHeight: 18,
+                ),
+                child: Text(
+                  cart.itemCount > 99
+                      ? '99+'
+                      : '${cart.itemCount}',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
         ],
+      );
+    },
+  ),
+
+  IconButton(
+    onPressed: () {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const ProfileScreen(),
+        ),
+      );
+    },
+    icon: const Icon(
+      Icons.person_outline_rounded,
+    ),
+  ),
+],
       ),
       body: RefreshIndicator(
         onRefresh: _refresh,

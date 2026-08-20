@@ -1,3 +1,4 @@
+
 class Restaurant {
   final String id;
   final String name;
@@ -5,6 +6,8 @@ class Restaurant {
   final String address;
   final String city;
   final String province;
+  final double? latitude;
+  final double? longitude;
   final String? logoUrl;
   final String? coverImageUrl;
   final String halalStatus;
@@ -20,6 +23,8 @@ class Restaurant {
     required this.address,
     required this.city,
     required this.province,
+    this.latitude,
+    this.longitude,
     this.logoUrl,
     this.coverImageUrl,
     required this.halalStatus,
@@ -29,22 +34,50 @@ class Restaurant {
     required this.reviewCount,
   });
 
-  factory Restaurant.fromMap(Map<String, dynamic> map) {
+  factory Restaurant.fromMap(
+    Map<String, dynamic> map,
+  ) {
     return Restaurant(
       id: map['id'] as String,
       name: map['name'] as String? ?? '',
-      description: map['description'] as String? ?? '',
-      address: map['address'] as String? ?? '',
-      city: map['city'] as String? ?? '',
-      province: map['province'] as String? ?? '',
-      logoUrl: map['logo_url'] as String?,
-      coverImageUrl: map['cover_image_url'] as String?,
-      halalStatus: map['halal_status']?.toString() ?? '',
-      isActive: map['is_active'] as bool? ?? false,
-      isFeatured: map['is_featured'] as bool? ?? false,
+      description:
+          map['description'] as String? ?? '',
+      address:
+          map['address'] as String? ?? '',
+      city:
+          map['city'] as String? ?? '',
+      province:
+          map['province'] as String? ?? '',
+
+      latitude:
+          (map['latitude'] as num?)?.toDouble(),
+
+      longitude:
+          (map['longitude'] as num?)?.toDouble(),
+
+      logoUrl:
+          map['logo_url'] as String?,
+
+      coverImageUrl:
+          map['cover_image_url'] as String?,
+
+      halalStatus:
+          map['halal_status']?.toString() ?? '',
+
+      isActive:
+          map['is_active'] as bool? ?? false,
+
+      isFeatured:
+          map['is_featured'] as bool? ?? false,
+
       averageRating:
-          (map['average_rating'] as num?)?.toDouble() ?? 0.0,
-      reviewCount: map['review_count'] as int? ?? 0,
+          (map['average_rating'] as num?)
+                  ?.toDouble() ??
+              0.0,
+
+      reviewCount:
+          map['review_count'] as int? ??
+              0,
     );
   }
 }

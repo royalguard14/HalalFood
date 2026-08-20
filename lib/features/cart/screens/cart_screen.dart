@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../app/theme.dart';
 import '../data/cart_item.dart';
 import '../providers/cart_provider.dart';
+import '../../order/screens/checkout_screen.dart';
 
 class CartScreen extends StatelessWidget {
   final CartProvider cart;
@@ -61,16 +62,15 @@ class CartScreen extends StatelessWidget {
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton.icon(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context)
-                        .showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Checkout will be available soon.',
-                        ),
-                      ),
-                    );
-                  },
+onPressed: () {
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => CheckoutScreen(
+        cart: cart,
+      ),
+    ),
+  );
+},
                   icon: const Icon(
                     Icons.shopping_bag_outlined,
                   ),
