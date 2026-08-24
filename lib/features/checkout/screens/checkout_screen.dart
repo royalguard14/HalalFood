@@ -53,116 +53,157 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Future<void> _loadRestaurant() async {
-    final restaurantId = widget.cart.restaurantId;
+  final restaurantId = widget.cart.restaurantId;
 
-    if (restaurantId == null || restaurantId.trim().isEmpty) {
-      return;
-    }
+  debugPrint('========== RESTAURANT DEBUG ==========');
+  debugPrint('Cart restaurant ID: $restaurantId');
 
+  if (restaurantId == null ||
+      restaurantId.trim().isEmpty) {
+    debugPrint('Restaurant ID is missing.');
+    debugPrint('======================================');
+    return;
+  }
+
+  try {
     if (mounted) {
       setState(() {
         _isCalculatingDelivery = true;
       });
     }
 
-    try {
-      final restaurant = await _restaurantRepository.getRestaurantById(
-        restaurantId,
-      );
-
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _restaurant = restaurant;
-      });
-
-      _calculateDelivery();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Unable to load restaurant location: $e')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isCalculatingDelivery = false;
-        });
-      }
-    }
-  }
-
-  void _calculateDelivery() {
-    final address = _selectedAddress;
-    final restaurant = _restaurant;
-
-    print('========== DELIVERY DEBUG ==========');
-    print('Selected Address: $address');
-    print('Customer Latitude: ${address?.latitude}');
-    print('Customer Longitude: ${address?.longitude}');
-    print('Restaurant: ${restaurant?.name}');
-    print('Restaurant Latitude: ${restaurant?.latitude}');
-    print('Restaurant Longitude: ${restaurant?.longitude}');
-
-    if (address == null ||
-        restaurant == null ||
-        address.latitude == null ||
-        address.longitude == null ||
-        restaurant.latitude == null ||
-        restaurant.longitude == null) {
-      print('DELIVERY CALCULATION STOPPED: Missing coordinates');
-      print('===================================');
-      return;
-    }
-
-    final distance = DistanceUtils.distanceInKm(
-      latitude1: address.latitude!,
-      longitude1: address.longitude!,
-      latitude2: restaurant.latitude!,
-      longitude2: restaurant.longitude!,
+    final restaurant =
+        await _restaurantRepository.getRestaurantById(
+      restaurantId,
     );
 
-    final fee = DistanceUtils.deliveryFee(distanceKm: distance);
-
-    print('Distance: ${distance.toStringAsFixed(2)} km');
-    print('Delivery Fee: ₱${fee.toStringAsFixed(2)}');
-    print('===================================');
+    debugPrint('Restaurant loaded: ${restaurant.name}');
+    debugPrint('Restaurant latitude: ${restaurant.latitude}');
+    debugPrint('Restaurant longitude: ${restaurant.longitude}');
 
     if (!mounted) {
       return;
     }
 
     setState(() {
-      _deliveryDistanceKm = distance;
-      _deliveryFee = fee;
+      _restaurant = restaurant;
     });
-  }
 
-  void _selectDefaultAddress(List<Address> addresses) {
-    if (_selectedAddress != null) {
+    debugPrint('Calling _calculateDelivery...');
+    _calculateDelivery();
+  } catch (e) {
+    debugPrint('RESTAURANT ERROR: $e');
+
+    if (!mounted) {
       return;
     }
 
-    if (addresses.isEmpty) {
-      return;
-    }
-
-    final defaultAddress = addresses.firstWhere(
-      (address) => address.isDefault,
-      orElse: () => addresses.first,
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Unable to load restaurant location: $e',
+        ),
+      ),
     );
+  } finally {
+    if (mounted) {
+      setState(() {
+        _isCalculatingDelivery = false;
+      });
+    }
 
-    _selectedAddress = defaultAddress;
+    debugPrint('======================================');
+  }
+}
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
+ void _calculateDelivery() {
+  final address = _selectedAddress;
+  final restaurant = _restaurant;
 
-      _calculateDelivery();
-    });
+  debugPrint('========== DELIVERY DEBUG ==========');
+  debugPrint('Customer latitude: ${address?.latitude}');
+  debugPrint('Customer longitude: ${address?.longitude}');
+  debugPrint('Restaurant: ${restaurant?.name}');
+  debugPrint('Restaurant latitude: ${restaurant?.latitude}');
+  debugPrint('Restaurant longitude: ${restaurant?.longitude}');
+
+  if (address == null ||
+      restaurant == null ||
+      address.latitude == null ||
+      address.longitude == null ||
+      restaurant.latitude == null ||
+      restaurant.longitude == null) {
+    debugPrint(
+      'DELIVERY STOPPED: Missing address or restaurant coordinates.',
+    );
+    debugPrint('====================================');
+    return;
   }
 
+  final distance = DistanceUtils.distanceInKm(
+    latitude1: address.latitude!,
+    longitude1: address.longitude!,
+    latitude2: restaurant.latitude!,
+    longitude2: restaurant.longitude!,
+  );
+
+  final fee = DistanceUtils.deliveryFee(
+    distanceKm: distance,
+  );
+
+  debugPrint(
+    'Distance: ${distance.toStringAsFixed(2)} km',
+  );
+
+  debugPrint(
+    'Delivery Fee: PHP ${fee.toStringAsFixed(2)}',
+  );
+
+  if (!mounted) {
+    return;
+  }
+
+  setState(() {
+    _deliveryDistanceKm = distance;
+    _deliveryFee = fee;
+  });
+
+  debugPrint('====================================');
+}
+
+void _selectDefaultAddress(
+  List<Address> addresses,
+) {
+  if (_selectedAddress != null) {
+    return;
+  }
+
+  if (addresses.isEmpty) {
+    debugPrint('========== ADDRESS DEBUG ==========');
+    debugPrint('No addresses found.');
+    debugPrint('===================================');
+    return;
+  }
+
+  final defaultAddress = addresses.firstWhere(
+    (address) => address.isDefault,
+    orElse: () => addresses.first,
+  );
+
+  _selectedAddress = defaultAddress;
+
+  debugPrint('========== ADDRESS DEBUG ==========');
+  debugPrint('Selected customer: ${defaultAddress.recipientName}');
+  debugPrint('Address latitude: ${defaultAddress.latitude}');
+  debugPrint('Address longitude: ${defaultAddress.longitude}');
+  debugPrint('===================================');
+
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (mounted) {
+      _calculateDelivery();
+    }
+  });
+}
   Future<void> _placeOrder() async {
     if (_isPlacingOrder) {
       return;
@@ -341,6 +382,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
             _selectDefaultAddress(addresses);
 
+
+if (_selectedAddress != null && _deliveryFee == null) {
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    _calculateDelivery();
+  });
+}
+
+
+
+
             if (addresses.isEmpty) {
               return _NoAddressView(
                 onAddAddress: () {
@@ -372,7 +423,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       onTap: () {
                         setState(() {
                           _selectedAddress = address;
-                          _isCalculatingDelivery = true;
+                     
                         });
 
                         _calculateDelivery();
