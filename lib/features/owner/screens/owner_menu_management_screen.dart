@@ -11,7 +11,8 @@ class OwnerMenuManagementScreen extends StatefulWidget {
       _OwnerMenuManagementScreenState();
 }
 
-class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
+class _OwnerMenuManagementScreenState
+    extends State<OwnerMenuManagementScreen> {
   final SupabaseClient _supabase = Supabase.instance.client;
 
   bool _isLoading = true;
@@ -144,8 +145,18 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
           : _selectedCategoryId;
     }
 
+    if (selectedCategoryId == null && _categories.isNotEmpty) {
+      selectedCategoryId = _categories.first['id']?.toString();
+    }
+
+    if (!mounted) return null;
+
+    // Important: this dialog deliberately does NOT use autofocus or
+    // TextEditingController. The previous implementation triggered a
+    // FocusScope/IME lifecycle assertion while the dialog route was opening.
     return showDialog<_MenuItemDraft>(
       context: context,
+      barrierDismissible: true,
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (dialogContext, setDialogState) {
@@ -159,7 +170,6 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     TextFormField(
-                      autofocus: true,
                       initialValue: initialName,
                       onChanged: (value) => name = value,
                       decoration: const InputDecoration(
@@ -263,8 +273,6 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
                       return;
                     }
 
-                    // Return a plain data object. No TextEditingController is
-                    // disposed while the dialog route is being removed.
                     Navigator.of(dialogContext).pop(
                       _MenuItemDraft(
                         name: cleanName,
@@ -287,7 +295,7 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
   }
 
   Future<void> _addMenuItem({String? initialCategoryId}) async {
-    if (_restaurantId == null) return;
+    if (_restaurantId == null || _isSaving) return;
 
     if (_categories.isEmpty) {
       _showError(
@@ -327,7 +335,7 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
 
   Future<void> _editMenuItem(Map<String, dynamic> item) async {
     final id = item['id']?.toString();
-    if (id == null || id.isEmpty || _categories.isEmpty) return;
+    if (id == null || id.isEmpty || _categories.isEmpty || _isSaving) return;
 
     final draft = await _showMenuItemDialog(
       title: 'Edit Menu Item',
@@ -364,7 +372,7 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
 
   Future<void> _removeMenuItem(Map<String, dynamic> item) async {
     final id = item['id']?.toString();
-    if (id == null || id.isEmpty || _restaurantId == null) return;
+    if (id == null || id.isEmpty || _restaurantId == null || _isSaving) return;
 
     final name = item['name']?.toString() ?? 'this item';
     final confirmed = await showDialog<bool>(
@@ -414,10 +422,7 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
   void _showError(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 
@@ -525,7 +530,7 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
           ),
           const SizedBox(height: 6),
           const Text(
-            'Categories are managed by the admin. Add your restaurant\'s menu items under the appropriate category.',
+            'Categories are managed by the admin. Add your restaurant menu items under the appropriate category.',
             style: TextStyle(
               fontSize: 13,
               color: HalalFoodTheme.textSecondary,
@@ -691,9 +696,7 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
               categoryName,
               style: const TextStyle(fontWeight: FontWeight.w800),
             ),
-            subtitle: Text(
-              '${items.length} item${items.length == 1 ? '' : 's'}',
-            ),
+            subtitle: Text('${items.length} item${items.length == 1 ? '' : 's'}'),
             trailing: IconButton(
               tooltip: 'Add item to $categoryName',
               onPressed: _isSaving
