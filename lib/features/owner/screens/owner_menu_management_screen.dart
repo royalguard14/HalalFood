@@ -11,8 +11,7 @@ class OwnerMenuManagementScreen extends StatefulWidget {
       _OwnerMenuManagementScreenState();
 }
 
-class _OwnerMenuManagementScreenState
-    extends State<OwnerMenuManagementScreen> {
+class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
   final SupabaseClient _supabase = Supabase.instance.client;
 
   bool _isLoading = true;
@@ -20,6 +19,7 @@ class _OwnerMenuManagementScreenState
   String? _error;
   String? _restaurantId;
   String? _restaurantName;
+  String _selectedCategoryId = 'all';
 
   List<Map<String, dynamic>> _categories = [];
   List<Map<String, dynamic>> _menuItems = [];
@@ -32,7 +32,6 @@ class _OwnerMenuManagementScreenState
 
   Future<void> _loadMenu() async {
     if (!mounted) return;
-
     setState(() {
       _isLoading = true;
       _error = null;
@@ -40,9 +39,7 @@ class _OwnerMenuManagementScreenState
 
     try {
       final user = _supabase.auth.currentUser;
-      if (user == null) {
-        throw Exception('User is not authenticated.');
-      }
+      if (user == null) throw Exception('User is not authenticated.');
 
       final restaurant = await _supabase
           .from('restaurants')
@@ -56,51 +53,84 @@ class _OwnerMenuManagementScreenState
 
       final restaurantId = restaurant['id'].toString();
 
-      // Categories are created and managed by ADMIN only.
-      final categories = await _supabase
+      // Food categories are managed by Admin. Owners can only select them.
+      final categoriesResponse = await _supabase
           .from('food_categories')
           .select('id, name, slug, icon, is_active, sort_order')
           .eq('is_active', true)
           .order('sort_order', ascending: true)
           .order('name', ascending: true);
 
-      final items = await _supabase
+      final itemsResponse = await _supabase
           .from('menu_items')
           .select(
-            'id, restaurant_id, category_id, name, description, '
-            'price, image_url, is_available, is_featured, created_at, updated_at',
+            'id, restaurant_id, category_id, name, description, price, '
+            'image_url, is_available, is_featured, created_at, updated_at',
           )
           .eq('restaurant_id', restaurantId)
           .order('is_featured', ascending: false)
           .order('name', ascending: true);
 
+      final categories = (categoriesResponse as List)
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList();
+      final items = (itemsResponse as List)
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList();
+
       if (!mounted) return;
+
+      final categoryStillExists = _selectedCategoryId == 'all' ||
+          categories.any(
+            (category) =>
+                category['id']?.toString() == _selectedCategoryId,
+          );
 
       setState(() {
         _restaurantId = restaurantId;
         _restaurantName = restaurant['name']?.toString() ?? '';
-        _categories = (categories as List)
-            .map((item) => Map<String, dynamic>.from(item))
-            .toList();
-        _menuItems = (items as List)
-            .map((item) => Map<String, dynamic>.from(item))
-            .toList();
+        _categories = categories;
+        _menuItems = items;
+        if (!categoryStillExists) _selectedCategoryId = 'all';
         _isLoading = false;
+        _isSaving = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
+        _isSaving = false;
         _error = e.toString();
       });
     }
   }
 
+  List<Map<String, dynamic>> _itemsForCategory(String categoryId) {
+    return _menuItems
+        .where((item) => item['category_id']?.toString() == categoryId)
+        .toList();
+  }
+
+  List<Map<String, dynamic>> get _visibleItems {
+    if (_selectedCategoryId == 'all') return _menuItems;
+    return _itemsForCategory(_selectedCategoryId);
+  }
+
+  String _categoryName(String? categoryId) {
+    for (final category in _categories) {
+      if (category['id']?.toString() == categoryId) {
+        return category['name']?.toString() ?? 'Category';
+      }
+    }
+    return 'Uncategorized';
+  }
+
   Future<void> _addMenuItem({String? initialCategoryId}) async {
     if (_restaurantId == null) return;
-
     if (_categories.isEmpty) {
-      _showError('No food categories are available yet. Please ask the admin to add categories.');
+      _showError(
+        'No food categories are available yet. Please ask the admin to add categories.',
+      );
       return;
     }
 
@@ -110,8 +140,12 @@ class _OwnerMenuManagementScreenState
 
     String? selectedCategoryId = initialCategoryId;
     if (selectedCategoryId == null ||
-        !_categories.any((c) => c['id']?.toString() == selectedCategoryId)) {
-      selectedCategoryId = _categories.first['id']?.toString();
+        !_categories.any(
+          (category) => category['id']?.toString() == selectedCategoryId,
+        )) {
+      selectedCategoryId = _selectedCategoryId == 'all'
+          ? _categories.first['id']?.toString()
+          : _selectedCategoryId;
     }
 
     bool isAvailable = true;
@@ -119,114 +153,96 @@ class _OwnerMenuManagementScreenState
 
     final result = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text(
-                'Add Menu Item',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: nameController,
-                      autofocus: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Item Name',
-                        hintText: 'e.g. Chicken Rice',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: descriptionController,
-                      maxLines: 3,
-                      decoration: const InputDecoration(
-                        labelText: 'Description',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: priceController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Price',
-                        prefixText: '₱ ',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    DropdownButtonFormField<String>(
-                      initialValue: selectedCategoryId,
-                      decoration: const InputDecoration(
-                        labelText: 'Food Category',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: _categories.map((category) {
-                        final id = category['id']?.toString();
-                        if (id == null) return null;
-                        return DropdownMenuItem<String>(
-                          value: id,
-                          child: Text(category['name']?.toString() ?? ''),
-                        );
-                      }).whereType<DropdownMenuItem<String>>().toList(),
-                      onChanged: (value) {
-                        setDialogState(() {
-                          selectedCategoryId = value;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Available'),
-                      value: isAvailable,
-                      onChanged: (value) {
-                        setDialogState(() => isAvailable = value);
-                      },
-                    ),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Best Seller'),
-                      subtitle: const Text('Highlight this item as a restaurant best seller.'),
-                      value: isBestSeller,
-                      onChanged: (value) {
-                        setDialogState(() => isBestSeller = value);
-                      },
-                    ),
-                  ],
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text(
+            'Add Menu Item',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Item Name',
+                    hintText: 'e.g. Chicken Rice',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext, false),
-                  child: const Text('Cancel'),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: descriptionController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Description',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-                ElevatedButton(
-                  onPressed: () {
-                    final name = nameController.text.trim();
-                    final price = double.tryParse(priceController.text.trim());
-                    if (name.isEmpty ||
-                        price == null ||
-                        price < 0 ||
-                        selectedCategoryId == null) {
-                      return;
-                    }
-                    Navigator.pop(dialogContext, true);
+                const SizedBox(height: 14),
+                TextField(
+                  controller: priceController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Price',
+                    prefixText: '₱ ',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _buildCategoryDropdown(
+                  selectedCategoryId: selectedCategoryId,
+                  onChanged: (value) {
+                    setDialogState(() => selectedCategoryId = value);
                   },
-                  child: const Text('Add'),
+                ),
+                const SizedBox(height: 8),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Available'),
+                  value: isAvailable,
+                  onChanged: (value) =>
+                      setDialogState(() => isAvailable = value),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Best Seller'),
+                  subtitle: const Text(
+                    'Highlight this item as a restaurant best seller.',
+                  ),
+                  value: isBestSeller,
+                  onChanged: (value) =>
+                      setDialogState(() => isBestSeller = value),
                 ),
               ],
-            );
-          },
-        );
-      },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final name = nameController.text.trim();
+                final price = double.tryParse(priceController.text.trim());
+                if (name.isEmpty ||
+                    price == null ||
+                    price < 0 ||
+                    selectedCategoryId == null) {
+                  return;
+                }
+                Navigator.pop(dialogContext, true);
+              },
+              child: const Text('Add Item'),
+            ),
+          ],
+        ),
+      ),
     );
 
     if (result != true) {
@@ -239,7 +255,6 @@ class _OwnerMenuManagementScreenState
     final name = nameController.text.trim();
     final description = descriptionController.text.trim();
     final price = double.tryParse(priceController.text.trim());
-
     nameController.dispose();
     descriptionController.dispose();
     priceController.dispose();
@@ -250,7 +265,6 @@ class _OwnerMenuManagementScreenState
 
     try {
       setState(() => _isSaving = true);
-
       await _supabase.from('menu_items').insert({
         'restaurant_id': _restaurantId,
         'category_id': selectedCategoryId,
@@ -261,7 +275,6 @@ class _OwnerMenuManagementScreenState
         'is_available': isAvailable,
         'is_featured': isBestSeller,
       });
-
       await _loadMenu();
     } catch (e) {
       if (!mounted) return;
@@ -270,20 +283,48 @@ class _OwnerMenuManagementScreenState
     }
   }
 
+  Widget _buildCategoryDropdown({
+    required String? selectedCategoryId,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return DropdownButtonFormField<String>(
+      initialValue: selectedCategoryId,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        labelText: 'Food Category',
+        helperText: 'Categories are created by the admin.',
+        border: OutlineInputBorder(),
+      ),
+      items: _categories.map((category) {
+        final id = category['id']?.toString();
+        if (id == null) return null;
+        return DropdownMenuItem<String>(
+          value: id,
+          child: Text(category['name']?.toString() ?? 'Category'),
+        );
+      }).whereType<DropdownMenuItem<String>>().toList(),
+      onChanged: onChanged,
+    );
+  }
+
   Future<void> _editMenuItem(Map<String, dynamic> item) async {
     final id = item['id']?.toString();
-    if (id == null || id.isEmpty) return;
+    if (id == null || id.isEmpty || _categories.isEmpty) return;
 
-    final nameController = TextEditingController(text: item['name']?.toString() ?? '');
-    final descriptionController = TextEditingController(text: item['description']?.toString() ?? '');
+    final nameController =
+        TextEditingController(text: item['name']?.toString() ?? '');
+    final descriptionController = TextEditingController(
+      text: item['description']?.toString() ?? '',
+    );
     final priceController = TextEditingController(
       text: ((item['price'] as num?)?.toDouble() ?? 0).toStringAsFixed(2),
     );
 
     String? selectedCategoryId = item['category_id']?.toString();
-    if (selectedCategoryId == null ||
-        !_categories.any((c) => c['id']?.toString() == selectedCategoryId)) {
-      selectedCategoryId = _categories.isNotEmpty ? _categories.first['id']?.toString() : null;
+    if (!_categories.any(
+      (category) => category['id']?.toString() == selectedCategoryId,
+    )) {
+      selectedCategoryId = _categories.first['id']?.toString();
     }
 
     bool isAvailable = item['is_available'] == true;
@@ -291,95 +332,90 @@ class _OwnerMenuManagementScreenState
 
     final result = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('Edit Menu Item', style: TextStyle(fontWeight: FontWeight.w800)),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Item Name',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: descriptionController,
-                      maxLines: 3,
-                      decoration: const InputDecoration(
-                        labelText: 'Description',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: priceController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: const InputDecoration(
-                        labelText: 'Price',
-                        prefixText: '₱ ',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    DropdownButtonFormField<String>(
-                      initialValue: selectedCategoryId,
-                      decoration: const InputDecoration(
-                        labelText: 'Food Category',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: _categories.map((category) {
-                        final categoryId = category['id']?.toString();
-                        if (categoryId == null) return null;
-                        return DropdownMenuItem<String>(
-                          value: categoryId,
-                          child: Text(category['name']?.toString() ?? ''),
-                        );
-                      }).whereType<DropdownMenuItem<String>>().toList(),
-                      onChanged: (value) {
-                        setDialogState(() => selectedCategoryId = value);
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Available'),
-                      value: isAvailable,
-                      onChanged: (value) => setDialogState(() => isAvailable = value),
-                    ),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Best Seller'),
-                      value: isBestSeller,
-                      onChanged: (value) => setDialogState(() => isBestSeller = value),
-                    ),
-                  ],
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text(
+            'Edit Menu Item',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Item Name',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext, false),
-                  child: const Text('Cancel'),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: descriptionController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Description',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-                ElevatedButton(
-                  onPressed: () {
-                    final name = nameController.text.trim();
-                    final price = double.tryParse(priceController.text.trim());
-                    if (name.isEmpty || price == null || price < 0 || selectedCategoryId == null) return;
-                    Navigator.pop(dialogContext, true);
-                  },
-                  child: const Text('Save'),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: priceController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Price',
+                    prefixText: '₱ ',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _buildCategoryDropdown(
+                  selectedCategoryId: selectedCategoryId,
+                  onChanged: (value) =>
+                      setDialogState(() => selectedCategoryId = value),
+                ),
+                const SizedBox(height: 8),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Available'),
+                  value: isAvailable,
+                  onChanged: (value) =>
+                      setDialogState(() => isAvailable = value),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Best Seller'),
+                  value: isBestSeller,
+                  onChanged: (value) =>
+                      setDialogState(() => isBestSeller = value),
                 ),
               ],
-            );
-          },
-        );
-      },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final name = nameController.text.trim();
+                final price = double.tryParse(priceController.text.trim());
+                if (name.isEmpty ||
+                    price == null ||
+                    price < 0 ||
+                    selectedCategoryId == null) {
+                  return;
+                }
+                Navigator.pop(dialogContext, true);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
     );
 
     if (result != true) {
@@ -392,16 +428,16 @@ class _OwnerMenuManagementScreenState
     final name = nameController.text.trim();
     final description = descriptionController.text.trim();
     final price = double.tryParse(priceController.text.trim());
-
     nameController.dispose();
     descriptionController.dispose();
     priceController.dispose();
 
-    if (name.isEmpty || price == null || price < 0 || selectedCategoryId == null) return;
+    if (name.isEmpty || price == null || price < 0 || selectedCategoryId == null) {
+      return;
+    }
 
     try {
       setState(() => _isSaving = true);
-
       await _supabase.from('menu_items').update({
         'category_id': selectedCategoryId,
         'name': name,
@@ -410,7 +446,6 @@ class _OwnerMenuManagementScreenState
         'is_available': isAvailable,
         'is_featured': isBestSeller,
       }).eq('id', id).eq('restaurant_id', _restaurantId!);
-
       await _loadMenu();
     } catch (e) {
       if (!mounted) return;
@@ -427,7 +462,10 @@ class _OwnerMenuManagementScreenState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Remove Menu Item?', style: TextStyle(fontWeight: FontWeight.w800)),
+        title: const Text(
+          'Remove Menu Item?',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
         content: Text('Remove "$name" from your menu?'),
         actions: [
           TextButton(
@@ -435,7 +473,10 @@ class _OwnerMenuManagementScreenState
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
             onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Remove'),
           ),
@@ -447,35 +488,17 @@ class _OwnerMenuManagementScreenState
 
     try {
       setState(() => _isSaving = true);
-
       await _supabase
           .from('menu_items')
           .update({'is_available': false})
           .eq('id', id)
           .eq('restaurant_id', _restaurantId!);
-
       await _loadMenu();
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSaving = false);
       _showError('Unable to remove menu item:\n$e');
     }
-  }
-
-  List<Map<String, dynamic>> _itemsForCategory(String categoryId) {
-    return _menuItems
-        .where((item) => item['category_id']?.toString() == categoryId)
-        .toList();
-  }
-
-  String _categoryName(String? categoryId) {
-    if (categoryId == null) return 'Uncategorized';
-    for (final category in _categories) {
-      if (category['id']?.toString() == categoryId) {
-        return category['name']?.toString() ?? 'Category';
-      }
-    }
-    return 'Uncategorized';
   }
 
   void _showError(String message) {
@@ -489,7 +512,10 @@ class _OwnerMenuManagementScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Menu', style: TextStyle(fontWeight: FontWeight.w800)),
+        title: const Text(
+          'Manage Menu',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
         actions: [
           IconButton(
             tooltip: 'Refresh',
@@ -498,7 +524,9 @@ class _OwnerMenuManagementScreenState
           ),
         ],
       ),
-      floatingActionButton: _isLoading || _restaurantId == null || _categories.isEmpty
+      floatingActionButton: _isLoading ||
+              _restaurantId == null ||
+              _categories.isEmpty
           ? null
           : FloatingActionButton.extended(
               onPressed: _isSaving ? null : _addMenuItem,
@@ -525,13 +553,33 @@ class _OwnerMenuManagementScreenState
               padding: const EdgeInsets.all(24),
               child: Column(
                 children: [
-                  const Icon(Icons.error_outline_rounded, size: 60, color: Colors.redAccent),
+                  const Icon(
+                    Icons.error_outline_rounded,
+                    size: 60,
+                    color: Colors.redAccent,
+                  ),
                   const SizedBox(height: 16),
-                  const Text('Unable to load menu', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                  const Text(
+                    'Unable to load menu',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                   const SizedBox(height: 8),
-                  Text(_error!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, color: HalalFoodTheme.textSecondary)),
+                  Text(
+                    _error!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: HalalFoodTheme.textSecondary,
+                    ),
+                  ),
                   const SizedBox(height: 18),
-                  ElevatedButton(onPressed: _loadMenu, child: const Text('Try Again')),
+                  ElevatedButton(
+                    onPressed: _loadMenu,
+                    child: const Text('Try Again'),
+                  ),
                 ],
               ),
             ),
@@ -541,7 +589,13 @@ class _OwnerMenuManagementScreenState
     }
 
     final uncategorized = _menuItems
-        .where((item) => !_categories.any((c) => c['id']?.toString() == item['category_id']?.toString()))
+        .where(
+          (item) => !_categories.any(
+            (category) =>
+                category['id']?.toString() ==
+                item['category_id']?.toString(),
+          ),
+        )
         .toList();
 
     return RefreshIndicator(
@@ -554,24 +608,77 @@ class _OwnerMenuManagementScreenState
           const SizedBox(height: 20),
           _buildSummaryCard(),
           const SizedBox(height: 24),
-          const Text('Food Categories', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          const Text(
+            'Food Categories',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+          ),
           const SizedBox(height: 6),
           const Text(
-            'Categories are managed by the admin. Add your restaurant\'s menu items under the appropriate category.',
-            style: TextStyle(fontSize: 13, color: HalalFoodTheme.textSecondary),
+            'These categories are managed by the admin. You can only choose a category for your menu items.',
+            style: TextStyle(
+              fontSize: 13,
+              color: HalalFoodTheme.textSecondary,
+            ),
           ),
           const SizedBox(height: 14),
           if (_categories.isEmpty)
             _buildNoCategories()
-          else
-            ..._categories.map(_buildCategorySection),
-          if (uncategorized.isNotEmpty) ...[
+          else ...[
+            _buildCategoryFilter(),
+            const SizedBox(height: 14),
+            if (_selectedCategoryId == 'all')
+              ..._categories.map(_buildCategorySection)
+            else
+              _buildSelectedCategorySection(),
+          ],
+          if (_selectedCategoryId == 'all' && uncategorized.isNotEmpty) ...[
             const SizedBox(height: 8),
             _buildUncategorizedSection(uncategorized),
           ],
         ],
       ),
     );
+  }
+
+  Widget _buildCategoryFilter() {
+    return SizedBox(
+      height: 44,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          _categoryChip('all', 'All Categories'),
+          ..._categories.map(
+            (category) => _categoryChip(
+              category['id']?.toString() ?? '',
+              category['name']?.toString() ?? 'Category',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _categoryChip(String id, String label) {
+    final selected = _selectedCategoryId == id;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: ChoiceChip(
+        label: Text(label),
+        selected: selected,
+        onSelected: (_) {
+          setState(() => _selectedCategoryId = id);
+        },
+      ),
+    );
+  }
+
+  Widget _buildSelectedCategorySection() {
+    final category = _categories.firstWhere(
+      (item) => item['id']?.toString() == _selectedCategoryId,
+      orElse: () => <String, dynamic>{},
+    );
+    if (category.isEmpty) return const SizedBox.shrink();
+    return _buildCategorySection(category);
   }
 
   Widget _buildRestaurantHeader() {
@@ -590,16 +697,32 @@ class _OwnerMenuManagementScreenState
               color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Icon(Icons.restaurant_rounded, size: 28, color: HalalFoodTheme.primaryGreen),
+            child: const Icon(
+              Icons.restaurant_rounded,
+              size: 28,
+              color: HalalFoodTheme.primaryGreen,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Restaurant Menu', style: TextStyle(fontSize: 13, color: HalalFoodTheme.textSecondary)),
+                const Text(
+                  'Restaurant Menu',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: HalalFoodTheme.textSecondary,
+                  ),
+                ),
                 const SizedBox(height: 3),
-                Text(_restaurantName ?? '', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                Text(
+                  _restaurantName ?? '',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ],
             ),
           ),
@@ -609,17 +732,37 @@ class _OwnerMenuManagementScreenState
   }
 
   Widget _buildSummaryCard() {
-    final available = _menuItems.where((item) => item['is_available'] == true).length;
-    final bestSellers = _menuItems.where((item) => item['is_featured'] == true).length;
+    final available =
+        _menuItems.where((item) => item['is_available'] == true).length;
+    final bestSellers =
+        _menuItems.where((item) => item['is_featured'] == true).length;
 
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Row(
           children: [
-            Expanded(child: _SummaryItem(icon: Icons.restaurant_menu_rounded, title: 'Items', value: '${_menuItems.length}')),
-            Expanded(child: _SummaryItem(icon: Icons.check_circle_outline_rounded, title: 'Available', value: '$available')),
-            Expanded(child: _SummaryItem(icon: Icons.star_outline_rounded, title: 'Best Sellers', value: '$bestSellers')),
+            Expanded(
+              child: _SummaryItem(
+                icon: Icons.restaurant_menu_rounded,
+                title: 'Items',
+                value: '${_menuItems.length}',
+              ),
+            ),
+            Expanded(
+              child: _SummaryItem(
+                icon: Icons.check_circle_outline_rounded,
+                title: 'Available',
+                value: '$available',
+              ),
+            ),
+            Expanded(
+              child: _SummaryItem(
+                icon: Icons.star_outline_rounded,
+                title: 'Best Sellers',
+                value: '$bestSellers',
+              ),
+            ),
           ],
         ),
       ),
@@ -632,12 +775,19 @@ class _OwnerMenuManagementScreenState
         padding: const EdgeInsets.all(28),
         child: Column(
           children: const [
-            Icon(Icons.category_outlined, size: 54, color: HalalFoodTheme.primaryGreen),
+            Icon(
+              Icons.category_outlined,
+              size: 54,
+              color: HalalFoodTheme.primaryGreen,
+            ),
             SizedBox(height: 12),
-            Text('No food categories yet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            Text(
+              'No food categories yet',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            ),
             SizedBox(height: 6),
             Text(
-              'The admin has not created any food categories yet. Please ask the admin to add them.',
+              'The admin has not created any active food categories yet. Please ask the admin to add one.',
               textAlign: TextAlign.center,
               style: TextStyle(color: HalalFoodTheme.textSecondary),
             ),
@@ -651,7 +801,6 @@ class _OwnerMenuManagementScreenState
     final categoryId = category['id']?.toString() ?? '';
     final items = _itemsForCategory(categoryId);
     final categoryName = category['name']?.toString() ?? 'Category';
-    final icon = category['icon']?.toString();
 
     return Card(
       margin: const EdgeInsets.only(bottom: 14),
@@ -666,16 +815,23 @@ class _OwnerMenuManagementScreenState
                 color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                icon == null || icon.isEmpty ? Icons.category_rounded : Icons.restaurant_menu_rounded,
+              child: const Icon(
+                Icons.category_rounded,
                 color: HalalFoodTheme.primaryGreen,
               ),
             ),
-            title: Text(categoryName, style: const TextStyle(fontWeight: FontWeight.w800)),
-            subtitle: Text('${items.length} item${items.length == 1 ? '' : 's'}'),
+            title: Text(
+              categoryName,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+            subtitle: Text(
+              '${items.length} item${items.length == 1 ? '' : 's'}',
+            ),
             trailing: IconButton(
               tooltip: 'Add item to $categoryName',
-              onPressed: _isSaving ? null : () => _addMenuItem(initialCategoryId: categoryId),
+              onPressed: _isSaving
+                  ? null
+                  : () => _addMenuItem(initialCategoryId: categoryId),
               icon: const Icon(Icons.add_circle_outline_rounded),
             ),
           ),
@@ -683,7 +839,10 @@ class _OwnerMenuManagementScreenState
           if (items.isEmpty)
             const Padding(
               padding: EdgeInsets.all(20),
-              child: Text('No menu items in this category yet.', style: TextStyle(color: HalalFoodTheme.textSecondary)),
+              child: Text(
+                'No menu items in this category yet.',
+                style: TextStyle(color: HalalFoodTheme.textSecondary),
+              ),
             )
           else
             ...items.map(_buildMenuItemTile),
@@ -698,7 +857,10 @@ class _OwnerMenuManagementScreenState
         children: [
           const ListTile(
             leading: Icon(Icons.help_outline_rounded),
-            title: Text('Uncategorized', style: TextStyle(fontWeight: FontWeight.w800)),
+            title: Text(
+              'Uncategorized',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
             subtitle: Text('Items whose category is no longer available.'),
           ),
           ...items.map(_buildMenuItemTile),
@@ -728,7 +890,10 @@ class _OwnerMenuManagementScreenState
                 color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.fastfood_rounded, color: HalalFoodTheme.primaryGreen),
+              child: const Icon(
+                Icons.fastfood_rounded,
+                color: HalalFoodTheme.primaryGreen,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -737,26 +902,66 @@ class _OwnerMenuManagementScreenState
                 children: [
                   Row(
                     children: [
-                      Flexible(child: Text(name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800))),
+                      Flexible(
+                        child: Text(
+                          name,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
                       if (isBestSeller)
                         const Padding(
                           padding: EdgeInsets.only(left: 6),
-                          child: Icon(Icons.star_rounded, size: 17, color: Colors.amber),
+                          child: Icon(
+                            Icons.star_rounded,
+                            size: 17,
+                            color: Colors.amber,
+                          ),
                         ),
                     ],
                   ),
-                  Text(categoryName, style: const TextStyle(fontSize: 11, color: HalalFoodTheme.textSecondary)),
+                  Text(
+                    categoryName,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: HalalFoodTheme.textSecondary,
+                    ),
+                  ),
                   if (description.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 3),
-                      child: Text(description, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary)),
+                      child: Text(
+                        description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: HalalFoodTheme.textSecondary,
+                        ),
+                      ),
                     ),
                   const SizedBox(height: 5),
                   Row(
                     children: [
-                      Text('₱${price.toStringAsFixed(2)}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: HalalFoodTheme.primaryGreen)),
+                      Text(
+                        '₱${price.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: HalalFoodTheme.primaryGreen,
+                        ),
+                      ),
                       const SizedBox(width: 8),
-                      Text(isAvailable ? 'Available' : 'Unavailable', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isAvailable ? Colors.green : Colors.redAccent)),
+                      Text(
+                        isAvailable ? 'Available' : 'Unavailable',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: isAvailable ? Colors.green : Colors.redAccent,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -799,8 +1004,18 @@ class _SummaryItem extends StatelessWidget {
       children: [
         Icon(icon, size: 24, color: HalalFoodTheme.primaryGreen),
         const SizedBox(height: 5),
-        Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-        Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, color: HalalFoodTheme.textSecondary)),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+        ),
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 11,
+            color: HalalFoodTheme.textSecondary,
+          ),
+        ),
       ],
     );
   }
