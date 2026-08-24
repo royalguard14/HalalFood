@@ -295,7 +295,7 @@ class _FoodCategoryManagementScreenState
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const ListView(
+      return ListView(
         physics: AlwaysScrollableScrollPhysics(),
         children: [
           SizedBox(height: 260),
@@ -354,7 +354,7 @@ class _FoodCategoryManagementScreenState
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       itemCount: _categories.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
         final category = _categories[index];
         final name = category['name']?.toString() ?? '';
