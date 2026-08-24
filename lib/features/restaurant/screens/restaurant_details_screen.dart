@@ -300,14 +300,18 @@ class _MenuView extends StatelessWidget {
     final categorizedItems = <String, List<MenuItem>>{};
 
     for (final item in items) {
-      final categoryId = item.categoryId;
+   final categoryId = item.categoryId;
 
-      categorizedItems.putIfAbsent(
-        categoryId,
-        () => [],
-      );
+if (categoryId == null || categoryId.isEmpty) {
+  continue;
+}
 
-      categorizedItems[categoryId]!.add(item);
+categorizedItems.putIfAbsent(
+  categoryId,
+  () => [],
+);
+
+categorizedItems[categoryId]!.add(item);
     }
 
     final widgets = <Widget>[];

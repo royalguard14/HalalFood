@@ -8,6 +8,8 @@ import '../../app/theme.dart';
 import '../auth/screens/login_screen.dart';
 import '../home/screens/home_screen.dart';
 import '../owner/screens/owner_dashboard_screen.dart';
+import '../admin/screens/admin_dashboard_screen.dart';
+
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -23,6 +25,16 @@ class _SplashScreenState extends State<SplashScreen> {
     super.initState();
     _checkSession();
   }
+
+
+  void _goToAdminDashboard() {
+  Navigator.of(context).pushReplacement(
+    MaterialPageRoute(
+      builder: (_) =>
+          const AdminDashboardScreen(),
+    ),
+  );
+}
 
   Future<void> _checkSession() async {
     await Future.delayed(
@@ -54,11 +66,13 @@ class _SplashScreenState extends State<SplashScreen> {
       final role =
           profile?['role']?.toString();
 
-      if (role == 'restaurant_owner') {
-        _goToOwnerDashboard();
-      } else {
-        _goToHome();
-      }
+if (role == 'admin') {
+  _goToAdminDashboard();
+} else if (role == 'restaurant_owner') {
+  _goToOwnerDashboard();
+} else {
+  _goToHome();
+}
     } catch (e) {
       debugPrint(
         'Unable to load user role: $e',

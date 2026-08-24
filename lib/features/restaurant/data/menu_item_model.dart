@@ -1,7 +1,7 @@
 class MenuItem {
   final String id;
   final String restaurantId;
-  final String categoryId;
+  final String? categoryId;
   final String name;
   final String description;
   final double price;
@@ -13,7 +13,7 @@ class MenuItem {
   const MenuItem({
     required this.id,
     required this.restaurantId,
-    required this.categoryId,
+    this.categoryId,
     required this.name,
     required this.description,
     required this.price,
@@ -43,21 +43,21 @@ class MenuItem {
             : <String>[];
 
     return MenuItem(
-      id: map['id'] as String,
+      id: map['id'].toString(),
       restaurantId:
-          map['restaurant_id'] as String,
+          map['restaurant_id'].toString(),
       categoryId:
-          map['category_id'] as String,
+          map['category_id']?.toString(),
       name:
-          map['name'] as String? ?? '',
+          map['name']?.toString() ?? '',
       description:
-          map['description'] as String? ?? '',
+          map['description']?.toString() ?? '',
       price:
           (map['price'] as num?)
                   ?.toDouble() ??
               0.0,
       imageUrl:
-          map['image_url'] as String?,
+          map['image_url']?.toString(),
       isAvailable:
           map['is_available'] as bool? ??
               false,

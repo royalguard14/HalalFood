@@ -6,6 +6,7 @@ import '../../../app/theme.dart';
 import '../../home/screens/home_screen.dart';
 import '../../owner/screens/owner_dashboard_screen.dart';
 import 'register_screen.dart';
+import '../../admin/screens/admin_dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -59,15 +60,23 @@ class _LoginScreenState extends State<LoginScreen> {
       final role =
           profile?['role']?.toString() ?? 'customer';
 
-      if (role == 'restaurant_owner') {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (_) =>
-                const OwnerDashboardScreen(),
-          ),
-          (route) => false,
-        );
-      } else {
+if (role == 'admin') {
+  Navigator.of(context).pushAndRemoveUntil(
+    MaterialPageRoute(
+      builder: (_) =>
+          const AdminDashboardScreen(),
+    ),
+    (route) => false,
+  );
+} else if (role == 'restaurant_owner') {
+  Navigator.of(context).pushAndRemoveUntil(
+    MaterialPageRoute(
+      builder: (_) =>
+          const OwnerDashboardScreen(),
+    ),
+    (route) => false,
+  );
+} else {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
             builder: (_) => const HomeScreen(),

@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'owner_order_details_screen.dart';
+import 'owner_menu_management_screen.dart';
+
 import '../../auth/screens/login_screen.dart';
 import '../../../app/theme.dart';
+
 
 class OwnerDashboardScreen extends StatefulWidget {
   const OwnerDashboardScreen({
@@ -534,12 +537,37 @@ class _OwnerDashboardScreenState
         32,
       ),
       children: [
-        _buildWelcomeCard(),
+_buildWelcomeCard(),
 
-        const SizedBox(height: 24),
+const SizedBox(height: 16),
 
-        const Text(
-          'Today',
+SizedBox(
+  width: double.infinity,
+  child: ElevatedButton.icon(
+    onPressed: () {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) =>
+              const OwnerMenuManagementScreen(),
+        ),
+      );
+    },
+    icon: const Icon(
+      Icons.restaurant_menu_rounded,
+    ),
+    label: const Text(
+      'Manage Menu',
+      style: TextStyle(
+        fontWeight: FontWeight.w800,
+      ),
+    ),
+  ),
+),
+
+const SizedBox(height: 24),
+
+const Text(
+  'Today',
           style: TextStyle(
             fontSize: 18,
             fontWeight:

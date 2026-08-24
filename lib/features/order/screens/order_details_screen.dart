@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -30,7 +28,6 @@ class _OrderDetailsScreenState
   List<Map<String, dynamic>> _items = [];
 
   bool _isLoading = true;
-
   String? _error;
 
   RealtimeChannel? _orderChannel;
@@ -47,11 +44,20 @@ class _OrderDetailsScreenState
 
   @override
   void dispose() {
-    _orderChannel?.unsubscribe();
+    if (_orderChannel != null) {
+      _supabase.removeChannel(_orderChannel!);
+    }
+
     super.dispose();
   }
 
+  // ============================================================
+  // LOAD ORDER ITEMS
+  // ============================================================
+
   Future<void> _loadOrderItems() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
       _error = null;
@@ -79,7 +85,16 @@ class _OrderDetailsScreenState
     }
   }
 
+  // ============================================================
+  // REALTIME ORDER STATUS
+  // ============================================================
+
   void _subscribeToOrderUpdates() {
+    debugPrint(
+      'ORDER DETAILS REALTIME: '
+      'subscribing to ${_currentOrder.id}',
+    );
+
     _orderChannel = _supabase
         .channel(
           'order-details-${_currentOrder.id}',
@@ -94,16 +109,34 @@ class _OrderDetailsScreenState
             value: _currentOrder.id,
           ),
           callback: (payload) {
+            debugPrint(
+              'ORDER DETAILS REALTIME EVENT: '
+              '${payload.eventType}',
+            );
+
             _handleOrderUpdate(payload);
           },
         )
-        .subscribe();
+        .subscribe(
+          (status, error) {
+            debugPrint(
+              'ORDER DETAILS REALTIME STATUS: $status',
+            );
+
+            if (error != null) {
+              debugPrint(
+                'ORDER DETAILS REALTIME ERROR: $error',
+              );
+            }
+          },
+        );
   }
 
   void _handleOrderUpdate(
     PostgresChangePayload payload,
   ) {
-    final updatedRecord = Map<String, dynamic>.from(
+    final updatedRecord =
+        Map<String, dynamic>.from(
       payload.newRecord,
     );
 
@@ -112,43 +145,194 @@ class _OrderDetailsScreenState
     }
 
     try {
-      final updatedOrder = Order.fromMap(
-        updatedRecord,
-      );
+      final updatedOrder =
+          Order.fromMap(updatedRecord);
 
       if (!mounted) return;
 
-      final oldStatus = _currentOrder.status;
-      final newStatus = updatedOrder.status;
+      final oldStatus =
+          _currentOrder.status;
+
+      final newStatus =
+          updatedOrder.status;
 
       setState(() {
         _currentOrder = updatedOrder;
       });
 
+      debugPrint(
+        'ORDER STATUS: '
+        '$oldStatus → $newStatus',
+      );
+
       if (oldStatus != newStatus) {
-        _showStatusUpdateMessage(newStatus);
+        _showStatusUpdateMessage(
+          newStatus,
+        );
       }
     } catch (e) {
       debugPrint(
-        'Unable to parse realtime order update: $e',
+        'ORDER REALTIME PARSE ERROR: $e',
       );
     }
   }
 
-  void _showStatusUpdateMessage(String status) {
+  void _showStatusUpdateMessage(
+    String status,
+  ) {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text(
-            'Order status updated to ${_displayStatus(status)}.',
+          behavior: SnackBarBehavior.floating,
+          content: Row(
+            children: [
+              const Icon(
+                Icons.local_shipping_outlined,
+                color: Colors.white,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Order status updated to '
+                  '${_displayStatus(status)}.',
+                ),
+              ),
+            ],
           ),
-          duration: const Duration(seconds: 3),
+          duration:
+              const Duration(seconds: 3),
         ),
       );
   }
+
+  // ============================================================
+  // STATUS HELPERS
+  // ============================================================
+
+  String _normalizeStatus(String status) {
+    final value =
+        status.trim().toLowerCase();
+
+    switch (value) {
+      case 'pending':
+      case 'placed':
+      case 'order_placed':
+        return 'placed';
+
+      case 'confirmed':
+      case 'accepted':
+        return 'confirmed';
+
+      case 'preparing':
+      case 'in_preparation':
+        return 'preparing';
+
+      case 'ready':
+      case 'ready_for_pickup':
+        return 'ready';
+
+      case 'on_the_way':
+      case 'out_for_delivery':
+      case 'out_for_pickup':
+        return 'out_for_delivery';
+
+      case 'delivered':
+      case 'completed':
+        return 'delivered';
+
+      case 'cancelled':
+      case 'canceled':
+        return 'cancelled';
+
+      case 'refunded':
+        return 'refunded';
+
+      default:
+        return value;
+    }
+  }
+
+  String _displayStatus(String status) {
+    return status
+        .replaceAll('_', ' ')
+        .split(' ')
+        .map(
+          (word) => word.isEmpty
+              ? word
+              : '${word[0].toUpperCase()}'
+                  '${word.substring(1)}',
+        )
+        .join(' ');
+  }
+
+  int _statusIndex() {
+    final status =
+        _normalizeStatus(
+      _currentOrder.status,
+    );
+
+    switch (status) {
+      case 'placed':
+        return 0;
+
+      case 'confirmed':
+        return 1;
+
+      case 'preparing':
+        return 2;
+
+      case 'ready':
+        return 3;
+
+      case 'out_for_delivery':
+        return 4;
+
+      case 'delivered':
+        return 5;
+
+      default:
+        return 0;
+    }
+  }
+
+  bool _isCancelled() {
+    final status =
+        _normalizeStatus(
+      _currentOrder.status,
+    );
+
+    return status == 'cancelled' ||
+        status == 'refunded';
+  }
+
+  Color _statusColor(String status) {
+    switch (_normalizeStatus(status)) {
+      case 'delivered':
+        return Colors.green;
+
+      case 'cancelled':
+      case 'refunded':
+        return Colors.red;
+
+      case 'preparing':
+      case 'ready':
+      case 'out_for_delivery':
+        return Colors.orange;
+
+      case 'confirmed':
+        return Colors.blue;
+
+      default:
+        return HalalFoodTheme.primaryGreen;
+    }
+  }
+
+  // ============================================================
+  // DATE
+  // ============================================================
 
   String _formatDate(DateTime date) {
     final monthNames = [
@@ -173,41 +357,6 @@ class _OrderDetailsScreenState
         '${date.minute.toString().padLeft(2, '0')}';
   }
 
-  String _displayStatus(String status) {
-    return status
-        .replaceAll('_', ' ')
-        .split(' ')
-        .map(
-          (word) => word.isEmpty
-              ? word
-              : '${word[0].toUpperCase()}'
-                  '${word.substring(1)}',
-        )
-        .join(' ');
-  }
-
-  Color _statusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'delivered':
-        return Colors.green;
-
-      case 'cancelled':
-      case 'refunded':
-        return Colors.red;
-
-      case 'preparing':
-      case 'ready':
-      case 'out_for_delivery':
-        return Colors.orange;
-
-      case 'confirmed':
-        return Colors.blue;
-
-      default:
-        return HalalFoodTheme.primaryGreen;
-    }
-  }
-
   String _shortOrderId(String id) {
     if (id.length <= 8) {
       return id;
@@ -215,6 +364,10 @@ class _OrderDetailsScreenState
 
     return id.substring(0, 8);
   }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -241,12 +394,16 @@ class _OrderDetailsScreenState
           children: [
             _buildOrderHeader(),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
+
+            _buildOrderTracking(),
+
+            const SizedBox(height: 22),
 
             const Text(
               'Items',
               style: TextStyle(
-                fontSize: 17,
+                fontSize: 18,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -268,14 +425,21 @@ class _OrderDetailsScreenState
     );
   }
 
+  // ============================================================
+  // ORDER HEADER
+  // ============================================================
+
   Widget _buildOrderHeader() {
     final statusColor =
-        _statusColor(_currentOrder.status);
+        _statusColor(
+      _currentOrder.status,
+    );
 
     return Card(
       clipBehavior: Clip.antiAlias,
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding:
+            const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment:
               CrossAxisAlignment.start,
@@ -285,17 +449,25 @@ class _OrderDetailsScreenState
                 Container(
                   width: 48,
                   height: 48,
-                  decoration: BoxDecoration(
+                  decoration:
+                      BoxDecoration(
                     color:
-                        HalalFoodTheme.primaryGreen
-                            .withValues(alpha: 0.10),
+                        HalalFoodTheme
+                            .primaryGreen
+                            .withValues(
+                      alpha: 0.10,
+                    ),
                     borderRadius:
-                        BorderRadius.circular(14),
+                        BorderRadius.circular(
+                      14,
+                    ),
                   ),
                   child: const Icon(
-                    Icons.receipt_long_rounded,
+                    Icons
+                        .receipt_long_rounded,
                     color:
-                        HalalFoodTheme.primaryGreen,
+                        HalalFoodTheme
+                            .primaryGreen,
                   ),
                 ),
 
@@ -315,12 +487,13 @@ class _OrderDetailsScreenState
                                   .textSecondary,
                         ),
                       ),
-
-                      const SizedBox(height: 3),
-
+                      const SizedBox(
+                        height: 3,
+                      ),
                       Text(
                         '#${_shortOrderId(_currentOrder.id)}',
-                        style: const TextStyle(
+                        style:
+                            const TextStyle(
                           fontSize: 17,
                           fontWeight:
                               FontWeight.w800,
@@ -332,17 +505,21 @@ class _OrderDetailsScreenState
 
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(
+                      const EdgeInsets
+                          .symmetric(
                     horizontal: 11,
                     vertical: 7,
                   ),
-                  decoration: BoxDecoration(
-                    color:
-                        statusColor.withValues(
+                  decoration:
+                      BoxDecoration(
+                    color: statusColor
+                        .withValues(
                       alpha: 0.10,
                     ),
                     borderRadius:
-                        BorderRadius.circular(20),
+                        BorderRadius.circular(
+                      20,
+                    ),
                   ),
                   child: Text(
                     _displayStatus(
@@ -370,21 +547,21 @@ class _OrderDetailsScreenState
                   CrossAxisAlignment.start,
               children: [
                 const Icon(
-                  Icons.calendar_today_outlined,
+                  Icons
+                      .calendar_today_outlined,
                   size: 17,
                   color:
                       HalalFoodTheme
                           .textSecondary,
                 ),
-
                 const SizedBox(width: 8),
-
                 Expanded(
                   child: Text(
                     _formatDate(
                       _currentOrder.createdAt,
                     ),
-                    style: const TextStyle(
+                    style:
+                        const TextStyle(
                       fontSize: 13,
                       color:
                           HalalFoodTheme
@@ -395,78 +572,284 @@ class _OrderDetailsScreenState
               ],
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
 
-            _buildRealtimeIndicator(),
+            Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration:
+                      BoxDecoration(
+                    shape:
+                        BoxShape.circle,
+                    color:
+                        _isCancelled()
+                            ? Colors.red
+                            : Colors.green,
+                  ),
+                ),
+                const SizedBox(width: 7),
+                Text(
+                  _isCancelled()
+                      ? 'Order ${_displayStatus(_currentOrder.status)}'
+                      : _currentOrder.status
+                                  .toLowerCase() ==
+                              'delivered'
+                          ? 'Order delivered'
+                          : 'Live order tracking',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight:
+                        FontWeight.w700,
+                    color:
+                        _isCancelled()
+                            ? Colors.red
+                            : HalalFoodTheme
+                                .textSecondary,
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildRealtimeIndicator() {
-    final isFinished =
-        _currentOrder.status == 'delivered' ||
-        _currentOrder.status == 'cancelled' ||
-        _currentOrder.status == 'refunded';
+  // ============================================================
+  // ORDER TRACKING
+  // ============================================================
 
-    if (isFinished) {
-      return Row(
-        children: [
-          Icon(
-            Icons.check_circle_outline_rounded,
-            size: 16,
-            color: _statusColor(
-              _currentOrder.status,
-            ),
-          ),
-          const SizedBox(width: 7),
-          Text(
-            _currentOrder.status == 'delivered'
-                ? 'Order delivered'
-                : 'Order ${_displayStatus(_currentOrder.status)}',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: _statusColor(
-                _currentOrder.status,
-              ),
-            ),
-          ),
-        ],
-      );
+  Widget _buildOrderTracking() {
+    if (_isCancelled()) {
+      return _buildCancelledTracking();
     }
 
-    return Row(
-      children: [
-        const SizedBox(
-          width: 15,
-          height: 15,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-          ),
+    final currentIndex =
+        _statusIndex();
+
+    final steps = [
+      _TrackingStep(
+        title: 'Order Placed',
+        subtitle:
+            'Your order has been received.',
+        icon: Icons.receipt_long_rounded,
+      ),
+      _TrackingStep(
+        title: 'Confirmed',
+        subtitle:
+            'The restaurant confirmed your order.',
+        icon: Icons.check_circle_outline_rounded,
+      ),
+      _TrackingStep(
+        title: 'Preparing',
+        subtitle:
+            'Your food is being prepared.',
+        icon: Icons.restaurant_rounded,
+      ),
+      _TrackingStep(
+        title: 'Ready for Pickup',
+        subtitle:
+            'Your order is ready for the rider.',
+        icon: Icons.shopping_bag_outlined,
+      ),
+      _TrackingStep(
+        title: 'Out for Delivery',
+        subtitle:
+            'Your rider is on the way.',
+        icon: Icons.delivery_dining_rounded,
+      ),
+      _TrackingStep(
+        title: 'Delivered',
+        subtitle:
+            'Enjoy your halal meal!',
+        icon: Icons.home_rounded,
+      ),
+    ];
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding:
+            const EdgeInsets.fromLTRB(
+          18,
+          20,
+          18,
+          20,
         ),
-        const SizedBox(width: 8),
-        Text(
-          'Live order status',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color:
-                HalalFoodTheme.textSecondary,
-          ),
+        child: Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(
+                  Icons
+                      .local_shipping_outlined,
+                  color:
+                      HalalFoodTheme
+                          .primaryGreen,
+                ),
+                SizedBox(width: 10),
+                Text(
+                  'Order Tracking',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight:
+                        FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            ...steps.asMap().entries.map(
+              (entry) {
+                final index =
+                    entry.key;
+                final step =
+                    entry.value;
+
+                final isCompleted =
+                    index < currentIndex;
+
+                final isCurrent =
+                    index == currentIndex;
+
+                final isLast =
+                    index ==
+                        steps.length - 1;
+
+                return _TrackingStepWidget(
+                  step: step,
+                  isCompleted:
+                      isCompleted,
+                  isCurrent:
+                      isCurrent,
+                  isLast: isLast,
+                );
+              },
+            ),
+
+            const SizedBox(height: 4),
+
+            Row(
+              children: [
+                const Icon(
+                  Icons.wifi_rounded,
+                  size: 15,
+                  color:
+                      HalalFoodTheme
+                          .primaryGreen,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Status updates automatically',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color:
+                        HalalFoodTheme
+                            .textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
+
+  Widget _buildCancelledTracking() {
+    final isRefunded =
+        _normalizeStatus(
+              _currentOrder.status,
+            ) ==
+            'refunded';
+
+    return Card(
+      child: Padding(
+        padding:
+            const EdgeInsets.all(20),
+        child: Row(
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration:
+                  BoxDecoration(
+                color:
+                    Colors.red
+                        .withValues(
+                  alpha: 0.10,
+                ),
+                shape:
+                    BoxShape.circle,
+              ),
+              child: Icon(
+                isRefunded
+                    ? Icons
+                        .currency_exchange_rounded
+                    : Icons
+                        .cancel_outlined,
+                color: Colors.red,
+              ),
+            ),
+
+            const SizedBox(width: 14),
+
+            Expanded(
+              child: Column(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Order Tracking',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight:
+                          FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    isRefunded
+                        ? 'This order has been refunded.'
+                        : 'This order has been cancelled.',
+                    style:
+                        const TextStyle(
+                      fontSize: 13,
+                      color:
+                          HalalFoodTheme
+                              .textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // ITEMS
+  // ============================================================
 
   Widget _buildItems() {
     if (_isLoading) {
       return const Card(
         child: Padding(
-          padding: EdgeInsets.all(30),
+          padding:
+              EdgeInsets.all(30),
           child: Center(
-            child: CircularProgressIndicator(),
+            child:
+                CircularProgressIndicator(),
           ),
         ),
       );
@@ -475,30 +858,33 @@ class _OrderDetailsScreenState
     if (_error != null) {
       return Card(
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding:
+              const EdgeInsets.all(20),
           child: Column(
             children: [
               const Icon(
-                Icons.error_outline_rounded,
+                Icons
+                    .error_outline_rounded,
                 size: 48,
-                color: Colors.redAccent,
+                color:
+                    Colors.redAccent,
               ),
-
               const SizedBox(height: 12),
-
               const Text(
                 'Unable to load order items.',
-                textAlign: TextAlign.center,
+                textAlign:
+                    TextAlign.center,
                 style: TextStyle(
-                  fontWeight: FontWeight.w700,
+                  fontWeight:
+                      FontWeight.w700,
                 ),
               ),
-
               const SizedBox(height: 12),
-
               ElevatedButton(
-                onPressed: _loadOrderItems,
-                child: const Text(
+                onPressed:
+                    _loadOrderItems,
+                child:
+                    const Text(
                   'Try Again',
                 ),
               ),
@@ -511,12 +897,14 @@ class _OrderDetailsScreenState
     if (_items.isEmpty) {
       return const Card(
         child: Padding(
-          padding: EdgeInsets.all(20),
+          padding:
+              EdgeInsets.all(20),
           child: Text(
             'No items found for this order.',
             style: TextStyle(
               color:
-                  HalalFoodTheme.textSecondary,
+                  HalalFoodTheme
+                      .textSecondary,
             ),
           ),
         ),
@@ -524,20 +912,23 @@ class _OrderDetailsScreenState
     }
 
     return Card(
-      clipBehavior: Clip.antiAlias,
+      clipBehavior:
+          Clip.antiAlias,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding:
+            const EdgeInsets.all(16),
         child: Column(
           children: [
             ..._items.asMap().entries.map(
               (entry) {
-                final index = entry.key;
-                final item = entry.value;
+                final index =
+                    entry.key;
+                final item =
+                    entry.value;
 
                 return Column(
                   children: [
                     _buildItemRow(item),
-
                     if (index <
                         _items.length - 1)
                       const Padding(
@@ -563,11 +954,13 @@ class _OrderDetailsScreenState
     Map<String, dynamic> item,
   ) {
     final itemName =
-        item['item_name']?.toString() ??
+        item['item_name']
+                ?.toString() ??
             'Unknown item';
 
     final quantity =
-        (item['quantity'] as num?)?.toInt() ??
+        (item['quantity'] as num?)
+                ?.toInt() ??
             0;
 
     final unitPrice =
@@ -587,17 +980,25 @@ class _OrderDetailsScreenState
         Container(
           width: 46,
           height: 46,
-          decoration: BoxDecoration(
+          decoration:
+              BoxDecoration(
             color:
-                HalalFoodTheme.primaryGreen
-                    .withValues(alpha: 0.08),
+                HalalFoodTheme
+                    .primaryGreen
+                    .withValues(
+              alpha: 0.08,
+            ),
             borderRadius:
-                BorderRadius.circular(12),
+                BorderRadius.circular(
+              12,
+            ),
           ),
           child: const Icon(
-            Icons.restaurant_outlined,
+            Icons
+                .restaurant_outlined,
             color:
-                HalalFoodTheme.primaryGreen,
+                HalalFoodTheme
+                    .primaryGreen,
           ),
         ),
 
@@ -613,7 +1014,8 @@ class _OrderDetailsScreenState
                 maxLines: 2,
                 overflow:
                     TextOverflow.ellipsis,
-                style: const TextStyle(
+                style:
+                    const TextStyle(
                   fontWeight:
                       FontWeight.w700,
                 ),
@@ -623,7 +1025,8 @@ class _OrderDetailsScreenState
 
               Text(
                 '$quantity × ₱${unitPrice.toStringAsFixed(2)}',
-                style: const TextStyle(
+                style:
+                    const TextStyle(
                   fontSize: 12,
                   color:
                       HalalFoodTheme
@@ -638,18 +1041,25 @@ class _OrderDetailsScreenState
 
         Text(
           '₱${subtotal.toStringAsFixed(2)}',
-          style: const TextStyle(
-            fontWeight: FontWeight.w800,
+          style:
+              const TextStyle(
+            fontWeight:
+                FontWeight.w800,
           ),
         ),
       ],
     );
   }
 
+  // ============================================================
+  // ORDER SUMMARY
+  // ============================================================
+
   Widget _buildSummary() {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding:
+            const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment:
               CrossAxisAlignment.start,
@@ -658,7 +1068,8 @@ class _OrderDetailsScreenState
               'Order Summary',
               style: TextStyle(
                 fontSize: 17,
-                fontWeight: FontWeight.w800,
+                fontWeight:
+                    FontWeight.w800,
               ),
             ),
 
@@ -706,51 +1117,70 @@ class _OrderDetailsScreenState
           child: Text(
             label,
             style: TextStyle(
-              fontSize: isTotal ? 15 : 13,
+              fontSize:
+                  isTotal ? 15 : 13,
               fontWeight: isTotal
                   ? FontWeight.w800
                   : FontWeight.w500,
               color: isTotal
-                  ? HalalFoodTheme.textPrimary
-                  : HalalFoodTheme.textSecondary,
+                  ? HalalFoodTheme
+                      .textPrimary
+                  : HalalFoodTheme
+                      .textSecondary,
             ),
           ),
         ),
-
         Text(
           value,
           style: TextStyle(
-            fontSize: isTotal ? 18 : 13,
-            fontWeight: FontWeight.w800,
+            fontSize:
+                isTotal ? 18 : 13,
+            fontWeight:
+                FontWeight.w800,
             color: isTotal
-                ? HalalFoodTheme.primaryGreen
-                : HalalFoodTheme.textPrimary,
+                ? HalalFoodTheme
+                    .primaryGreen
+                : HalalFoodTheme
+                    .textPrimary,
           ),
         ),
       ],
     );
   }
 
+  // ============================================================
+  // PAYMENT
+  // ============================================================
+
   Widget _buildPaymentStatus() {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding:
+            const EdgeInsets.all(18),
         child: Row(
           children: [
             Container(
               width: 42,
               height: 42,
-              decoration: BoxDecoration(
+              decoration:
+                  BoxDecoration(
                 color:
-                    HalalFoodTheme.primaryGreen
-                        .withValues(alpha: 0.10),
+                    HalalFoodTheme
+                        .primaryGreen
+                        .withValues(
+                  alpha: 0.10,
+                ),
                 borderRadius:
-                    BorderRadius.circular(12),
+                    BorderRadius.circular(
+                  12,
+                ),
               ),
               child: const Icon(
-                Icons.payments_outlined,
+                Icons
+                    .payments_outlined,
                 color:
-                    HalalFoodTheme.primaryGreen,
+                    HalalFoodTheme
+                        .primaryGreen,
               ),
             ),
 
@@ -763,7 +1193,8 @@ class _OrderDetailsScreenState
                 children: [
                   Text(
                     'Payment',
-                    style: TextStyle(
+                    style:
+                        TextStyle(
                       fontWeight:
                           FontWeight.w700,
                     ),
@@ -771,7 +1202,8 @@ class _OrderDetailsScreenState
                   SizedBox(height: 3),
                   Text(
                     'Payment status',
-                    style: TextStyle(
+                    style:
+                        TextStyle(
                       fontSize: 12,
                       color:
                           HalalFoodTheme
@@ -784,15 +1216,238 @@ class _OrderDetailsScreenState
 
             Text(
               _displayStatus(
-                _currentOrder.paymentStatus,
+                _currentOrder
+                    .paymentStatus,
               ),
-              style: const TextStyle(
-                fontWeight: FontWeight.w800,
+              style:
+                  const TextStyle(
+                fontWeight:
+                    FontWeight.w800,
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+// ============================================================
+// TRACKING STEP MODEL
+// ============================================================
+
+class _TrackingStep {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+
+  const _TrackingStep({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+  });
+}
+
+// ============================================================
+// TRACKING STEP WIDGET
+// ============================================================
+
+class _TrackingStepWidget
+    extends StatelessWidget {
+  final _TrackingStep step;
+  final bool isCompleted;
+  final bool isCurrent;
+  final bool isLast;
+
+  const _TrackingStepWidget({
+    required this.step,
+    required this.isCompleted,
+    required this.isCurrent,
+    required this.isLast,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final activeColor =
+        HalalFoodTheme.primaryGreen;
+
+    final inactiveColor =
+        Colors.grey.shade300;
+
+    final textColor =
+        isCompleted || isCurrent
+            ? HalalFoodTheme.textPrimary
+            : HalalFoodTheme
+                .textSecondary;
+
+    return Row(
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 42,
+          child: Column(
+            children: [
+              AnimatedContainer(
+                duration:
+                    const Duration(
+                  milliseconds: 300,
+                ),
+                width: isCurrent
+                    ? 42
+                    : 38,
+                height: isCurrent
+                    ? 42
+                    : 38,
+                decoration:
+                    BoxDecoration(
+                  shape:
+                      BoxShape.circle,
+                  color: isCompleted ||
+                          isCurrent
+                      ? activeColor
+                      : inactiveColor,
+                  boxShadow:
+                      isCurrent
+                          ? [
+                              BoxShadow(
+                                color:
+                                    activeColor.withValues(
+                                  alpha: 0.25,
+                                ),
+                                blurRadius: 10,
+                                spreadRadius: 2,
+                              ),
+                            ]
+                          : null,
+                ),
+                child: Icon(
+                  isCompleted
+                      ? Icons.check_rounded
+                      : step.icon,
+                  size: 20,
+                  color:
+                      isCompleted ||
+                              isCurrent
+                          ? Colors.white
+                          : Colors.grey
+                              .shade500,
+                ),
+              ),
+
+              if (!isLast)
+                Container(
+                  width: 2,
+                  height: 46,
+                  margin:
+                      const EdgeInsets
+                          .symmetric(
+                    vertical: 3,
+                  ),
+                  color: isCompleted
+                      ? activeColor
+                      : inactiveColor,
+                ),
+            ],
+          ),
+        ),
+
+        const SizedBox(width: 14),
+
+        Expanded(
+          child: Padding(
+            padding:
+                const EdgeInsets.only(
+              top: 2,
+              bottom: 18,
+            ),
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        step.title,
+                        style: TextStyle(
+                          fontSize:
+                              isCurrent
+                                  ? 15
+                                  : 14,
+                          fontWeight:
+                              isCurrent ||
+                                      isCompleted
+                                  ? FontWeight.w800
+                                  : FontWeight.w600,
+                          color:
+                              textColor,
+                        ),
+                      ),
+                    ),
+
+                    if (isCurrent)
+                      Container(
+                        padding:
+                            const EdgeInsets
+                                .symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration:
+                            BoxDecoration(
+                          color:
+                              activeColor.withValues(
+                            alpha: 0.10,
+                          ),
+                          borderRadius:
+                              BorderRadius
+                                  .circular(
+                            20,
+                          ),
+                        ),
+                        child:
+                            const Text(
+                          'CURRENT',
+                          style:
+                              TextStyle(
+                            fontSize: 9,
+                            fontWeight:
+                                FontWeight
+                                    .w900,
+                            color:
+                                HalalFoodTheme
+                                    .primaryGreen,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+
+                const SizedBox(height: 4),
+
+                Text(
+                  step.subtitle,
+                  style:
+                      TextStyle(
+                    fontSize: 12,
+                    height: 1.35,
+                    color:
+                        isCurrent ||
+                                isCompleted
+                            ? HalalFoodTheme
+                                .textSecondary
+                            : Colors.grey
+                                .shade400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
