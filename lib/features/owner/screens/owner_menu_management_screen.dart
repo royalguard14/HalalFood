@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/theme.dart';
@@ -111,10 +111,6 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
         .toList();
   }
 
-  List<Map<String, dynamic>> get _visibleItems {
-    if (_selectedCategoryId == 'all') return _menuItems;
-    return _itemsForCategory(_selectedCategoryId);
-  }
 
   String _categoryName(String? categoryId) {
     for (final category in _categories) {
@@ -189,7 +185,7 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
                   ),
                   decoration: const InputDecoration(
                     labelText: 'Price',
-                    prefixText: '₱ ',
+                    prefixText: 'â‚± ',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -366,7 +362,7 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
                   ),
                   decoration: const InputDecoration(
                     labelText: 'Price',
-                    prefixText: '₱ ',
+                    prefixText: 'â‚± ',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -946,7 +942,7 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
                   Row(
                     children: [
                       Text(
-                        '₱${price.toStringAsFixed(2)}',
+                        'â‚±${price.toStringAsFixed(2)}',
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
@@ -1020,3 +1016,4 @@ class _SummaryItem extends StatelessWidget {
     );
   }
 }
+
