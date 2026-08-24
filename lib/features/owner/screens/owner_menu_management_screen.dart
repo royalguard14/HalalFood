@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/theme.dart';
@@ -53,7 +53,6 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
 
       final restaurantId = restaurant['id'].toString();
 
-      // Food categories are managed by Admin. Owners can only select them.
       final categoriesResponse = await _supabase
           .from('food_categories')
           .select('id, name, slug, icon, is_active, sort_order')
@@ -111,7 +110,6 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
         .toList();
   }
 
-
   String _categoryName(String? categoryId) {
     for (final category in _categories) {
       if (category['id']?.toString() == categoryId) {
@@ -121,20 +119,22 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
     return 'Uncategorized';
   }
 
-  Future<void> _addMenuItem({String? initialCategoryId}) async {
-    if (_restaurantId == null) return;
-    if (_categories.isEmpty) {
-      _showError(
-        'No food categories are available yet. Please ask the admin to add categories.',
-      );
-      return;
-    }
-
-    final nameController = TextEditingController();
-    final descriptionController = TextEditingController();
-    final priceController = TextEditingController();
-
+  Future<_MenuItemDraft?> _showMenuItemDialog({
+    required String title,
+    String? initialCategoryId,
+    String initialName = '',
+    String initialDescription = '',
+    String initialPrice = '',
+    bool initialAvailable = true,
+    bool initialBestSeller = false,
+  }) async {
+    String name = initialName;
+    String description = initialDescription;
+    String priceText = initialPrice;
     String? selectedCategoryId = initialCategoryId;
+    bool isAvailable = initialAvailable;
+    bool isBestSeller = initialBestSeller;
+
     if (selectedCategoryId == null ||
         !_categories.any(
           (category) => category['id']?.toString() == selectedCategoryId,
@@ -144,133 +144,179 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
           : _selectedCategoryId;
     }
 
-    bool isAvailable = true;
-    bool isBestSeller = false;
-
-    final result = await showDialog<bool>(
+    return showDialog<_MenuItemDraft>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text(
-            'Add Menu Item',
-            style: TextStyle(fontWeight: FontWeight.w800),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  autofocus: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Item Name',
-                    hintText: 'e.g. Chicken Rice',
-                    border: OutlineInputBorder(),
-                  ),
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return AlertDialog(
+              title: Text(
+                title,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      autofocus: true,
+                      initialValue: initialName,
+                      onChanged: (value) => name = value,
+                      decoration: const InputDecoration(
+                        labelText: 'Item Name',
+                        hintText: 'e.g. Chicken Rice',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    TextFormField(
+                      initialValue: initialDescription,
+                      onChanged: (value) => description = value,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        labelText: 'Description',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    TextFormField(
+                      initialValue: initialPrice,
+                      onChanged: (value) => priceText = value,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Price',
+                        prefixText: '₱ ',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedCategoryId,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Food Category',
+                        helperText: 'Categories are managed by the admin.',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: _categories.map((category) {
+                        final id = category['id']?.toString();
+                        if (id == null) return null;
+                        return DropdownMenuItem<String>(
+                          value: id,
+                          child: Text(
+                            category['name']?.toString() ?? 'Category',
+                          ),
+                        );
+                      }).whereType<DropdownMenuItem<String>>().toList(),
+                      onChanged: (value) {
+                        setDialogState(() {
+                          selectedCategoryId = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Available'),
+                      value: isAvailable,
+                      onChanged: (value) {
+                        setDialogState(() => isAvailable = value);
+                      },
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Best Seller'),
+                      subtitle: const Text(
+                        'Highlight this item as a restaurant best seller.',
+                      ),
+                      value: isBestSeller,
+                      onChanged: (value) {
+                        setDialogState(() => isBestSeller = value);
+                      },
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: descriptionController,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Description',
-                    border: OutlineInputBorder(),
-                  ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
                 ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: priceController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  decoration: const InputDecoration(
-                    labelText: 'Price',
-                    prefixText: 'â‚± ',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                _buildCategoryDropdown(
-                  selectedCategoryId: selectedCategoryId,
-                  onChanged: (value) {
-                    setDialogState(() => selectedCategoryId = value);
+                ElevatedButton(
+                  onPressed: () {
+                    final cleanName = name.trim();
+                    final price = double.tryParse(priceText.trim());
+
+                    if (cleanName.isEmpty ||
+                        price == null ||
+                        price < 0 ||
+                        selectedCategoryId == null) {
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Please enter a valid name, price, and category.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    // Return a plain data object. No TextEditingController is
+                    // disposed while the dialog route is being removed.
+                    Navigator.of(dialogContext).pop(
+                      _MenuItemDraft(
+                        name: cleanName,
+                        description: description.trim(),
+                        price: price,
+                        categoryId: selectedCategoryId!,
+                        isAvailable: isAvailable,
+                        isBestSeller: isBestSeller,
+                      ),
+                    );
                   },
-                ),
-                const SizedBox(height: 8),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Available'),
-                  value: isAvailable,
-                  onChanged: (value) =>
-                      setDialogState(() => isAvailable = value),
-                ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Best Seller'),
-                  subtitle: const Text(
-                    'Highlight this item as a restaurant best seller.',
-                  ),
-                  value: isBestSeller,
-                  onChanged: (value) =>
-                      setDialogState(() => isBestSeller = value),
+                  child: Text(title == 'Add Menu Item' ? 'Add Item' : 'Save'),
                 ),
               ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final name = nameController.text.trim();
-                final price = double.tryParse(priceController.text.trim());
-                if (name.isEmpty ||
-                    price == null ||
-                    price < 0 ||
-                    selectedCategoryId == null) {
-                  return;
-                }
-                Navigator.pop(dialogContext, true);
-              },
-              child: const Text('Add Item'),
-            ),
-          ],
-        ),
-      ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _addMenuItem({String? initialCategoryId}) async {
+    if (_restaurantId == null) return;
+
+    if (_categories.isEmpty) {
+      _showError(
+        'No food categories are available yet. Please ask the admin to add categories.',
+      );
+      return;
+    }
+
+    final draft = await _showMenuItemDialog(
+      title: 'Add Menu Item',
+      initialCategoryId: initialCategoryId,
     );
 
-    if (result != true) {
-      nameController.dispose();
-      descriptionController.dispose();
-      priceController.dispose();
-      return;
-    }
-
-    final name = nameController.text.trim();
-    final description = descriptionController.text.trim();
-    final price = double.tryParse(priceController.text.trim());
-    nameController.dispose();
-    descriptionController.dispose();
-    priceController.dispose();
-
-    if (name.isEmpty || price == null || price < 0 || selectedCategoryId == null) {
-      return;
-    }
+    if (draft == null || !mounted || _restaurantId == null) return;
 
     try {
       setState(() => _isSaving = true);
+
       await _supabase.from('menu_items').insert({
         'restaurant_id': _restaurantId,
-        'category_id': selectedCategoryId,
-        'name': name,
-        'description': description.isEmpty ? null : description,
-        'price': price,
+        'category_id': draft.categoryId,
+        'name': draft.name,
+        'description': draft.description.isEmpty ? null : draft.description,
+        'price': draft.price,
         'image_url': null,
-        'is_available': isAvailable,
-        'is_featured': isBestSeller,
+        'is_available': draft.isAvailable,
+        'is_featured': draft.isBestSeller,
       });
+
       await _loadMenu();
     } catch (e) {
       if (!mounted) return;
@@ -279,169 +325,35 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
     }
   }
 
-  Widget _buildCategoryDropdown({
-    required String? selectedCategoryId,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return DropdownButtonFormField<String>(
-      initialValue: selectedCategoryId,
-      isExpanded: true,
-      decoration: const InputDecoration(
-        labelText: 'Food Category',
-        helperText: 'Categories are created by the admin.',
-        border: OutlineInputBorder(),
-      ),
-      items: _categories.map((category) {
-        final id = category['id']?.toString();
-        if (id == null) return null;
-        return DropdownMenuItem<String>(
-          value: id,
-          child: Text(category['name']?.toString() ?? 'Category'),
-        );
-      }).whereType<DropdownMenuItem<String>>().toList(),
-      onChanged: onChanged,
-    );
-  }
-
   Future<void> _editMenuItem(Map<String, dynamic> item) async {
     final id = item['id']?.toString();
     if (id == null || id.isEmpty || _categories.isEmpty) return;
 
-    final nameController =
-        TextEditingController(text: item['name']?.toString() ?? '');
-    final descriptionController = TextEditingController(
-      text: item['description']?.toString() ?? '',
-    );
-    final priceController = TextEditingController(
-      text: ((item['price'] as num?)?.toDouble() ?? 0).toStringAsFixed(2),
-    );
-
-    String? selectedCategoryId = item['category_id']?.toString();
-    if (!_categories.any(
-      (category) => category['id']?.toString() == selectedCategoryId,
-    )) {
-      selectedCategoryId = _categories.first['id']?.toString();
-    }
-
-    bool isAvailable = item['is_available'] == true;
-    bool isBestSeller = item['is_featured'] == true;
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text(
-            'Edit Menu Item',
-            style: TextStyle(fontWeight: FontWeight.w800),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Item Name',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: descriptionController,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Description',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: priceController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  decoration: const InputDecoration(
-                    labelText: 'Price',
-                    prefixText: 'â‚± ',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                _buildCategoryDropdown(
-                  selectedCategoryId: selectedCategoryId,
-                  onChanged: (value) =>
-                      setDialogState(() => selectedCategoryId = value),
-                ),
-                const SizedBox(height: 8),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Available'),
-                  value: isAvailable,
-                  onChanged: (value) =>
-                      setDialogState(() => isAvailable = value),
-                ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Best Seller'),
-                  value: isBestSeller,
-                  onChanged: (value) =>
-                      setDialogState(() => isBestSeller = value),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final name = nameController.text.trim();
-                final price = double.tryParse(priceController.text.trim());
-                if (name.isEmpty ||
-                    price == null ||
-                    price < 0 ||
-                    selectedCategoryId == null) {
-                  return;
-                }
-                Navigator.pop(dialogContext, true);
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      ),
+    final draft = await _showMenuItemDialog(
+      title: 'Edit Menu Item',
+      initialCategoryId: item['category_id']?.toString(),
+      initialName: item['name']?.toString() ?? '',
+      initialDescription: item['description']?.toString() ?? '',
+      initialPrice: ((item['price'] as num?)?.toDouble() ?? 0)
+          .toStringAsFixed(2),
+      initialAvailable: item['is_available'] == true,
+      initialBestSeller: item['is_featured'] == true,
     );
 
-    if (result != true) {
-      nameController.dispose();
-      descriptionController.dispose();
-      priceController.dispose();
-      return;
-    }
-
-    final name = nameController.text.trim();
-    final description = descriptionController.text.trim();
-    final price = double.tryParse(priceController.text.trim());
-    nameController.dispose();
-    descriptionController.dispose();
-    priceController.dispose();
-
-    if (name.isEmpty || price == null || price < 0 || selectedCategoryId == null) {
-      return;
-    }
+    if (draft == null || !mounted || _restaurantId == null) return;
 
     try {
       setState(() => _isSaving = true);
+
       await _supabase.from('menu_items').update({
-        'category_id': selectedCategoryId,
-        'name': name,
-        'description': description.isEmpty ? null : description,
-        'price': price,
-        'is_available': isAvailable,
-        'is_featured': isBestSeller,
+        'category_id': draft.categoryId,
+        'name': draft.name,
+        'description': draft.description.isEmpty ? null : draft.description,
+        'price': draft.price,
+        'is_available': draft.isAvailable,
+        'is_featured': draft.isBestSeller,
       }).eq('id', id).eq('restaurant_id', _restaurantId!);
+
       await _loadMenu();
     } catch (e) {
       if (!mounted) return;
@@ -452,7 +364,7 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
 
   Future<void> _removeMenuItem(Map<String, dynamic> item) async {
     final id = item['id']?.toString();
-    if (id == null || id.isEmpty) return;
+    if (id == null || id.isEmpty || _restaurantId == null) return;
 
     final name = item['name']?.toString() ?? 'this item';
     final confirmed = await showDialog<bool>(
@@ -465,7 +377,7 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
         content: Text('Remove "$name" from your menu?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
@@ -473,22 +385,24 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
             ),
-            onPressed: () => Navigator.pop(dialogContext, true),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
             child: const Text('Remove'),
           ),
         ],
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true || !mounted) return;
 
     try {
       setState(() => _isSaving = true);
+
       await _supabase
           .from('menu_items')
           .update({'is_available': false})
           .eq('id', id)
           .eq('restaurant_id', _restaurantId!);
+
       await _loadMenu();
     } catch (e) {
       if (!mounted) return;
@@ -500,7 +414,10 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
   void _showError(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
     );
   }
 
@@ -520,15 +437,14 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
           ),
         ],
       ),
-      floatingActionButton: _isLoading ||
-              _restaurantId == null ||
-              _categories.isEmpty
-          ? null
-          : FloatingActionButton.extended(
-              onPressed: _isSaving ? null : _addMenuItem,
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Add Item'),
-            ),
+      floatingActionButton:
+          _isLoading || _restaurantId == null || _categories.isEmpty
+              ? null
+              : FloatingActionButton.extended(
+                  onPressed: _isSaving ? null : _addMenuItem,
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Add Item'),
+                ),
       body: _buildBody(),
     );
   }
@@ -588,8 +504,7 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
         .where(
           (item) => !_categories.any(
             (category) =>
-                category['id']?.toString() ==
-                item['category_id']?.toString(),
+                category['id']?.toString() == item['category_id']?.toString(),
           ),
         )
         .toList();
@@ -610,7 +525,7 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
           ),
           const SizedBox(height: 6),
           const Text(
-            'These categories are managed by the admin. You can only choose a category for your menu items.',
+            'Categories are managed by the admin. Add your restaurant\'s menu items under the appropriate category.',
             style: TextStyle(
               fontSize: 13,
               color: HalalFoodTheme.textSecondary,
@@ -619,62 +534,15 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
           const SizedBox(height: 14),
           if (_categories.isEmpty)
             _buildNoCategories()
-          else ...[
-            _buildCategoryFilter(),
-            const SizedBox(height: 14),
-            if (_selectedCategoryId == 'all')
-              ..._categories.map(_buildCategorySection)
-            else
-              _buildSelectedCategorySection(),
-          ],
-          if (_selectedCategoryId == 'all' && uncategorized.isNotEmpty) ...[
+          else
+            ..._categories.map(_buildCategorySection),
+          if (uncategorized.isNotEmpty) ...[
             const SizedBox(height: 8),
             _buildUncategorizedSection(uncategorized),
           ],
         ],
       ),
     );
-  }
-
-  Widget _buildCategoryFilter() {
-    return SizedBox(
-      height: 44,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: [
-          _categoryChip('all', 'All Categories'),
-          ..._categories.map(
-            (category) => _categoryChip(
-              category['id']?.toString() ?? '',
-              category['name']?.toString() ?? 'Category',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _categoryChip(String id, String label) {
-    final selected = _selectedCategoryId == id;
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: ChoiceChip(
-        label: Text(label),
-        selected: selected,
-        onSelected: (_) {
-          setState(() => _selectedCategoryId = id);
-        },
-      ),
-    );
-  }
-
-  Widget _buildSelectedCategorySection() {
-    final category = _categories.firstWhere(
-      (item) => item['id']?.toString() == _selectedCategoryId,
-      orElse: () => <String, dynamic>{},
-    );
-    if (category.isEmpty) return const SizedBox.shrink();
-    return _buildCategorySection(category);
   }
 
   Widget _buildRestaurantHeader() {
@@ -783,7 +651,7 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
             ),
             SizedBox(height: 6),
             Text(
-              'The admin has not created any active food categories yet. Please ask the admin to add one.',
+              'The admin has not created any food categories yet. Please ask the admin to add them.',
               textAlign: TextAlign.center,
               style: TextStyle(color: HalalFoodTheme.textSecondary),
             ),
@@ -797,6 +665,7 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
     final categoryId = category['id']?.toString() ?? '';
     final items = _itemsForCategory(categoryId);
     final categoryName = category['name']?.toString() ?? 'Category';
+    final icon = category['icon']?.toString();
 
     return Card(
       margin: const EdgeInsets.only(bottom: 14),
@@ -811,8 +680,10 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
                 color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(
-                Icons.category_rounded,
+              child: Icon(
+                icon == null || icon.isEmpty
+                    ? Icons.category_rounded
+                    : Icons.restaurant_menu_rounded,
                 color: HalalFoodTheme.primaryGreen,
               ),
             ),
@@ -942,7 +813,7 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
                   Row(
                     children: [
                       Text(
-                        'â‚±${price.toStringAsFixed(2)}',
+                        '₱${price.toStringAsFixed(2)}',
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
@@ -983,6 +854,24 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
   }
 }
 
+class _MenuItemDraft {
+  final String name;
+  final String description;
+  final double price;
+  final String categoryId;
+  final bool isAvailable;
+  final bool isBestSeller;
+
+  const _MenuItemDraft({
+    required this.name,
+    required this.description,
+    required this.price,
+    required this.categoryId,
+    required this.isAvailable,
+    required this.isBestSeller,
+  });
+}
+
 class _SummaryItem extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -1016,4 +905,3 @@ class _SummaryItem extends StatelessWidget {
     );
   }
 }
-
