@@ -1,0 +1,68 @@
+name: One-time owner dashboard refresh fix
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Apply fix
+        shell: python
+        run: |
+          from pathlib import Path
+
+          dashboard = Path('lib/features/owner/screens/owner_dashboard_screen.dart')
+          text = dashboard.read_text(encoding='utf-8')
+          old = '''onPressed: () {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) =>
+              const OwnerRestaurantProfileScreen(),
+        ),
+      );
+    },'''
+          new = '''onPressed: () async {
+      final updated = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) =>
+              const OwnerRestaurantProfileScreen(),
+        ),
+      );
+
+      if (updated == true && mounted) {
+        await _loadDashboard();
+      }
+    },'''
+          if old not in text:
+              raise SystemExit('Dashboard navigation block not found')
+          dashboard.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          profile = Path('lib/features/owner/screens/owner_restaurant_profile_screen.dart')
+          text = profile.read_text(encoding='utf-8')
+          old = '''      if (!mounted) return;
+      setState(() => _isSaving = false);
+      _showMessage('Restaurant profile updated successfully.');'''
+          new = '''      if (!mounted) return;
+      setState(() => _isSaving = false);
+      _showMessage('Restaurant profile updated successfully.');
+      Navigator.of(context).pop(true);'''
+          if old not in text:
+              raise SystemExit('Profile save-success block not found')
+          profile.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/features/owner/screens/owner_dashboard_screen.dart lib/features/owner/screens/owner_restaurant_profile_screen.dart .github/workflows/one-time-dashboard-refresh-fix.yml
+          git rm .github/workflows/one-time-dashboard-refresh-fix.yml
+          git commit -m "fix: refresh owner dashboard after profile update"
+          git push
