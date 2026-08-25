@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/theme.dart';
+import '../data/owner_restaurant_repository.dart';
 import 'owner_dashboard_screen.dart';
 import 'owner_submit_restaurant_screen.dart';
 import '../../auth/screens/login_screen.dart';
@@ -17,9 +18,12 @@ class OwnerRestaurantSelectionScreen extends StatefulWidget {
 class _OwnerRestaurantSelectionScreenState
     extends State<OwnerRestaurantSelectionScreen> {
   final _supabase = Supabase.instance.client;
+  final _restaurantRepository = OwnerRestaurantRepository();
   bool _isLoading = true;
   String? _error;
   List<Map<String, dynamic>> _restaurants = [];
+  final Set<String> _pendingVerificationIds = {};
+  final Set<String> _requestingVerificationIds = {};
 
   @override
   void initState() {
@@ -35,20 +39,25 @@ class _OwnerRestaurantSelectionScreenState
     });
 
     try {
-      final user = _supabase.auth.currentUser;
-      if (user == null) throw Exception('User is not authenticated.');
+      final restaurants = await _restaurantRepository.getMyRestaurants();
+      final pendingIds = <String>{};
 
-      final response = await _supabase
-          .from('restaurants')
-          .select('id, name, is_active, halal_status, city, created_at')
-          .eq('owner_id', user.id)
-          .order('created_at', ascending: false);
+      for (final restaurant in restaurants) {
+        final id = restaurant['id']?.toString();
+        if (id == null || id.isEmpty) continue;
+        if (await _restaurantRepository.hasPendingVerification(
+          restaurantId: id,
+        )) {
+          pendingIds.add(id);
+        }
+      }
 
       if (!mounted) return;
       setState(() {
-        _restaurants = (response as List)
-            .map((item) => Map<String, dynamic>.from(item))
-            .toList();
+        _restaurants = restaurants;
+        _pendingVerificationIds
+          ..clear()
+          ..addAll(pendingIds);
         _isLoading = false;
       });
     } catch (e) {
@@ -72,9 +81,73 @@ class _OwnerRestaurantSelectionScreenState
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Restaurant submitted. Waiting for admin approval.'),
+          content: Text(
+            'Restaurant added. Halal verification can be requested separately.',
+          ),
         ),
       );
+    }
+  }
+
+  Future<void> _requestHalalVerification(
+    Map<String, dynamic> restaurant,
+  ) async {
+    final id = restaurant['id']?.toString();
+    final name = restaurant['name']?.toString() ?? 'Restaurant';
+    if (id == null || id.isEmpty || _requestingVerificationIds.contains(id)) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          'Request Halal Verification',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        content: Text(
+          'Send a halal verification request for "$name" to the administrator?\n\n'
+          'The restaurant will remain Unverified until the admin reviews and approves the request.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.send_rounded),
+            label: const Text('Send Request'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _requestingVerificationIds.add(id));
+    try {
+      await _restaurantRepository.requestHalalVerification(
+        restaurantId: id,
+      );
+
+      if (!mounted) return;
+      setState(() => _pendingVerificationIds.add(id));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Halal verification request sent to the admin.'),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to send verification request: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _requestingVerificationIds.remove(id));
+      }
     }
   }
 
@@ -111,6 +184,20 @@ class _OwnerRestaurantSelectionScreenState
       MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
     );
+  }
+
+  String _halalStatusLabel(String? status) {
+    switch (status) {
+      case 'muslim_owned':
+        return 'Muslim Owned';
+      case 'halal_verified':
+        return 'Halal Verified';
+      case 'certified_halal':
+        return 'Certified Halal';
+      case 'unverified':
+      default:
+        return 'Unverified';
+    }
   }
 
   @override
@@ -151,7 +238,11 @@ class _OwnerRestaurantSelectionScreenState
           padding: const EdgeInsets.all(24),
           children: [
             const SizedBox(height: 120),
-            const Icon(Icons.error_outline_rounded, size: 60, color: Colors.redAccent),
+            const Icon(
+              Icons.error_outline_rounded,
+              size: 60,
+              color: Colors.redAccent,
+            ),
             const SizedBox(height: 16),
             const Text(
               'Unable to load restaurants',
@@ -161,7 +252,10 @@ class _OwnerRestaurantSelectionScreenState
             const SizedBox(height: 8),
             Text(_error!, textAlign: TextAlign.center),
             const SizedBox(height: 18),
-            ElevatedButton(onPressed: _loadRestaurants, child: const Text('Try Again')),
+            ElevatedButton(
+              onPressed: _loadRestaurants,
+              child: const Text('Try Again'),
+            ),
           ],
         ),
       );
@@ -188,7 +282,7 @@ class _OwnerRestaurantSelectionScreenState
                 ),
                 SizedBox(height: 6),
                 Text(
-                  'Add your restaurant and wait for admin approval before managing it.',
+                  'Add your restaurant first. Halal verification is a separate request that you can send when ready.',
                   style: TextStyle(color: HalalFoodTheme.textSecondary),
                 ),
               ],
@@ -240,9 +334,14 @@ class _OwnerRestaurantSelectionScreenState
   }
 
   Widget _buildRestaurantCard(Map<String, dynamic> restaurant) {
+    final id = restaurant['id']?.toString();
     final name = restaurant['name']?.toString() ?? 'Unnamed Restaurant';
     final active = restaurant['is_active'] == true;
     final city = restaurant['city']?.toString().trim() ?? '';
+    final halalStatus = restaurant['halal_status']?.toString() ?? 'unverified';
+    final pendingVerification = id != null &&
+        _pendingVerificationIds.contains(id);
+    final requesting = id != null && _requestingVerificationIds.contains(id);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -251,56 +350,127 @@ class _OwnerRestaurantSelectionScreenState
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Row(
+          child: Column(
             children: [
-              CircleAvatar(
-                radius: 26,
-                backgroundColor: HalalFoodTheme.primaryGreen.withValues(alpha: 0.10),
-                child: const Icon(
-                  Icons.restaurant_rounded,
-                  color: HalalFoodTheme.primaryGreen,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 26,
+                    backgroundColor:
+                        HalalFoodTheme.primaryGreen.withValues(alpha: 0.10),
+                    child: const Icon(
+                      Icons.restaurant_rounded,
+                      color: HalalFoodTheme.primaryGreen,
                     ),
-                    if (city.isNotEmpty) ...[
-                      const SizedBox(height: 3),
-                      Text(city, style: const TextStyle(color: HalalFoodTheme.textSecondary)),
-                    ],
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: active
-                            ? Colors.green.withValues(alpha: 0.10)
-                            : Colors.orange.withValues(alpha: 0.10),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        active ? 'Approved' : 'Pending Approval',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: active ? Colors.green.shade700 : Colors.orange.shade800,
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                          ),
                         ),
-                      ),
+                        if (city.isNotEmpty) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            city,
+                            style: const TextStyle(
+                              color: HalalFoodTheme.textSecondary,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            _StatusPill(
+                              label: active ? 'Approved' : 'Pending Approval',
+                              color: active ? Colors.green : Colors.orange,
+                            ),
+                            _StatusPill(
+                              label: _halalStatusLabel(halalStatus),
+                              color: halalStatus == 'unverified'
+                                  ? Colors.grey
+                                  : Colors.green,
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
+                  Icon(
+                    active
+                        ? Icons.chevron_right_rounded
+                        : Icons.hourglass_top_rounded,
+                    color: active ? null : Colors.orange,
+                  ),
+                ],
+              ),
+              if (halalStatus == 'unverified') ...[
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: pendingVerification
+                      ? OutlinedButton.icon(
+                          onPressed: null,
+                          icon: const Icon(Icons.hourglass_top_rounded),
+                          label: const Text('Halal Verification Pending'),
+                        )
+                      : OutlinedButton.icon(
+                          onPressed: requesting || id == null
+                              ? null
+                              : () => _requestHalalVerification(restaurant),
+                          icon: requesting
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.verified_outlined),
+                          label: Text(
+                            requesting
+                                ? 'Sending Request...'
+                                : 'Request Halal Verification',
+                          ),
+                        ),
                 ),
-              ),
-              Icon(
-                active ? Icons.chevron_right_rounded : Icons.hourglass_top_rounded,
-                color: active ? null : Colors.orange,
-              ),
+              ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _StatusPill({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: color.shade700,
         ),
       ),
     );
