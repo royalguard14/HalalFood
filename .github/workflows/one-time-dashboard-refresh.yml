@@ -62,7 +62,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lib/features/owner/screens/owner_dashboard_screen.dart lib/features/owner/screens/owner_restaurant_profile_screen.dart .github/workflows/one-time-dashboard-refresh-fix.yml
-          git rm .github/workflows/one-time-dashboard-refresh-fix.yml
+          git add lib/features/owner/screens/owner_dashboard_screen.dart lib/features/owner/screens/owner_restaurant_profile_screen.dart
+          git rm .github/workflows/one-time-dashboard-refresh.yml
           git commit -m "fix: refresh owner dashboard after profile update"
           git push
