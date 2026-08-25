@@ -25,13 +25,6 @@ class _RestaurantManagementScreenState
   List<Map<String, dynamic>> _restaurants = [];
   List<Map<String, dynamic>> _owners = [];
 
-  static const _halalStatuses = <String>[
-    'unverified',
-    'muslim_owned',
-    'halal_verified',
-    'certified_halal',
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -79,7 +72,6 @@ class _RestaurantManagementScreenState
       final name = r['name']?.toString().toLowerCase() ?? '';
       final city = r['city']?.toString().toLowerCase() ?? '';
       final owner = _ownerName(r['owner_id']?.toString()).toLowerCase();
-      final status = r['halal_status']?.toString() ?? 'unverified';
       final active = r['is_active'] == true;
       final q = _search.toLowerCase();
 
@@ -90,10 +82,6 @@ class _RestaurantManagementScreenState
         'active' => active,
         'inactive' => !active,
         'unassigned' => r['owner_id'] == null,
-        'unverified' => status == 'unverified',
-        'muslim_owned' => status == 'muslim_owned',
-        'halal_verified' => status == 'halal_verified',
-        'certified_halal' => status == 'certified_halal',
         _ => true,
       };
 
@@ -153,16 +141,24 @@ class _RestaurantManagementScreenState
               ),
               ..._owners.map((owner) => DropdownMenuItem<String?>(
                     value: owner['id']?.toString(),
-                    child: Text(owner['full_name']?.toString().trim().isNotEmpty == true
-                        ? owner['full_name'].toString()
-                        : 'Restaurant Owner'),
+                    child: Text(
+                      owner['full_name']?.toString().trim().isNotEmpty == true
+                          ? owner['full_name'].toString()
+                          : 'Restaurant Owner',
+                    ),
                   )),
             ],
             onChanged: (value) => setDialogState(() => selected = value),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            ElevatedButton(onPressed: () => Navigator.pop(context, selected), child: const Text('Save')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, selected),
+              child: const Text('Save'),
+            ),
           ],
         ),
       ),
@@ -187,44 +183,6 @@ class _RestaurantManagementScreenState
     }
   }
 
-  Future<void> _changeHalalStatus(Map<String, dynamic> restaurant) async {
-    final current = restaurant['halal_status']?.toString() ?? 'unverified';
-    final selected = await showDialog<String>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: const Text('Halal Status'),
-        children: _halalStatuses.map((value) {
-          return SimpleDialogOption(
-            onPressed: () => Navigator.pop(context, value),
-            child: Row(
-              children: [
-                Icon(Icons.verified_rounded, color: _halalColor(value)),
-                const SizedBox(width: 12),
-                Expanded(child: Text(_halalLabel(value))),
-                if (value == current) const Icon(Icons.check_rounded),
-              ],
-            ),
-          );
-        }).toList(),
-      ),
-    );
-
-    if (selected == null || selected == current) return;
-    try {
-      await _repository.setHalalStatus(
-        restaurantId: restaurant['id'].toString(),
-        halalStatus: selected,
-      );
-      await _load();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Unable to update halal status: $e')),
-        );
-      }
-    }
-  }
-
   Future<void> _toggleActive(Map<String, dynamic> restaurant) async {
     try {
       await _repository.setRestaurantActive(
@@ -233,9 +191,11 @@ class _RestaurantManagementScreenState
       );
       await _load();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to update status: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to update status: $e')),
+        );
+      }
     }
   }
 
@@ -247,9 +207,11 @@ class _RestaurantManagementScreenState
       );
       await _load();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to update featured status: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to update featured status: $e')),
+        );
+      }
     }
   }
 
@@ -266,30 +228,41 @@ class _RestaurantManagementScreenState
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(restaurant['name']?.toString() ?? 'Restaurant',
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+              Text(
+                restaurant['name']?.toString() ?? 'Restaurant',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
               const SizedBox(height: 12),
-              _DetailRow('Owner', _ownerName(restaurant['owner_id']?.toString())),
+              _DetailRow(
+                'Owner',
+                _ownerName(restaurant['owner_id']?.toString()),
+              ),
               _DetailRow('Halal Status', _halalLabel(halal)),
-              _DetailRow('Status', restaurant['is_active'] == true ? 'Active' : 'Inactive'),
+              _DetailRow(
+                'Status',
+                restaurant['is_active'] == true ? 'Active' : 'Inactive',
+              ),
               _DetailRow('Rating', '${restaurant['average_rating'] ?? 0}'),
               _DetailRow('Reviews', '${restaurant['review_count'] ?? 0}'),
-              _DetailRow('Address', restaurant['address']?.toString() ?? 'Not provided'),
-              _DetailRow('City', restaurant['city']?.toString() ?? 'Not provided'),
+              _DetailRow(
+                'Address',
+                restaurant['address']?.toString() ?? 'Not provided',
+              ),
+              _DetailRow(
+                'City',
+                restaurant['city']?.toString() ?? 'Not provided',
+              ),
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () { Navigator.pop(context); _changeHalalStatus(restaurant); },
-                  icon: const Icon(Icons.verified_outlined),
-                  label: const Text('Manage Halal Status'),
-                ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: () { Navigator.pop(context); _assignOwner(restaurant); },
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _assignOwner(restaurant);
+                  },
                   icon: const Icon(Icons.person_add_alt_1_rounded),
                   label: const Text('Assign Owner'),
                 ),
@@ -306,8 +279,16 @@ class _RestaurantManagementScreenState
     final restaurants = _filtered;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Restaurant Management', style: TextStyle(fontWeight: FontWeight.w800)),
-        actions: [IconButton(onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh_rounded))],
+        title: const Text(
+          'Restaurant Management',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        actions: [
+          IconButton(
+            onPressed: _loading ? null : _load,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _loading ? null : _addRestaurant,
@@ -326,14 +307,20 @@ class _RestaurantManagementScreenState
                     children: [
                       TextField(
                         controller: _searchController,
-                        onChanged: (value) => setState(() => _search = value.trim()),
+                        onChanged: (value) =>
+                            setState(() => _search = value.trim()),
                         decoration: InputDecoration(
                           hintText: 'Search restaurants or owners...',
                           prefixIcon: const Icon(Icons.search_rounded),
-                          suffixIcon: _search.isEmpty ? null : IconButton(
-                            onPressed: () { _searchController.clear(); setState(() => _search = ''); },
-                            icon: const Icon(Icons.clear_rounded),
-                          ),
+                          suffixIcon: _search.isEmpty
+                              ? null
+                              : IconButton(
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setState(() => _search = '');
+                                  },
+                                  icon: const Icon(Icons.clear_rounded),
+                                ),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -342,20 +329,41 @@ class _RestaurantManagementScreenState
                         child: ListView(
                           scrollDirection: Axis.horizontal,
                           children: [
-                            _FilterChip('All', 'all', _filter, (v) => setState(() => _filter = v)),
-                            _FilterChip('Active', 'active', _filter, (v) => setState(() => _filter = v)),
-                            _FilterChip('Inactive', 'inactive', _filter, (v) => setState(() => _filter = v)),
-                            _FilterChip('Unverified', 'unverified', _filter, (v) => setState(() => _filter = v)),
-                            _FilterChip('Muslim Owned', 'muslim_owned', _filter, (v) => setState(() => _filter = v)),
-                            _FilterChip('Halal Verified', 'halal_verified', _filter, (v) => setState(() => _filter = v)),
-                            _FilterChip('Certified Halal', 'certified_halal', _filter, (v) => setState(() => _filter = v)),
-                            _FilterChip('Unassigned', 'unassigned', _filter, (v) => setState(() => _filter = v)),
+                            _FilterChip(
+                              'All',
+                              'all',
+                              _filter,
+                              (v) => setState(() => _filter = v),
+                            ),
+                            _FilterChip(
+                              'Active',
+                              'active',
+                              _filter,
+                              (v) => setState(() => _filter = v),
+                            ),
+                            _FilterChip(
+                              'Inactive',
+                              'inactive',
+                              _filter,
+                              (v) => setState(() => _filter = v),
+                            ),
+                            _FilterChip(
+                              'Unassigned',
+                              'unassigned',
+                              _filter,
+                              (v) => setState(() => _filter = v),
+                            ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 16),
-                      Text('${restaurants.length} restaurant${restaurants.length == 1 ? '' : 's'}',
-                          style: const TextStyle(fontWeight: FontWeight.w700, color: HalalFoodTheme.textSecondary)),
+                      Text(
+                        '${restaurants.length} restaurant${restaurants.length == 1 ? '' : 's'}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: HalalFoodTheme.textSecondary,
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       if (restaurants.isEmpty)
                         const Padding(
@@ -384,38 +392,97 @@ class _RestaurantManagementScreenState
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(14),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Expanded(child: Text(r['name']?.toString() ?? 'Unnamed Restaurant',
-                  maxLines: 2, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800))),
-              if (featured) const Icon(Icons.star_rounded, color: Colors.amber),
-            ]),
-            if ((r['city']?.toString() ?? '').isNotEmpty)
-              Padding(padding: const EdgeInsets.only(top: 3), child: Text(r['city'].toString(),
-                  style: const TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary))),
-            const SizedBox(height: 7),
-            Text('Owner: ${_ownerName(r['owner_id']?.toString())}',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
-            Wrap(spacing: 6, runSpacing: 6, children: [
-              _Badge(_halalLabel(halal), _halalColor(halal)),
-              _Badge(active ? 'Active' : 'Inactive', active ? Colors.green : Colors.grey),
-              _Badge('★ $rating ($reviews)', Colors.amber.shade700),
-            ]),
-            const SizedBox(height: 10),
-            Row(children: [
-              Expanded(child: OutlinedButton.icon(
-                onPressed: () => _assignOwner(r),
-                icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
-                label: Text(r['owner_id'] == null ? 'Assign Owner' : 'Change Owner'),
-              )),
-              const SizedBox(width: 6),
-              IconButton(onPressed: () => _changeHalalStatus(r), icon: Icon(Icons.verified_rounded, color: _halalColor(halal))),
-              IconButton(onPressed: () => _toggleActive(r), icon: Icon(active ? Icons.block_rounded : Icons.check_circle_outline_rounded)),
-              IconButton(onPressed: () => _toggleFeatured(r), icon: Icon(featured ? Icons.star_rounded : Icons.star_border_rounded, color: Colors.amber.shade700)),
-            ]),
-          ]),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      r['name']?.toString() ?? 'Unnamed Restaurant',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  if (featured)
+                    const Icon(Icons.star_rounded, color: Colors.amber),
+                ],
+              ),
+              if ((r['city']?.toString() ?? '').isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 3),
+                  child: Text(
+                    r['city'].toString(),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: HalalFoodTheme.textSecondary,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 7),
+              Text(
+                'Owner: ${_ownerName(r['owner_id']?.toString())}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  _Badge(_halalLabel(halal), _halalColor(halal)),
+                  _Badge(
+                    active ? 'Active' : 'Inactive',
+                    active ? Colors.green : Colors.grey,
+                  ),
+                  _Badge('★ $rating ($reviews)', Colors.amber.shade700),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _assignOwner(r),
+                      icon: const Icon(
+                        Icons.person_add_alt_1_rounded,
+                        size: 18,
+                      ),
+                      label: Text(
+                        r['owner_id'] == null
+                            ? 'Assign Owner'
+                            : 'Change Owner',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  IconButton(
+                    onPressed: () => _toggleActive(r),
+                    icon: Icon(
+                      active
+                          ? Icons.block_rounded
+                          : Icons.check_circle_outline_rounded,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => _toggleFeatured(r),
+                    icon: Icon(
+                      featured
+                          ? Icons.star_rounded
+                          : Icons.star_border_rounded,
+                      color: Colors.amber.shade700,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -426,7 +493,10 @@ class _RestaurantForm extends StatefulWidget {
   final List<Map<String, dynamic>> owners;
   final AdminRestaurantRepository repository;
 
-  const _RestaurantForm({required this.owners, required this.repository});
+  const _RestaurantForm({
+    required this.owners,
+    required this.repository,
+  });
 
   @override
   State<_RestaurantForm> createState() => _RestaurantFormState();
@@ -448,14 +518,28 @@ class _RestaurantFormState extends State<_RestaurantForm> {
   final _cover = TextEditingController();
 
   String? _ownerId;
-  String _halalStatus = 'unverified';
   bool _active = true;
   bool _featured = false;
   bool _saving = false;
 
   @override
   void dispose() {
-    for (final c in [_name, _description, _phone, _email, _website, _address, _city, _province, _latitude, _longitude, _logo, _cover]) c.dispose();
+    for (final c in [
+      _name,
+      _description,
+      _phone,
+      _email,
+      _website,
+      _address,
+      _city,
+      _province,
+      _latitude,
+      _longitude,
+      _logo,
+      _cover,
+    ]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -477,7 +561,6 @@ class _RestaurantFormState extends State<_RestaurantForm> {
         longitude: double.tryParse(_longitude.text.trim()),
         logoUrl: _logo.text,
         coverImageUrl: _cover.text,
-        halalStatus: _halalStatus,
         isActive: _active,
         isFeatured: _featured,
       );
@@ -485,13 +568,23 @@ class _RestaurantFormState extends State<_RestaurantForm> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unable to add restaurant: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to add restaurant: $e')),
+      );
     }
   }
 
-  InputDecoration _decoration(String label, IconData icon) => InputDecoration(labelText: label, prefixIcon: Icon(icon));
+  InputDecoration _decoration(String label, IconData icon) =>
+      InputDecoration(labelText: label, prefixIcon: Icon(icon));
 
-  Widget _field(TextEditingController c, String label, IconData icon, {bool required = false, int maxLines = 1, TextInputType? type}) {
+  Widget _field(
+    TextEditingController c,
+    String label,
+    IconData icon, {
+    bool required = false,
+    int maxLines = 1,
+    TextInputType? type,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextFormField(
@@ -499,7 +592,11 @@ class _RestaurantFormState extends State<_RestaurantForm> {
         maxLines: maxLines,
         keyboardType: type,
         decoration: _decoration(label, icon),
-        validator: required ? (v) => v == null || v.trim().isEmpty ? '$label is required.' : null : null,
+        validator: required
+            ? (v) => v == null || v.trim().isEmpty
+                ? '$label is required.'
+                : null
+            : null,
       ),
     );
   }
@@ -513,58 +610,159 @@ class _RestaurantFormState extends State<_RestaurantForm> {
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Add New Restaurant', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 6),
-              const Text('Create the restaurant first. Halal status can be managed later.', style: TextStyle(color: HalalFoodTheme.textSecondary)),
-              const SizedBox(height: 18),
-              _field(_name, 'Restaurant Name', Icons.restaurant_rounded, required: true),
-              _field(_description, 'Description', Icons.description_outlined, maxLines: 3),
-              _field(_phone, 'Phone', Icons.phone_outlined, type: TextInputType.phone),
-              _field(_email, 'Email', Icons.email_outlined, type: TextInputType.emailAddress),
-              _field(_website, 'Website', Icons.language_rounded, type: TextInputType.url),
-              _field(_address, 'Address', Icons.location_on_outlined),
-              _field(_city, 'City', Icons.location_city_outlined),
-              _field(_province, 'Province', Icons.map_outlined),
-              Row(children: [
-                Expanded(child: _field(_latitude, 'Latitude', Icons.my_location_rounded, type: const TextInputType.numberWithOptions(decimal: true))),
-                const SizedBox(width: 10),
-                Expanded(child: _field(_longitude, 'Longitude', Icons.explore_outlined, type: const TextInputType.numberWithOptions(decimal: true))),
-              ]),
-              _field(_logo, 'Logo URL', Icons.image_outlined, type: TextInputType.url),
-              _field(_cover, 'Cover Image URL', Icons.photo_library_outlined, type: TextInputType.url),
-              DropdownButtonFormField<String?>(
-                value: _ownerId,
-                isExpanded: true,
-                decoration: _decoration('Owner Account', Icons.person_outline_rounded),
-                hint: const Text('Unassigned'),
-                items: [
-                  const DropdownMenuItem<String?>(value: null, child: Text('Unassigned')),
-                  ...widget.owners.map((owner) => DropdownMenuItem<String?>(value: owner['id']?.toString(), child: Text(owner['full_name']?.toString().trim().isNotEmpty == true ? owner['full_name'].toString() : 'Restaurant Owner'))),
-                ],
-                onChanged: _saving ? null : (v) => setState(() => _ownerId = v),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: _halalStatus,
-                decoration: _decoration('Halal Status', Icons.verified_outlined),
-                items: const [
-                  DropdownMenuItem(value: 'unverified', child: Text('Unverified')),
-                  DropdownMenuItem(value: 'muslim_owned', child: Text('Muslim Owned')),
-                  DropdownMenuItem(value: 'halal_verified', child: Text('Halal Verified')),
-                  DropdownMenuItem(value: 'certified_halal', child: Text('Certified Halal')),
-                ],
-                onChanged: _saving ? null : (v) { if (v != null) setState(() => _halalStatus = v); },
-              ),
-              SwitchListTile.adaptive(contentPadding: EdgeInsets.zero, title: const Text('Active'), value: _active, onChanged: _saving ? null : (v) => setState(() => _active = v)),
-              SwitchListTile.adaptive(contentPadding: EdgeInsets.zero, title: const Text('Featured'), value: _featured, onChanged: _saving ? null : (v) => setState(() => _featured = v)),
-              const SizedBox(height: 12),
-              SizedBox(width: double.infinity, height: 52, child: ElevatedButton.icon(
-                onPressed: _saving ? null : _save,
-                icon: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.add_business_rounded),
-                label: Text(_saving ? 'Creating...' : 'Create Restaurant'),
-              )),
-            ]),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Add New Restaurant',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Create the restaurant first. Halal verification is managed separately.',
+                  style: TextStyle(color: HalalFoodTheme.textSecondary),
+                ),
+                const SizedBox(height: 18),
+                _field(
+                  _name,
+                  'Restaurant Name',
+                  Icons.restaurant_rounded,
+                  required: true,
+                ),
+                _field(
+                  _description,
+                  'Description',
+                  Icons.description_outlined,
+                  maxLines: 3,
+                ),
+                _field(
+                  _phone,
+                  'Phone',
+                  Icons.phone_outlined,
+                  type: TextInputType.phone,
+                ),
+                _field(
+                  _email,
+                  'Email',
+                  Icons.email_outlined,
+                  type: TextInputType.emailAddress,
+                ),
+                _field(
+                  _website,
+                  'Website',
+                  Icons.language_rounded,
+                  type: TextInputType.url,
+                ),
+                _field(_address, 'Address', Icons.location_on_outlined),
+                _field(_city, 'City', Icons.location_city_outlined),
+                _field(_province, 'Province', Icons.map_outlined),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _field(
+                        _latitude,
+                        'Latitude',
+                        Icons.my_location_rounded,
+                        type: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _field(
+                        _longitude,
+                        'Longitude',
+                        Icons.explore_outlined,
+                        type: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                _field(
+                  _logo,
+                  'Logo URL',
+                  Icons.image_outlined,
+                  type: TextInputType.url,
+                ),
+                _field(
+                  _cover,
+                  'Cover Image URL',
+                  Icons.photo_library_outlined,
+                  type: TextInputType.url,
+                ),
+                DropdownButtonFormField<String?>(
+                  value: _ownerId,
+                  isExpanded: true,
+                  decoration: _decoration(
+                    'Owner Account',
+                    Icons.person_outline_rounded,
+                  ),
+                  hint: const Text('Unassigned'),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('Unassigned'),
+                    ),
+                    ...widget.owners.map(
+                      (owner) => DropdownMenuItem<String?>(
+                        value: owner['id']?.toString(),
+                        child: Text(
+                          owner['full_name']?.toString().trim().isNotEmpty == true
+                              ? owner['full_name'].toString()
+                              : 'Restaurant Owner',
+                        ),
+                      ),
+                    ),
+                  ],
+                  onChanged: _saving
+                      ? null
+                      : (v) => setState(() => _ownerId = v),
+                ),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Active'),
+                  value: _active,
+                  onChanged: _saving
+                      ? null
+                      : (v) => setState(() => _active = v),
+                ),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Featured'),
+                  value: _featured,
+                  onChanged: _saving
+                      ? null
+                      : (v) => setState(() => _featured = v),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton.icon(
+                    onPressed: _saving ? null : _save,
+                    icon: _saving
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.add_business_rounded),
+                    label: Text(
+                      _saving ? 'Creating...' : 'Create Restaurant',
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -578,12 +776,21 @@ class _FilterChip extends StatelessWidget {
   final String selected;
   final ValueChanged<String> onSelected;
 
-  const _FilterChip(this.label, this.value, this.selected, this.onSelected);
+  const _FilterChip(
+    this.label,
+    this.value,
+    this.selected,
+    this.onSelected,
+  );
 
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(right: 8),
-        child: FilterChip(label: Text(label), selected: selected == value, onSelected: (_) => onSelected(value)),
+        child: FilterChip(
+          label: Text(label),
+          selected: selected == value,
+          onSelected: (_) => onSelected(value),
+        ),
       );
 }
 
@@ -596,8 +803,18 @@ class _Badge extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(color: color.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(8)),
-        child: Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color)),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
+        ),
       );
 }
 
@@ -610,10 +827,30 @@ class _DetailRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          SizedBox(width: 105, child: Text(label, style: const TextStyle(fontSize: 13, color: HalalFoodTheme.textSecondary))),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700))),
-        ]),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 105,
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: HalalFoodTheme.textSecondary,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
       );
 }
 
@@ -627,15 +864,36 @@ class _ErrorView extends StatelessWidget {
   Widget build(BuildContext context) => Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.error_outline_rounded, size: 54, color: Colors.redAccent),
-            const SizedBox(height: 12),
-            const Text('Unable to load restaurants', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 8),
-            Text(message, textAlign: TextAlign.center, maxLines: 5, overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 16),
-            ElevatedButton(onPressed: onRetry, child: const Text('Try Again')),
-          ]),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.error_outline_rounded,
+                size: 54,
+                color: Colors.redAccent,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Unable to load restaurants',
+                style: TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                maxLines: 5,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: onRetry,
+                child: const Text('Try Again'),
+              ),
+            ],
+          ),
         ),
       );
 }
