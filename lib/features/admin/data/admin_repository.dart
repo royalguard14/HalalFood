@@ -6,6 +6,13 @@ class AdminRepository {
   AdminRepository({SupabaseClient? supabase})
       : _supabase = supabase ?? Supabase.instance.client;
 
+  static const halalStatuses = <String>{
+    'unverified',
+    'muslim_owned',
+    'halal_verified',
+    'certified_halal',
+  };
+
   Future<List<Map<String, dynamic>>> getRestaurants() async {
     final response = await _supabase
         .from('restaurants')
@@ -27,37 +34,48 @@ class AdminRepository {
   }
 
   Future<int> getActiveRestaurantCount() async {
-    final response = await _supabase.from('restaurants').select('id').eq('is_active', true);
+    final response = await _supabase
+        .from('restaurants')
+        .select('id')
+        .eq('is_active', true);
     return (response as List).length;
   }
 
+  // This is the real verification count. Do not use restaurant halal_status
+  // here because an unverified restaurant does not necessarily have a request.
   Future<int> getPendingVerificationCount() async {
-    final response = await _supabase.from('restaurants').select('id').eq('halal_status', 'unverified');
+    final response = await _supabase
+        .from('halal_verifications')
+        .select('id')
+        .eq('status', 'pending');
     return (response as List).length;
   }
 
-  Future<void> setRestaurantActive({required String restaurantId, required bool isActive}) async {
+  Future<void> setRestaurantActive({
+    required String restaurantId,
+    required bool isActive,
+  }) async {
     await _supabase.from('restaurants').update({
       'is_active': isActive,
       'updated_at': DateTime.now().toIso8601String(),
     }).eq('id', restaurantId);
   }
 
-  Future<void> setRestaurantFeatured({required String restaurantId, required bool isFeatured}) async {
+  Future<void> setRestaurantFeatured({
+    required String restaurantId,
+    required bool isFeatured,
+  }) async {
     await _supabase.from('restaurants').update({
       'is_featured': isFeatured,
       'updated_at': DateTime.now().toIso8601String(),
     }).eq('id', restaurantId);
   }
 
-  Future<void> setHalalStatus({required String restaurantId, required String halalStatus}) async {
-    const allowed = {
-      'unverified',
-      'muslim_owned',
-      'halal_verified',
-      'certified_halal',
-    };
-    if (!allowed.contains(halalStatus)) {
+  Future<void> setHalalStatus({
+    required String restaurantId,
+    required String halalStatus,
+  }) async {
+    if (!halalStatuses.contains(halalStatus)) {
       throw ArgumentError('Invalid halal status: $halalStatus');
     }
 
@@ -109,7 +127,10 @@ class AdminRepository {
     if (existing == null) {
       await _supabase.from('delivery_pricing_settings').insert(data);
     } else {
-      await _supabase.from('delivery_pricing_settings').update(data).eq('id', existing['id']);
+      await _supabase
+          .from('delivery_pricing_settings')
+          .update(data)
+          .eq('id', existing['id']);
     }
   }
 
@@ -130,33 +151,50 @@ class AdminRepository {
         .toList();
   }
 
-  Future<void> approveHalalVerification({required String verificationId, required String restaurantId}) async {
+  Future<void> approveHalalVerification({
+    required String verificationId,
+    required String restaurantId,
+    required String halalStatus,
+  }) async {
+    if (!halalStatuses.contains(halalStatus) || halalStatus == 'unverified') {
+      throw ArgumentError('An approved verification needs a valid positive halal status.');
+    }
+
     final user = _supabase.auth.currentUser;
     if (user == null) throw Exception('No authenticated user found.');
+
+    final now = DateTime.now().toIso8601String();
 
     await _supabase.from('halal_verifications').update({
       'status': 'verified',
       'verified_by': user.id,
-      'verified_at': DateTime.now().toIso8601String(),
-      'updated_at': DateTime.now().toIso8601String(),
+      'verified_at': now,
+      'updated_at': now,
+      'admin_remarks': null,
     }).eq('id', verificationId);
 
     await setHalalStatus(
       restaurantId: restaurantId,
-      halalStatus: 'halal_verified',
+      halalStatus: halalStatus,
     );
   }
 
-  Future<void> rejectHalalVerification({required String verificationId, required String restaurantId, String? remarks}) async {
+  Future<void> rejectHalalVerification({
+    required String verificationId,
+    required String restaurantId,
+    String? remarks,
+  }) async {
     final user = _supabase.auth.currentUser;
     if (user == null) throw Exception('No authenticated user found.');
+
+    final now = DateTime.now().toIso8601String();
 
     await _supabase.from('halal_verifications').update({
       'status': 'rejected',
       'verified_by': user.id,
-      'verified_at': DateTime.now().toIso8601String(),
+      'verified_at': now,
       'admin_remarks': remarks,
-      'updated_at': DateTime.now().toIso8601String(),
+      'updated_at': now,
     }).eq('id', verificationId);
 
     await setHalalStatus(
@@ -176,7 +214,10 @@ class AdminRepository {
   }
 
   Future<int> getPendingOrderCount() async {
-    final response = await _supabase.from('orders').select('id').eq('status', 'pending');
+    final response = await _supabase
+        .from('orders')
+        .select('id')
+        .eq('status', 'pending');
     return (response as List).length;
   }
 }
