@@ -84,7 +84,7 @@ class _OwnerHalalVerificationRequestScreenState
       final response = await _supabase
           .from('halal_verifications')
           .select(
-            'id, status, certificate_url, certificate_number, issuing_authority, '
+            'id, status, requested_status, certificate_url, certificate_number, issuing_authority, '
             'issued_date, expiry_date, admin_remarks, created_at',
           )
           .eq('restaurant_id', widget.restaurantId)
@@ -150,6 +150,7 @@ class _OwnerHalalVerificationRequestScreenState
         'restaurant_id': widget.restaurantId,
         'submitted_by': user.id,
         'status': 'pending',
+        'requested_status': _requestedStatus,
         'certificate_url': _clean(_certificateUrl.text),
         'certificate_number': _clean(_certificateNumber.text),
         'issuing_authority': _clean(_issuingAuthority.text),
@@ -159,9 +160,7 @@ class _OwnerHalalVerificationRequestScreenState
       });
 
       if (!mounted) return;
-      _showMessage(
-        'Verification request submitted. The admin will review it.',
-      );
+      _showMessage('Verification request submitted. The admin will review it.');
       await _loadRequest();
     } catch (e) {
       if (!mounted) return;
@@ -179,10 +178,7 @@ class _OwnerHalalVerificationRequestScreenState
   void _showMessage(String message, {bool error = false}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: error ? Colors.red : null,
-      ),
+      SnackBar(content: Text(message), backgroundColor: error ? Colors.red : null),
     );
   }
 
@@ -196,10 +192,7 @@ class _OwnerHalalVerificationRequestScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Halal Verification Request',
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
+        title: const Text('Halal Verification Request', style: TextStyle(fontWeight: FontWeight.w800)),
         actions: [
           IconButton(
             onPressed: _loading || _saving ? null : _loadRequest,
@@ -232,18 +225,20 @@ class _OwnerHalalVerificationRequestScreenState
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: Colors.orange.withValues(alpha: 0.25)),
               ),
-              child: const Row(
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.pending_actions_rounded, color: Colors.orange),
-                  SizedBox(width: 12),
+                  const Icon(Icons.pending_actions_rounded, color: Colors.orange),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Request Pending', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
-                        SizedBox(height: 5),
-                        Text('Your request has been submitted. Please wait for the admin to review your documents and make a final classification.'),
+                        const Text('Request Pending', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+                        const SizedBox(height: 5),
+                        Text('Requested: ${_statusLabel(_pending!['requested_status']?.toString() ?? 'muslim_owned')}'),
+                        const SizedBox(height: 5),
+                        const Text('Your request has been submitted. Please wait for the admin to review your documents and make a final classification.'),
                       ],
                     ),
                   ),
@@ -265,79 +260,38 @@ class _OwnerHalalVerificationRequestScreenState
           children: [
             _restaurantHeader(),
             const SizedBox(height: 22),
-            const Text(
-              'Request Classification',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-            ),
+            const Text('Request Classification', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
             const SizedBox(height: 8),
-            const Text(
-              'Tell the admin what classification you are requesting. The admin makes the final decision.',
-              style: TextStyle(color: HalalFoodTheme.textSecondary),
-            ),
+            const Text('Tell the admin what classification you are requesting. The admin makes the final decision.', style: TextStyle(color: HalalFoodTheme.textSecondary)),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: _requestedStatus,
               decoration: _decoration('Requested Classification', Icons.verified_outlined),
-              items: _statuses
-                  .map((status) => DropdownMenuItem(
-                        value: status,
-                        child: Text(_statusLabel(status)),
-                      ))
-                  .toList(),
+              items: _statuses.map((status) => DropdownMenuItem(value: status, child: Text(_statusLabel(status)))).toList(),
               onChanged: _saving ? null : (value) {
                 if (value != null) setState(() => _requestedStatus = value);
               },
             ),
             const SizedBox(height: 22),
-            const Text(
-              'Supporting Documents',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-            ),
+            const Text('Supporting Documents', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
             const SizedBox(height: 8),
-            const Text(
-              'Provide the document link if you already uploaded the file to your storage or document service. File upload can be connected to Supabase Storage next.',
-              style: TextStyle(color: HalalFoodTheme.textSecondary),
-            ),
+            const Text('Provide the document link if you already uploaded the file to your storage or document service. File upload can be connected to Supabase Storage next.', style: TextStyle(color: HalalFoodTheme.textSecondary)),
             const SizedBox(height: 14),
-            TextFormField(
-              controller: _certificateUrl,
-              keyboardType: TextInputType.url,
-              decoration: _decoration('Document / Certificate URL', Icons.link_rounded),
-            ),
+            TextFormField(controller: _certificateUrl, keyboardType: TextInputType.url, decoration: _decoration('Document / Certificate URL', Icons.link_rounded)),
             const SizedBox(height: 12),
-            TextFormField(
-              controller: _certificateNumber,
-              decoration: _decoration('Certificate Number', Icons.numbers_rounded),
-            ),
+            TextFormField(controller: _certificateNumber, decoration: _decoration('Certificate Number', Icons.numbers_rounded)),
             const SizedBox(height: 12),
-            TextFormField(
-              controller: _issuingAuthority,
-              decoration: _decoration('Issuing Authority', Icons.account_balance_outlined),
-            ),
+            TextFormField(controller: _issuingAuthority, decoration: _decoration('Issuing Authority', Icons.account_balance_outlined)),
             const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _issuedDate,
-                    decoration: _decoration('Issued Date', Icons.calendar_today_outlined),
-                  ),
-                ),
+                Expanded(child: TextFormField(controller: _issuedDate, decoration: _decoration('Issued Date', Icons.calendar_today_outlined))),
                 const SizedBox(width: 10),
-                Expanded(
-                  child: TextFormField(
-                    controller: _expiryDate,
-                    decoration: _decoration('Expiry Date', Icons.event_available_outlined),
-                  ),
-                ),
+                Expanded(child: TextFormField(controller: _expiryDate, decoration: _decoration('Expiry Date', Icons.event_available_outlined))),
               ],
             ),
             const SizedBox(height: 12),
-            TextFormField(
-              controller: _remarks,
-              maxLines: 4,
-              decoration: _decoration('Message to Admin', Icons.notes_rounded),
-            ),
+            TextFormField(controller: _remarks, maxLines: 4, decoration: _decoration('Message to Admin', Icons.notes_rounded)),
             const SizedBox(height: 22),
             SizedBox(
               width: double.infinity,
@@ -345,11 +299,7 @@ class _OwnerHalalVerificationRequestScreenState
               child: ElevatedButton.icon(
                 onPressed: _saving ? null : _submit,
                 icon: _saving
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.send_rounded),
                 label: Text(_saving ? 'Submitting...' : 'Submit Verification Request'),
               ),
@@ -378,20 +328,11 @@ class _OwnerHalalVerificationRequestScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Restaurant',
-                    style: TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary),
-                  ),
+                  const Text('Restaurant', style: TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary)),
                   const SizedBox(height: 3),
-                  Text(
-                    widget.restaurantName,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-                  ),
+                  Text(widget.restaurantName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
                   const SizedBox(height: 3),
-                  const Text(
-                    'Current status: Unverified',
-                    style: TextStyle(color: Colors.orange, fontWeight: FontWeight.w700),
-                  ),
+                  const Text('Current status: Unverified', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.w700)),
                 ],
               ),
             ),
