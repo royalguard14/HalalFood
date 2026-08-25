@@ -4,11 +4,19 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'owner_order_details_screen.dart';
 import 'owner_menu_management_screen.dart';
 import 'owner_restaurant_profile_screen.dart';
+import 'owner_restaurant_selection_screen.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../../app/theme.dart';
 
 class OwnerDashboardScreen extends StatefulWidget {
-  const OwnerDashboardScreen({super.key});
+  final String restaurantId;
+  final String restaurantName;
+
+  const OwnerDashboardScreen({
+    super.key,
+    required this.restaurantId,
+    required this.restaurantName,
+  });
 
   @override
   State<OwnerDashboardScreen> createState() => _OwnerDashboardScreenState();
@@ -19,10 +27,8 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
 
   bool _isLoggingOut = false;
   bool _isLoading = true;
-
   String? _error;
-  String? _restaurantName;
-  String? _restaurantId;
+  String _restaurantName = '';
 
   int _newOrders = 0;
   int _preparingOrders = 0;
@@ -36,6 +42,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   @override
   void initState() {
     super.initState();
+    _restaurantName = widget.restaurantName;
     _loadDashboard();
   }
 
@@ -47,13 +54,11 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
 
   Future<void> _logout() async {
     if (_isLoggingOut) return;
-
     setState(() => _isLoggingOut = true);
 
     try {
       await _supabase.auth.signOut();
       if (!mounted) return;
-
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const LoginScreen()),
         (route) => false,
@@ -69,34 +74,14 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
 
   Future<void> _loadDashboard() async {
     if (!mounted) return;
-
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
     try {
-      final user = _supabase.auth.currentUser;
-      if (user == null) throw Exception('User is not authenticated.');
-
-      final restaurantResponse = await _supabase
-          .from('restaurants')
-          .select('id, name')
-          .eq('owner_id', user.id)
-          .maybeSingle();
-
-      if (restaurantResponse == null) {
-        throw Exception('No restaurant is linked to this account.');
-      }
-
-      final restaurantId = restaurantResponse['id'] as String;
-      final restaurantName = restaurantResponse['name']?.toString() ?? '';
-
-      _restaurantId = restaurantId;
-      _subscribeToOrders(restaurantId);
-
-      await _refreshDashboardData(restaurantId, restaurantName);
-
+      await _refreshDashboardData();
+      _subscribeToOrders();
       if (!mounted) return;
       setState(() => _isLoading = false);
     } catch (e) {
@@ -108,37 +93,11 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     }
   }
 
-  // Re-read only the restaurant name after returning from Restaurant Profile.
-  // This keeps the dashboard on screen without requiring a manual refresh.
-  Future<void> _refreshRestaurantName() async {
-    try {
-      final user = _supabase.auth.currentUser;
-      if (user == null) return;
-
-      final restaurantResponse = await _supabase
-          .from('restaurants')
-          .select('id, name')
-          .eq('owner_id', user.id)
-          .maybeSingle();
-
-      if (restaurantResponse == null || !mounted) return;
-
-      setState(() {
-        _restaurantId = restaurantResponse['id']?.toString();
-        _restaurantName = restaurantResponse['name']?.toString() ?? '';
-      });
-    } catch (e) {
-      debugPrint('OWNER RESTAURANT NAME REFRESH ERROR: $e');
-    }
-  }
-
-  void _subscribeToOrders(String restaurantId) {
+  void _subscribeToOrders() {
     _ordersChannel?.unsubscribe();
 
-    debugPrint('OWNER REALTIME: subscribing to restaurant $restaurantId');
-
     _ordersChannel = _supabase
-        .channel('owner-orders-$restaurantId')
+        .channel('owner-orders-${widget.restaurantId}')
         .onPostgresChanges(
           event: PostgresChangeEvent.insert,
           schema: 'public',
@@ -146,12 +105,9 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           filter: PostgresChangeFilter(
             type: PostgresChangeFilterType.eq,
             column: 'restaurant_id',
-            value: restaurantId,
+            value: widget.restaurantId,
           ),
-          callback: (payload) {
-            debugPrint('OWNER REALTIME: NEW ORDER RECEIVED');
-            _handleRealtimeOrderChange();
-          },
+          callback: (_) => _refreshDashboardData(),
         )
         .onPostgresChanges(
           event: PostgresChangeEvent.update,
@@ -160,12 +116,9 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           filter: PostgresChangeFilter(
             type: PostgresChangeFilterType.eq,
             column: 'restaurant_id',
-            value: restaurantId,
+            value: widget.restaurantId,
           ),
-          callback: (payload) {
-            debugPrint('OWNER REALTIME: ORDER UPDATED');
-            _handleRealtimeOrderChange();
-          },
+          callback: (_) => _refreshDashboardData(),
         )
         .onPostgresChanges(
           event: PostgresChangeEvent.delete,
@@ -174,121 +127,109 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           filter: PostgresChangeFilter(
             type: PostgresChangeFilterType.eq,
             column: 'restaurant_id',
-            value: restaurantId,
+            value: widget.restaurantId,
           ),
-          callback: (payload) {
-            debugPrint('OWNER REALTIME: ORDER DELETED');
-            _handleRealtimeOrderChange();
-          },
+          callback: (_) => _refreshDashboardData(),
         )
-        .subscribe((status, error) {
-          debugPrint('OWNER REALTIME STATUS: $status');
-          if (error != null) {
-            debugPrint('OWNER REALTIME ERROR: $error');
-          }
-        });
+        .subscribe();
   }
 
-  void _handleRealtimeOrderChange() {
-    final restaurantId = _restaurantId;
-    if (restaurantId == null) return;
+  Future<void> _refreshDashboardData() async {
+    final ordersResponse = await _supabase
+        .from('orders')
+        .select(
+          'id, customer_id, status, payment_status, subtotal, delivery_fee, '
+          'total_amount, created_at',
+        )
+        .eq('restaurant_id', widget.restaurantId)
+        .order('created_at', ascending: false);
 
-    _refreshDashboardData(
-      restaurantId,
-      _restaurantName ?? '',
-    );
-  }
+    final orders = (ordersResponse as List)
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
 
-  Future<void> _refreshDashboardData(
-    String restaurantId,
-    String restaurantName,
-  ) async {
-    try {
-      final ordersResponse = await _supabase
-          .from('orders')
-          .select(
-            'id, customer_id, status, payment_status, '
-            'subtotal, delivery_fee, total_amount, created_at',
-          )
-          .eq('restaurant_id', restaurantId)
-          .order('created_at', ascending: false);
+    int newOrders = 0;
+    int preparingOrders = 0;
+    int readyOrders = 0;
+    int completedOrders = 0;
+    double todaySales = 0;
+    final now = DateTime.now();
 
-      final orders = (ordersResponse as List)
-          .map((item) => Map<String, dynamic>.from(item))
-          .toList();
+    for (final order in orders) {
+      final status = order['status']?.toString().toLowerCase() ?? '';
 
-      int newOrders = 0;
-      int preparingOrders = 0;
-      int readyOrders = 0;
-      int completedOrders = 0;
-      double todaySales = 0;
-      final now = DateTime.now();
-
-      for (final order in orders) {
-        final status = order['status']?.toString().toLowerCase() ?? '';
-
-        switch (status) {
-          case 'pending':
-            newOrders++;
-            break;
-          case 'preparing':
-            preparingOrders++;
-            break;
-          case 'ready':
-          case 'out_for_delivery':
-          case 'on_the_way':
-            readyOrders++;
-            break;
-          case 'completed':
-            completedOrders++;
-            break;
-        }
-
-        final createdAtString = order['created_at']?.toString();
-        if (createdAtString == null) continue;
-
-        final createdAt = DateTime.tryParse(createdAtString);
-        if (createdAt == null) continue;
-
-        final isToday = createdAt.year == now.year &&
-            createdAt.month == now.month &&
-            createdAt.day == now.day;
-
-        if (isToday && status == 'completed') {
-          todaySales += (order['total_amount'] as num?)?.toDouble() ?? 0;
-        }
+      switch (status) {
+        case 'pending':
+          newOrders++;
+          break;
+        case 'preparing':
+          preparingOrders++;
+          break;
+        case 'ready':
+        case 'out_for_delivery':
+        case 'on_the_way':
+          readyOrders++;
+          break;
+        case 'completed':
+          completedOrders++;
+          break;
       }
 
-      if (!mounted) return;
+      final createdAt = DateTime.tryParse(order['created_at']?.toString() ?? '');
+      if (createdAt == null) continue;
 
-      setState(() {
-        _restaurantName = restaurantName;
-        _newOrders = newOrders;
-        _preparingOrders = preparingOrders;
-        _readyOrders = readyOrders;
-        _completedOrders = completedOrders;
-        _todaySales = todaySales;
-        _recentOrders = orders.take(5).toList();
-      });
+      if (createdAt.year == now.year &&
+          createdAt.month == now.month &&
+          createdAt.day == now.day &&
+          status == 'completed') {
+        todaySales += (order['total_amount'] as num?)?.toDouble() ?? 0;
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _newOrders = newOrders;
+      _preparingOrders = preparingOrders;
+      _readyOrders = readyOrders;
+      _completedOrders = completedOrders;
+      _todaySales = todaySales;
+      _recentOrders = orders.take(5).toList();
+    });
+  }
+
+  Future<void> _refreshRestaurantName() async {
+    try {
+      final response = await _supabase
+          .from('restaurants')
+          .select('name')
+          .eq('id', widget.restaurantId)
+          .maybeSingle();
+
+      if (!mounted || response == null) return;
+      setState(() => _restaurantName = response['name']?.toString() ?? '');
     } catch (e) {
-      debugPrint('OWNER DASHBOARD REFRESH ERROR: $e');
+      debugPrint('OWNER RESTAURANT NAME REFRESH ERROR: $e');
     }
   }
 
-  String _shortOrderId(String id) {
-    if (id.length <= 8) return id;
-    return id.substring(0, 8);
+  Future<void> _switchRestaurant() async {
+    await Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => const OwnerRestaurantSelectionScreen(),
+      ),
+      (route) => false,
+    );
   }
 
-  String _formatStatus(String status) {
-    return status
-        .replaceAll('_', ' ')
-        .split(' ')
-        .map((word) => word.isEmpty
-            ? word
-            : '${word[0].toUpperCase()}${word.substring(1)}')
-        .join(' ');
-  }
+  String _shortOrderId(String id) => id.length <= 8 ? id : id.substring(0, 8);
+
+  String _formatStatus(String status) => status
+      .replaceAll('_', ' ')
+      .split(' ')
+      .map((word) => word.isEmpty
+          ? word
+          : '${word[0].toUpperCase()}${word.substring(1)}')
+      .join(' ');
 
   Color _statusColor(String status) {
     switch (status.toLowerCase()) {
@@ -319,6 +260,11 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         ),
         actions: [
           IconButton(
+            tooltip: 'Switch Restaurant',
+            onPressed: _isLoading ? null : _switchRestaurant,
+            icon: const Icon(Icons.swap_horiz_rounded),
+          ),
+          IconButton(
             tooltip: 'Logout',
             onPressed: _isLoggingOut ? null : _logout,
             icon: _isLoggingOut
@@ -339,9 +285,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   }
 
   Widget _buildBody() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    if (_isLoading) return const Center(child: CircularProgressIndicator());
 
     if (_error != null) {
       return ListView(
@@ -352,30 +296,13 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
             padding: const EdgeInsets.all(24),
             child: Column(
               children: [
-                const Icon(
-                  Icons.error_outline_rounded,
-                  size: 60,
-                  color: Colors.redAccent,
-                ),
+                const Icon(Icons.error_outline_rounded, size: 60, color: Colors.redAccent),
                 const SizedBox(height: 16),
-                const Text(
-                  'Unable to load dashboard',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-                ),
+                const Text('Unable to load dashboard', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 8),
-                Text(
-                  _error!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: HalalFoodTheme.textSecondary,
-                  ),
-                ),
+                Text(_error!, textAlign: TextAlign.center),
                 const SizedBox(height: 18),
-                ElevatedButton(
-                  onPressed: _loadDashboard,
-                  child: const Text('Try Again'),
-                ),
+                ElevatedButton(onPressed: _loadDashboard, child: const Text('Try Again')),
               ],
             ),
           ),
@@ -392,18 +319,19 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
-            onPressed: () {
-              Navigator.of(context).push(
+            onPressed: () async {
+              await Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => const OwnerMenuManagementScreen(),
+                  builder: (_) => OwnerMenuManagementScreen(
+                    restaurantId: widget.restaurantId,
+                    restaurantName: _restaurantName,
+                  ),
                 ),
               );
+              if (mounted) await _refreshRestaurantName();
             },
             icon: const Icon(Icons.restaurant_menu_rounded),
-            label: const Text(
-              'Manage Menu',
-              style: TextStyle(fontWeight: FontWeight.w800),
-            ),
+            label: const Text('Manage Menu', style: TextStyle(fontWeight: FontWeight.w800)),
           ),
         ),
         const SizedBox(height: 10),
@@ -413,86 +341,44 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
             onPressed: () async {
               await Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => const OwnerRestaurantProfileScreen(),
+                  builder: (_) => OwnerRestaurantProfileScreen(
+                    restaurantId: widget.restaurantId,
+                    restaurantName: _restaurantName,
+                  ),
                 ),
               );
-
-              if (!mounted) return;
-              await _refreshRestaurantName();
+              if (mounted) await _refreshRestaurantName();
             },
             icon: const Icon(Icons.storefront_rounded),
-            label: const Text(
-              'Restaurant Profile',
-              style: TextStyle(fontWeight: FontWeight.w800),
-            ),
+            label: const Text('Restaurant Profile', style: TextStyle(fontWeight: FontWeight.w800)),
           ),
         ),
         const SizedBox(height: 24),
-        const Text(
-          'Today',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-        ),
+        const Text('Today', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
         const SizedBox(height: 12),
         _buildSalesCard(),
         const SizedBox(height: 24),
-        const Text(
-          'Order Summary',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-        ),
+        const Text('Order Summary', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(
-              child: _StatCard(
-                icon: Icons.notifications_active_outlined,
-                title: 'New',
-                value: _newOrders.toString(),
-                color: Colors.orange,
-              ),
-            ),
+            Expanded(child: _StatCard(icon: Icons.notifications_active_outlined, title: 'New', value: '$_newOrders', color: Colors.orange)),
             const SizedBox(width: 10),
-            Expanded(
-              child: _StatCard(
-                icon: Icons.restaurant_outlined,
-                title: 'Preparing',
-                value: _preparingOrders.toString(),
-                color: Colors.blue,
-              ),
-            ),
+            Expanded(child: _StatCard(icon: Icons.restaurant_outlined, title: 'Preparing', value: '$_preparingOrders', color: Colors.blue)),
           ],
         ),
         const SizedBox(height: 10),
         Row(
           children: [
-            Expanded(
-              child: _StatCard(
-                icon: Icons.check_circle_outline_rounded,
-                title: 'Ready',
-                value: _readyOrders.toString(),
-                color: Colors.deepPurple,
-              ),
-            ),
+            Expanded(child: _StatCard(icon: Icons.check_circle_outline_rounded, title: 'Ready', value: '$_readyOrders', color: Colors.deepPurple)),
             const SizedBox(width: 10),
-            Expanded(
-              child: _StatCard(
-                icon: Icons.done_all_rounded,
-                title: 'Completed',
-                value: _completedOrders.toString(),
-                color: Colors.green,
-              ),
-            ),
+            Expanded(child: _StatCard(icon: Icons.done_all_rounded, title: 'Completed', value: '$_completedOrders', color: Colors.green)),
           ],
         ),
         const SizedBox(height: 28),
-        const Text(
-          'Recent Orders',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-        ),
+        const Text('Recent Orders', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
         const SizedBox(height: 12),
-        if (_recentOrders.isEmpty)
-          _buildEmptyOrders()
-        else
-          ..._recentOrders.map(_buildOrderCard),
+        if (_recentOrders.isEmpty) _buildEmptyOrders() else ..._recentOrders.map(_buildOrderCard),
       ],
     );
   }
@@ -507,24 +393,11 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Welcome, Restaurant Owner',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-          ),
+          const Text('Welcome, Restaurant Owner', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
           const SizedBox(height: 6),
-          Text(
-            _restaurantName ?? '',
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: HalalFoodTheme.primaryGreen,
-            ),
-          ),
+          Text(_restaurantName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: HalalFoodTheme.primaryGreen)),
           const SizedBox(height: 6),
-          const Text(
-            'Manage your restaurant orders here.',
-            style: TextStyle(color: HalalFoodTheme.textSecondary),
-          ),
+          const Text('Manage your restaurant orders here.', style: TextStyle(color: HalalFoodTheme.textSecondary)),
         ],
       ),
     );
@@ -543,36 +416,11 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                 color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(
-                Icons.payments_outlined,
-                size: 28,
-                color: HalalFoodTheme.primaryGreen,
-              ),
+              child: const Icon(Icons.payments_outlined, size: 28, color: HalalFoodTheme.primaryGreen),
             ),
             const SizedBox(width: 14),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Today's Sales",
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: HalalFoodTheme.textSecondary,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                ],
-              ),
-            ),
-            Text(
-              '₱${_todaySales.toStringAsFixed(2)}',
-              style: const TextStyle(
-                fontSize: 21,
-                fontWeight: FontWeight.w800,
-                color: HalalFoodTheme.primaryGreen,
-              ),
-            ),
+            const Expanded(child: Text("Today's Sales", style: TextStyle(fontSize: 13, color: HalalFoodTheme.textSecondary))),
+            Text('₱${_todaySales.toStringAsFixed(2)}', style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: HalalFoodTheme.primaryGreen)),
           ],
         ),
       ),
@@ -585,25 +433,11 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         padding: const EdgeInsets.all(28),
         child: Column(
           children: [
-            Icon(
-              Icons.receipt_long_outlined,
-              size: 52,
-              color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.55),
-            ),
+            Icon(Icons.receipt_long_outlined, size: 52, color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.55)),
             const SizedBox(height: 12),
-            const Text(
-              'No orders yet',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-            ),
+            const Text('No orders yet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
             const SizedBox(height: 6),
-            const Text(
-              'Customer orders will appear here.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: HalalFoodTheme.textSecondary,
-              ),
-            ),
+            const Text('Customer orders will appear here.', textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: HalalFoodTheme.textSecondary)),
           ],
         ),
       ),
@@ -618,13 +452,9 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       child: ListTile(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => OwnerOrderDetailsScreen(order: order),
-            ),
-          );
-        },
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => OwnerOrderDetailsScreen(order: order)),
+        ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         leading: Container(
           width: 44,
@@ -633,27 +463,11 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
             color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Icon(
-            Icons.receipt_long_rounded,
-            color: HalalFoodTheme.primaryGreen,
-          ),
+          child: const Icon(Icons.receipt_long_rounded, color: HalalFoodTheme.primaryGreen),
         ),
-        title: Text(
-          '#${_shortOrderId(id)}',
-          style: const TextStyle(fontWeight: FontWeight.w800),
-        ),
-        subtitle: Text(
-          _formatStatus(status),
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: _statusColor(status),
-          ),
-        ),
-        trailing: Text(
-          '₱${total.toStringAsFixed(2)}',
-          style: const TextStyle(fontWeight: FontWeight.w800),
-        ),
+        title: Text('#${_shortOrderId(id)}', style: const TextStyle(fontWeight: FontWeight.w800)),
+        subtitle: Text(_formatStatus(status), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _statusColor(status))),
+        trailing: Text('₱${total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w800)),
       ),
     );
   }
@@ -665,12 +479,7 @@ class _StatCard extends StatelessWidget {
   final String value;
   final Color color;
 
-  const _StatCard({
-    required this.icon,
-    required this.title,
-    required this.value,
-    required this.color,
-  });
+  const _StatCard({required this.icon, required this.title, required this.value, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -682,10 +491,7 @@ class _StatCard extends StatelessWidget {
             Container(
               width: 42,
               height: 42,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(12),
-              ),
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(12)),
               child: Icon(icon, color: color, size: 22),
             ),
             const SizedBox(width: 10),
@@ -693,21 +499,9 @@ class _StatCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: HalalFoodTheme.textSecondary,
-                    ),
-                  ),
+                  Text(title, style: const TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary)),
                   const SizedBox(height: 2),
-                  Text(
-                    value,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
+                  Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
                 ],
               ),
             ),
