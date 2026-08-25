@@ -11,6 +11,7 @@ class HalalFoodTheme {
 
   // Neutral colors
   static const Color background = Color(0xFFF8F9F7);
+  static const Color surface = Colors.white;
   static const Color textPrimary = Color(0xFF1A1A1A);
   static const Color textSecondary = Color(0xFF6B6B6B);
   static const Color border = Color(0xFFE5E5E5);
