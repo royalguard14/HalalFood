@@ -4,29 +4,23 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../app/theme.dart';
 import '../../auth/screens/login_screen.dart';
 import '../data/admin_repository.dart';
-import 'restaurant_management_screen.dart';
-import 'halal_verification_screen.dart';
 import 'food_category_management_screen.dart';
-
+import 'halal_verification_screen.dart';
+import 'restaurant_management_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
-  const AdminDashboardScreen({
-    super.key,
-  });
+  const AdminDashboardScreen({super.key});
 
   @override
-  State<AdminDashboardScreen> createState() =>
-      _AdminDashboardScreenState();
+  State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
 }
 
-class _AdminDashboardScreenState
-    extends State<AdminDashboardScreen> {
+class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   final _repository = AdminRepository();
   final _supabase = Supabase.instance.client;
 
   bool _isLoading = true;
   bool _isLoggingOut = false;
-
   String? _error;
 
   int _restaurantCount = 0;
@@ -43,7 +37,6 @@ class _AdminDashboardScreenState
   @override
   void initState() {
     super.initState();
-
     _loadDashboard();
   }
 
@@ -51,13 +44,8 @@ class _AdminDashboardScreenState
   void dispose() {
     _restaurantsChannel?.unsubscribe();
     _ordersChannel?.unsubscribe();
-
     super.dispose();
   }
-
-  // ============================================================
-  // LOAD DASHBOARD
-  // ============================================================
 
   Future<void> _loadDashboard() async {
     if (!mounted) return;
@@ -69,17 +57,12 @@ class _AdminDashboardScreenState
 
     try {
       await _refreshDashboard();
-
       _subscribeToRealtime();
 
       if (!mounted) return;
-
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     } catch (e) {
       if (!mounted) return;
-
       setState(() {
         _isLoading = false;
         _error = e.toString();
@@ -102,18 +85,12 @@ class _AdminDashboardScreenState
     setState(() {
       _restaurantCount = results[0] as int;
       _activeRestaurantCount = results[1] as int;
-      _pendingVerificationCount =
-          results[2] as int;
+      _pendingVerificationCount = results[2] as int;
       _todayOrderCount = results[3] as int;
       _pendingOrderCount = results[4] as int;
-      _deliveryPricing =
-          results[5] as Map<String, dynamic>?;
+      _deliveryPricing = results[5] as Map<String, dynamic>?;
     });
   }
-
-  // ============================================================
-  // REALTIME
-  // ============================================================
 
   void _subscribeToRealtime() {
     _restaurantsChannel?.unsubscribe();
@@ -125,13 +102,7 @@ class _AdminDashboardScreenState
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'restaurants',
-          callback: (payload) {
-            debugPrint(
-              'ADMIN REALTIME: RESTAURANT CHANGED',
-            );
-
-            _refreshDashboard();
-          },
+          callback: (_) => _refreshDashboard(),
         )
         .subscribe();
 
@@ -141,107 +112,76 @@ class _AdminDashboardScreenState
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'orders',
-          callback: (payload) {
-            debugPrint(
-              'ADMIN REALTIME: ORDER CHANGED',
-            );
-
-            _refreshDashboard();
-          },
+          callback: (_) => _refreshDashboard(),
         )
         .subscribe();
   }
 
-  // ============================================================
-  // LOGOUT
-  // ============================================================
-
   Future<void> _logout() async {
     if (_isLoggingOut) return;
 
-    setState(() {
-      _isLoggingOut = true;
-    });
+    setState(() => _isLoggingOut = true);
 
     try {
       await _supabase.auth.signOut();
-
       if (!mounted) return;
 
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => const LoginScreen(),
-        ),
-        (route) => false,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (_) => false,
       );
     } catch (e) {
       if (!mounted) return;
-
-      setState(() {
-        _isLoggingOut = false;
-      });
-
+      setState(() => _isLoggingOut = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Unable to logout: $e',
-          ),
-        ),
+        SnackBar(content: Text('Unable to logout: $e')),
       );
     }
   }
 
-  // ============================================================
-  // HELPERS
-  // ============================================================
-
   String _money(dynamic value) {
-    final amount =
-        (value as num?)?.toDouble() ?? 0;
-
+    final amount = (value as num?)?.toDouble() ?? 0;
     return '₱${amount.toStringAsFixed(2)}';
   }
-
-  // ============================================================
-  // BUILD
-  // ============================================================
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF6F8F7),
       appBar: AppBar(
-        title: const Text(
-          'Admin Dashboard',
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-          ),
+        elevation: 0,
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        titleSpacing: 20,
+        title: const Row(
+          children: [
+            Icon(Icons.admin_panel_settings_rounded),
+            SizedBox(width: 10),
+            Text(
+              'Admin Dashboard',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ],
         ),
         actions: [
           IconButton(
-            tooltip: 'Refresh',
-            onPressed:
-                _isLoading ? null : _loadDashboard,
-            icon: const Icon(
-              Icons.refresh_rounded,
-            ),
+            tooltip: 'Refresh dashboard',
+            onPressed: _isLoading ? null : _loadDashboard,
+            icon: const Icon(Icons.refresh_rounded),
           ),
+          const SizedBox(width: 4),
           IconButton(
             tooltip: 'Logout',
-            onPressed:
-                _isLoggingOut ? null : _logout,
+            onPressed: _isLoggingOut ? null : _logout,
             icon: _isLoggingOut
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child:
-                        CircularProgressIndicator(
-                      strokeWidth: 2,
-                    ),
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(
-                    Icons.logout_rounded,
-                  ),
+                : const Icon(Icons.logout_rounded),
           ),
+          const SizedBox(width: 10),
         ],
       ),
       body: RefreshIndicator(
@@ -253,51 +193,51 @@ class _AdminDashboardScreenState
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (_error != null) {
       return ListView(
-        physics:
-            const AlwaysScrollableScrollPhysics(),
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          const SizedBox(height: 150),
+          const SizedBox(height: 140),
           Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               children: [
-                const Icon(
-                  Icons.error_outline_rounded,
-                  size: 60,
-                  color: Colors.redAccent,
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Unable to load admin dashboard',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.10),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.cloud_off_rounded,
+                    size: 34,
+                    color: Colors.redAccent,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 18),
+                const Text(
+                  'Unable to load dashboard',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 8),
                 Text(
                   _error!,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 13,
-                    color:
-                        HalalFoodTheme.textSecondary,
+                    color: HalalFoodTheme.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 18),
-                ElevatedButton(
+                ElevatedButton.icon(
                   onPressed: _loadDashboard,
-                  child: const Text(
-                    'Try Again',
-                  ),
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Try Again'),
                 ),
               ],
             ),
@@ -306,255 +246,121 @@ class _AdminDashboardScreenState
       );
     }
 
-    return ListView(
-      physics:
-          const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        20,
-        20,
-        32,
-      ),
-      children: [
-        _buildWelcomeCard(),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 900;
 
-        const SizedBox(height: 24),
-
-        const Text(
-          'Platform Overview',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-
-        const SizedBox(height: 12),
-
-        Row(
+        return ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(wide ? 32 : 18, 22, wide ? 32 : 18, 40),
           children: [
-            Expanded(
-              child: _StatCard(
-                icon:
-                    Icons.restaurant_rounded,
-                title: 'Restaurants',
-                value:
-                    _restaurantCount.toString(),
-                color:
-                    HalalFoodTheme.primaryGreen,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _StatCard(
-                icon:
-                    Icons.check_circle_outline,
-                title: 'Active',
-                value:
-                    _activeRestaurantCount
-                        .toString(),
-                color: Colors.green,
-              ),
-            ),
+            _buildHeaderCard(wide),
+            const SizedBox(height: 24),
+            _sectionTitle('Platform Overview', 'Live summary of your HALAL Food platform'),
+            const SizedBox(height: 12),
+            _buildStatsGrid(wide),
+            const SizedBox(height: 24),
+            if (_pendingVerificationCount > 0) ...[
+              _buildVerificationAlert(),
+              const SizedBox(height: 24),
+            ],
+            _sectionTitle('Admin Tools', 'Quick access to the areas you manage most'),
+            const SizedBox(height: 12),
+            _buildToolsGrid(wide),
+            const SizedBox(height: 24),
+            _sectionTitle('Delivery Pricing', 'Current platform-wide delivery settings'),
+            const SizedBox(height: 12),
+            _buildDeliveryPricingCard(),
           ],
-        ),
-
-        const SizedBox(height: 10),
-
-        Row(
-          children: [
-            Expanded(
-              child: _StatCard(
-                icon:
-                    Icons.verified_outlined,
-                title: 'For Verification',
-                value:
-                    _pendingVerificationCount
-                        .toString(),
-                color: Colors.orange,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _StatCard(
-                icon:
-                    Icons.receipt_long_outlined,
-                title: "Today's Orders",
-                value:
-                    _todayOrderCount.toString(),
-                color: Colors.blue,
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 10),
-
-        _StatCard(
-          icon:
-              Icons.pending_actions_rounded,
-          title: 'Pending Orders',
-          value:
-              _pendingOrderCount.toString(),
-          color: Colors.deepPurple,
-        ),
-
-        const SizedBox(height: 28),
-
-        const Text(
-          'Admin Tools',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-
-        const SizedBox(height: 12),
-
-        _buildToolCard(
-          icon: Icons.restaurant_rounded,
-          title: 'Restaurant Management',
-          subtitle:
-              'Verify, activate, deactivate and feature restaurants.',
-          color:
-              HalalFoodTheme.primaryGreen,
-   onTap: () {
-  Navigator.of(context).push(
-    MaterialPageRoute(
-      builder: (_) =>
-          const RestaurantManagementScreen(),
-    ),
-  );
-},
-        ),
-
-        const SizedBox(height: 10),
-
-_buildToolCard(
-  icon: Icons.verified_rounded,
-  title: 'Halal Verification',
-  subtitle:
-      'Review restaurants and manage their halal certification status.',
-  color: Colors.teal,
-  onTap: () {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) =>
-            const HalalVerificationScreen(),
-      ),
+        );
+      },
     );
-  },
-),
+  }
 
-
-        const SizedBox(height: 10),
-
-        _buildToolCard(
-          icon: Icons.category_rounded,
-          title: 'Food Categories',
-          subtitle:
-              'Create and manage the food categories used by restaurants.',
-          color: Colors.orange,
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) =>
-                    const FoodCategoryManagementScreen(),
+  Widget _sectionTitle(String title, String subtitle) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
               ),
-            );
-          },
-        ),
-
-        const SizedBox(height: 10),
-
-        _buildToolCard(
-          icon:
-              Icons.delivery_dining_rounded,
-          title: 'Delivery Pricing',
-          subtitle:
-              'Manage base fee, distance rates and delivery surcharges.',
-          color: Colors.blue,
-          onTap: () {
-            _showDeliveryPricing();
-          },
-        ),
-
-        const SizedBox(height: 10),
-
-        _buildToolCard(
-          icon: Icons.people_alt_outlined,
-          title: 'Users & Roles',
-          subtitle:
-              'Manage platform accounts and assigned roles.',
-          color: Colors.deepPurple,
-          onTap: () {
-            _showComingSoon(
-              'Users & Roles',
-            );
-          },
-        ),
-
-        const SizedBox(height: 28),
-
-        const Text(
-          'Current Delivery Pricing',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: HalalFoodTheme.textSecondary,
+                ),
+              ),
+            ],
           ),
         ),
-
-        const SizedBox(height: 12),
-
-        _buildDeliveryPricingCard(),
       ],
     );
   }
 
-  // ============================================================
-  // WELCOME
-  // ============================================================
-
-  Widget _buildWelcomeCard() {
+  Widget _buildHeaderCard(bool wide) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(wide ? 26 : 20),
       decoration: BoxDecoration(
-        color: HalalFoodTheme.primaryGreen
-            .withValues(alpha: 0.08),
-        borderRadius:
-            BorderRadius.circular(20),
+        gradient: LinearGradient(
+          colors: [
+            HalalFoodTheme.primaryGreen,
+            HalalFoodTheme.primaryGreen.withValues(alpha: 0.82),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.18),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
-      child: const Row(
+      child: Row(
         children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundColor:
-                HalalFoodTheme.primaryGreen,
-            child: Icon(
+          Container(
+            width: wide ? 66 : 58,
+            height: wide ? 66 : 58,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+            ),
+            child: const Icon(
               Icons.admin_panel_settings_rounded,
               color: Colors.white,
-              size: 30,
+              size: 34,
             ),
           ),
-          SizedBox(width: 14),
-          Expanded(
+          const SizedBox(width: 16),
+          const Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Welcome, Admin',
                   style: TextStyle(
-                    fontSize: 22,
-                    fontWeight:
-                        FontWeight.w800,
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
                 SizedBox(height: 5),
                 Text(
-                  'Manage the HALAL Food platform from here.',
+                  'Monitor restaurants, halal verification, orders and platform settings from one place.',
                   style: TextStyle(
-                    color:
-                        HalalFoodTheme.textSecondary,
+                    color: Colors.white70,
+                    height: 1.35,
+                    fontSize: 13,
                   ),
                 ),
               ],
@@ -565,71 +371,307 @@ _buildToolCard(
     );
   }
 
-  // ============================================================
-  // TOOL CARD
-  // ============================================================
+  Widget _buildStatsGrid(bool wide) {
+    final cards = [
+      _DashboardStat(
+        icon: Icons.restaurant_rounded,
+        title: 'Restaurants',
+        value: '$_restaurantCount',
+        caption: 'Total registered',
+        color: HalalFoodTheme.primaryGreen,
+      ),
+      _DashboardStat(
+        icon: Icons.check_circle_rounded,
+        title: 'Active',
+        value: '$_activeRestaurantCount',
+        caption: 'Currently visible',
+        color: Colors.green,
+      ),
+      _DashboardStat(
+        icon: Icons.pending_actions_rounded,
+        title: 'Verification',
+        value: '$_pendingVerificationCount',
+        caption: 'Requests to review',
+        color: Colors.orange,
+      ),
+      _DashboardStat(
+        icon: Icons.receipt_long_rounded,
+        title: "Today's Orders",
+        value: '$_todayOrderCount',
+        caption: 'Orders today',
+        color: Colors.blue,
+      ),
+      _DashboardStat(
+        icon: Icons.local_shipping_rounded,
+        title: 'Pending Orders',
+        value: '$_pendingOrderCount',
+        caption: 'Need attention',
+        color: Colors.deepPurple,
+      ),
+    ];
 
-  Widget _buildToolCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Card(
+    if (wide) {
+      return Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        children: cards
+            .map((card) => SizedBox(width: 220, child: card))
+            .toList(),
+      );
+    }
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(child: cards[0]),
+            const SizedBox(width: 10),
+            Expanded(child: cards[1]),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(child: cards[2]),
+            const SizedBox(width: 10),
+            Expanded(child: cards[3]),
+          ],
+        ),
+        const SizedBox(height: 10),
+        cards[4],
+      ],
+    );
+  }
+
+  Widget _buildVerificationAlert() {
+    return Material(
+      color: Colors.orange.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
-        borderRadius:
-            BorderRadius.circular(16),
-        onTap: onTap,
-        child: Padding(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const HalalVerificationScreen()),
+          );
+        },
+        child: Container(
           padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.orange.withValues(alpha: 0.25)),
+          ),
           child: Row(
             children: [
               Container(
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color:
-                      color.withValues(alpha: 0.10),
-                  borderRadius:
-                      BorderRadius.circular(14),
+                  color: Colors.orange.withValues(alpha: 0.13),
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(
-                  icon,
-                  color: color,
-                ),
+                child: const Icon(Icons.priority_high_rounded, color: Colors.orange),
               ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      title,
-                      style:
-                          const TextStyle(
-                        fontWeight:
-                            FontWeight.w800,
-                        fontSize: 15,
-                      ),
+                      '$_pendingVerificationCount verification request${_pendingVerificationCount == 1 ? '' : 's'} waiting',
+                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style:
-                          const TextStyle(
-                        fontSize: 12,
-                        color:
-                            HalalFoodTheme
-                                .textSecondary,
-                      ),
+                    const SizedBox(height: 3),
+                    const Text(
+                      'Review submitted documents and make the halal classification decision.',
+                      style: TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary),
                     ),
                   ],
                 ),
               ),
-              const Icon(
-                Icons.chevron_right_rounded,
+              const Icon(Icons.chevron_right_rounded, color: Colors.orange),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildToolsGrid(bool wide) {
+    final tools = [
+      _AdminTool(
+        icon: Icons.restaurant_rounded,
+        title: 'Restaurant Management',
+        subtitle: 'Manage restaurant profiles, ownership, active status and featured listings.',
+        color: HalalFoodTheme.primaryGreen,
+        onTap: () => _open(const RestaurantManagementScreen()),
+      ),
+      _AdminTool(
+        icon: Icons.verified_rounded,
+        title: 'Halal Verification',
+        subtitle: 'Review verification requests and maintain approved halal classifications.',
+        color: Colors.teal,
+        onTap: () => _open(const HalalVerificationScreen()),
+      ),
+      _AdminTool(
+        icon: Icons.category_rounded,
+        title: 'Food Categories',
+        subtitle: 'Create and manage food categories used across the platform.',
+        color: Colors.orange,
+        onTap: () => _open(const FoodCategoryManagementScreen()),
+      ),
+      _AdminTool(
+        icon: Icons.delivery_dining_rounded,
+        title: 'Delivery Pricing',
+        subtitle: 'Review platform delivery fees, distance rates and surcharges.',
+        color: Colors.blue,
+        onTap: _showDeliveryPricing,
+      ),
+      _AdminTool(
+        icon: Icons.people_alt_rounded,
+        title: 'Users & Roles',
+        subtitle: 'Manage platform accounts and assigned roles.',
+        color: Colors.deepPurple,
+        onTap: () => _showComingSoon('Users & Roles'),
+      ),
+    ];
+
+    if (wide) {
+      return GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: tools.length,
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 460,
+          mainAxisExtent: 118,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+        ),
+        itemBuilder: (_, index) => tools[index],
+      );
+    }
+
+    return Column(
+      children: [
+        for (int i = 0; i < tools.length; i++) ...[
+          tools[i],
+          if (i != tools.length - 1) const SizedBox(height: 10),
+        ],
+      ],
+    );
+  }
+
+  void _open(Widget screen) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+  }
+
+  Widget _buildDeliveryPricingCard() {
+    final pricing = _deliveryPricing;
+
+    if (pricing == null) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            children: [
+              const Icon(Icons.info_outline_rounded, color: Colors.blue),
+              const SizedBox(width: 12),
+              const Expanded(child: Text('No delivery pricing settings found.')),
+              TextButton(
+                onPressed: () => _showComingSoon('Delivery Pricing Editor'),
+                child: const Text('Manage'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
+        child: Column(
+          children: [
+            _PricingRow(label: 'Base Fee', value: _money(pricing['base_fee'])),
+            _PricingRow(
+              label: 'Included Distance',
+              value: '${pricing['included_distance_km'] ?? 0} km',
+            ),
+            _PricingRow(label: 'Per KM Rate', value: _money(pricing['per_km_rate'])),
+            _PricingRow(label: 'Minimum Fee', value: _money(pricing['minimum_fee'])),
+            _PricingRow(
+              label: 'Maximum Distance',
+              value: '${pricing['maximum_delivery_distance_km'] ?? 0} km',
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _showDeliveryPricing,
+                icon: const Icon(Icons.settings_rounded, size: 18),
+                label: const Text('View Delivery Settings'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showDeliveryPricing() {
+    final pricing = _deliveryPricing;
+
+    if (pricing == null) {
+      _showComingSoon('Delivery Pricing');
+      return;
+    }
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Delivery Pricing',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Current platform-wide delivery settings.',
+                style: TextStyle(color: HalalFoodTheme.textSecondary),
+              ),
+              const SizedBox(height: 18),
+              _PricingRow(label: 'Base Fee', value: _money(pricing['base_fee'])),
+              _PricingRow(
+                label: 'Included Distance',
+                value: '${pricing['included_distance_km'] ?? 0} km',
+              ),
+              _PricingRow(label: 'Per KM', value: _money(pricing['per_km_rate'])),
+              _PricingRow(label: 'Minimum Fee', value: _money(pricing['minimum_fee'])),
+              _PricingRow(
+                label: 'Maximum Distance',
+                value: '${pricing['maximum_delivery_distance_km'] ?? 0} km',
+              ),
+              _PricingRow(label: 'Rain Surcharge', value: _money(pricing['rain_surcharge'])),
+              _PricingRow(label: 'Peak Hour', value: _money(pricing['peak_hour_surcharge'])),
+              _PricingRow(label: 'Night Surcharge', value: _money(pricing['night_surcharge'])),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _showComingSoon('Delivery Pricing Editor');
+                  },
+                  icon: const Icon(Icons.edit_rounded),
+                  label: const Text('Edit Pricing'),
+                ),
               ),
             ],
           ),
@@ -638,281 +680,70 @@ _buildToolCard(
     );
   }
 
-  // ============================================================
-  // DELIVERY PRICING CARD
-  // ============================================================
-
-  Widget _buildDeliveryPricingCard() {
-    final pricing = _deliveryPricing;
-
-    if (pricing == null) {
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(20),
-          child: Text(
-            'No delivery pricing settings found.',
-          ),
-        ),
-      );
-    }
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          children: [
-            _PricingRow(
-              label: 'Base Fee',
-              value:
-                  _money(pricing['base_fee']),
-            ),
-            _PricingRow(
-              label: 'Included Distance',
-              value:
-                  '${pricing['included_distance_km']} km',
-            ),
-            _PricingRow(
-              label: 'Per KM Rate',
-              value:
-                  _money(pricing['per_km_rate']),
-            ),
-            _PricingRow(
-              label: 'Minimum Fee',
-              value:
-                  _money(pricing['minimum_fee']),
-            ),
-            _PricingRow(
-              label: 'Maximum Distance',
-              value:
-                  '${pricing['maximum_delivery_distance_km']} km',
-            ),
-            _PricingRow(
-              label: 'Rain Surcharge',
-              value:
-                  _money(pricing['rain_surcharge']),
-            ),
-            _PricingRow(
-              label: 'Peak Hour',
-              value:
-                  _money(
-                pricing['peak_hour_surcharge'],
-              ),
-            ),
-            _PricingRow(
-              label: 'Night Surcharge',
-              value:
-                  _money(
-                pricing['night_surcharge'],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // DELIVERY PRICING PREVIEW
-  // ============================================================
-
-  void _showDeliveryPricing() {
-    final pricing = _deliveryPricing;
-
-    if (pricing == null) {
-      _showComingSoon(
-        'Delivery Pricing',
-      );
-      return;
-    }
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              20,
-              10,
-              20,
-              30,
-            ),
-            child: Column(
-              mainAxisSize:
-                  MainAxisSize.min,
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Delivery Pricing',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight:
-                        FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'These settings control the platform-wide delivery pricing.',
-                  style: TextStyle(
-                    color:
-                        HalalFoodTheme
-                            .textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                _PricingRow(
-                  label: 'Base Fee',
-                  value:
-                      _money(pricing['base_fee']),
-                ),
-                _PricingRow(
-                  label: 'Included Distance',
-                  value:
-                      '${pricing['included_distance_km']} km',
-                ),
-                _PricingRow(
-                  label: 'Per KM',
-                  value:
-                      _money(pricing['per_km_rate']),
-                ),
-                _PricingRow(
-                  label: 'Fuel Adjustment',
-                  value:
-                      _money(
-                    pricing['fuel_adjustment'],
-                  ),
-                ),
-                _PricingRow(
-                  label: 'Minimum Fee',
-                  value:
-                      _money(
-                    pricing['minimum_fee'],
-                  ),
-                ),
-                _PricingRow(
-                  label: 'Maximum Distance',
-                  value:
-                      '${pricing['maximum_delivery_distance_km']} km',
-                ),
-                const SizedBox(height: 18),
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(
-                        context,
-                      );
-
-                      _showComingSoon(
-                        'Delivery Pricing Editor',
-                      );
-                    },
-                    icon: const Icon(
-                      Icons.edit_rounded,
-                    ),
-                    label: const Text(
-                      'Edit Pricing',
-                      style: TextStyle(
-                        fontWeight:
-                            FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   void _showComingSoon(String feature) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '$feature module will be connected next.',
-        ),
-      ),
+      SnackBar(content: Text('$feature module will be connected next.')),
     );
   }
 }
 
-// ============================================================
-// STAT CARD
-// ============================================================
-
-class _StatCard extends StatelessWidget {
+class _DashboardStat extends StatelessWidget {
   final IconData icon;
   final String title;
   final String value;
+  final String caption;
   final Color color;
 
-  const _StatCard({
+  const _DashboardStat({
     required this.icon,
     required this.title,
     required this.value,
+    required this.caption,
     required this.color,
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Card(
+      elevation: 0,
       child: Padding(
-        padding:
-            const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Row(
           children: [
             Container(
-              width: 42,
-              height: 42,
-              decoration:
-                  BoxDecoration(
-                color:
-                    color.withValues(
-                  alpha: 0.10,
-                ),
-                borderRadius:
-                    BorderRadius.circular(
-                  12,
-                ),
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(14),
               ),
-              child: Icon(
-                icon,
-                color: color,
-                size: 22,
-              ),
+              child: Icon(icon, color: color, size: 23),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
-                    style:
-                        const TextStyle(
-                      fontSize: 11,
-                      color:
-                          HalalFoodTheme
-                              .textSecondary,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: HalalFoodTheme.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 2),
                   Text(
                     value,
-                    style:
-                        const TextStyle(
-                      fontSize: 20,
-                      fontWeight:
-                          FontWeight.w800,
-                    ),
+                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    caption,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w700),
                   ),
                 ],
               ),
@@ -924,28 +755,84 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-// ============================================================
-// PRICING ROW
-// ============================================================
+class _AdminTool extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _AdminTool({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Icon(icon, color: color),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        height: 1.3,
+                        color: HalalFoodTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(Icons.arrow_forward_ios_rounded, size: 15, color: color),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _PricingRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _PricingRow({
-    required this.label,
-    required this.value,
-  });
+  const _PricingRow({required this.label, required this.value});
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Padding(
-      padding:
-          const EdgeInsets.symmetric(
-        vertical: 7,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
         children: [
           Expanded(
@@ -953,19 +840,13 @@ class _PricingRow extends StatelessWidget {
               label,
               style: const TextStyle(
                 fontSize: 13,
-                color:
-                    HalalFoodTheme
-                        .textSecondary,
+                color: HalalFoodTheme.textSecondary,
               ),
             ),
           ),
           Text(
             value,
-            style: const TextStyle(
-              fontWeight:
-                  FontWeight.w800,
-              fontSize: 13,
-            ),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
           ),
         ],
       ),
