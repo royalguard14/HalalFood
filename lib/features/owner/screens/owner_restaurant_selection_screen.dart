@@ -339,9 +339,10 @@ class _OwnerRestaurantSelectionScreenState
     final active = restaurant['is_active'] == true;
     final city = restaurant['city']?.toString().trim() ?? '';
     final halalStatus = restaurant['halal_status']?.toString() ?? 'unverified';
-    final pendingVerification = id != null &&
-        _pendingVerificationIds.contains(id);
-    final requesting = id != null && _requestingVerificationIds.contains(id);
+    final pendingVerification =
+        id != null && _pendingVerificationIds.contains(id);
+    final requesting =
+        id != null && _requestingVerificationIds.contains(id);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -470,7 +471,7 @@ class _StatusPill extends StatelessWidget {
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w700,
-          color: color.shade700,
+          color: color,
         ),
       ),
     );
