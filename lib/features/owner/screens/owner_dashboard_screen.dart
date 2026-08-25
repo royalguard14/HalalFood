@@ -456,7 +456,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: _StatCard(icon: Icons.payments_outlined, title: 'Sales This Month', value: 'â‚±${_monthlySales.toStringAsFixed(0)}', color: HalalFoodTheme.primaryGreen)),
+            Expanded(child: _StatCard(icon: Icons.payments_outlined, title: 'Sales This Month', value: '₱${_monthlySales.toStringAsFixed(0)}', color: HalalFoodTheme.primaryGreen)),
             const SizedBox(width: 10),
             Expanded(child: _StatCard(icon: Icons.receipt_long_outlined, title: 'Orders This Month', value: '$_monthlyOrders', color: Colors.blue)),
           ],
@@ -464,7 +464,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         const SizedBox(height: 10),
         Row(
           children: [
-            Expanded(child: _StatCard(icon: Icons.star_rounded, title: 'Rating', value: _reviewCount == 0 ? 'â€”' : _averageRating.toStringAsFixed(1), color: Colors.orange)),
+            Expanded(child: _StatCard(icon: Icons.star_rounded, title: 'Rating', value: _reviewCount == 0 ? '—' : _averageRating.toStringAsFixed(1), color: Colors.orange)),
             const SizedBox(width: 10),
             Expanded(child: _StatCard(icon: Icons.reviews_outlined, title: 'Reviews', value: '$_reviewCount', color: Colors.deepPurple)),
           ],
@@ -540,7 +540,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
             ),
             const SizedBox(width: 14),
             const Expanded(child: Text("Today's Sales", style: TextStyle(fontSize: 13, color: HalalFoodTheme.textSecondary))),
-            Text('â‚±${_todaySales.toStringAsFixed(2)}', style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: HalalFoodTheme.primaryGreen)),
+            Text('₱${_todaySales.toStringAsFixed(2)}', style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: HalalFoodTheme.primaryGreen)),
           ],
         ),
       ),
@@ -586,7 +586,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                 title: Text(item['name']?.toString() ?? 'Menu Item', style: const TextStyle(fontWeight: FontWeight.w800)),
                 subtitle: Text('$quantity sold this month'),
                 trailing: Text(
-                  'â‚±${sales.toStringAsFixed(2)}',
+                  '₱${sales.toStringAsFixed(2)}',
                   style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
@@ -638,7 +638,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         ),
         title: Text('#${_shortOrderId(id)}', style: const TextStyle(fontWeight: FontWeight.w800)),
         subtitle: Text(_formatStatus(status), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _statusColor(status))),
-        trailing: Text('â‚±${total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w800)),
+        trailing: Text('₱${total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w800)),
       ),
     );
   }

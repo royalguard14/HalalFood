@@ -301,7 +301,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       );
 
       debugPrint(
-        'Delivery Fee: PHP '
+        'Delivery Fee: ₱'
         '${fee.toStringAsFixed(2)}',
       );
 
