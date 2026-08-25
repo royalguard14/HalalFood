@@ -116,6 +116,10 @@ class _FoodCategoryManagementScreenState
     if (result == null || !mounted) return;
 
     try {
+      final user = _supabase.auth.currentUser;
+      debugPrint('ADMIN AUTH USER ID: ${user?.id}');
+      debugPrint('ADMIN AUTH EMAIL: ${user?.email}');
+
       final duplicate = await _supabase
           .from('food_categories')
           .select('id')
@@ -137,6 +141,7 @@ class _FoodCategoryManagementScreenState
       await _loadCategories();
       if (mounted) _showMessage('Food category updated successfully.');
     } catch (e) {
+      debugPrint('FOOD CATEGORY UPDATE ERROR: $e');
       if (mounted) _showMessage('Unable to update category:\n$e');
     }
   }
