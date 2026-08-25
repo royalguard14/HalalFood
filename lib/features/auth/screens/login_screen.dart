@@ -1,10 +1,9 @@
-
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/theme.dart';
 import '../../home/screens/home_screen.dart';
-import '../../owner/screens/owner_dashboard_screen.dart';
+import '../../owner/screens/owner_restaurant_selection_screen.dart';
 import 'register_screen.dart';
 import '../../admin/screens/admin_dashboard_screen.dart';
 
@@ -17,10 +16,8 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-
   bool _obscurePassword = true;
 
   @override
@@ -31,23 +28,17 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
     try {
       final supabase = Supabase.instance.client;
-
       final response = await supabase.auth.signInWithPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
       final user = response.user;
-
-      if (user == null) {
-        throw Exception('Unable to login.');
-      }
+      if (user == null) throw Exception('Unable to login.');
 
       final profile = await supabase
           .from('profiles')
@@ -56,51 +47,35 @@ class _LoginScreenState extends State<LoginScreen> {
           .maybeSingle();
 
       if (!mounted) return;
+      final role = profile?['role']?.toString() ?? 'customer';
 
-      final role =
-          profile?['role']?.toString() ?? 'customer';
-
-if (role == 'admin') {
-  Navigator.of(context).pushAndRemoveUntil(
-    MaterialPageRoute(
-      builder: (_) =>
-          const AdminDashboardScreen(),
-    ),
-    (route) => false,
-  );
-} else if (role == 'restaurant_owner') {
-  Navigator.of(context).pushAndRemoveUntil(
-    MaterialPageRoute(
-      builder: (_) =>
-          const OwnerDashboardScreen(),
-    ),
-    (route) => false,
-  );
-} else {
+      if (role == 'admin') {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
+          (route) => false,
+        );
+      } else if (role == 'restaurant_owner') {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
-            builder: (_) => const HomeScreen(),
+            builder: (_) => const OwnerRestaurantSelectionScreen(),
           ),
+          (route) => false,
+        );
+      } else {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
           (route) => false,
         );
       }
     } on AuthException catch (e) {
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.message),
-        ),
+        SnackBar(content: Text(e.message)),
       );
     } catch (e) {
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Unable to login: $e',
-          ),
-        ),
+        SnackBar(content: Text('Unable to login: $e')),
       );
     }
   }
@@ -115,134 +90,82 @@ if (role == 'admin') {
           child: Form(
             key: _formKey,
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 20),
-
                 const Text(
                   'Welcome back!',
                   style: TextStyle(
                     fontSize: 30,
                     fontWeight: FontWeight.w800,
-                    color:
-                        HalalFoodTheme.textPrimary,
+                    color: HalalFoodTheme.textPrimary,
                   ),
                 ),
-
                 const SizedBox(height: 8),
-
                 const Text(
                   'Login to continue to HALAL Food.',
                   style: TextStyle(
                     fontSize: 16,
-                    color:
-                        HalalFoodTheme.textSecondary,
+                    color: HalalFoodTheme.textSecondary,
                   ),
                 ),
-
                 const SizedBox(height: 36),
-
-                const Text(
-                  'Email',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-
+                const Text('Email', style: TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
-
                 TextFormField(
                   controller: _emailController,
-                  keyboardType:
-                      TextInputType.emailAddress,
-                  decoration:
-                      const InputDecoration(
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
                     hintText: 'Enter your email',
-                    prefixIcon:
-                        Icon(Icons.email_outlined),
+                    prefixIcon: Icon(Icons.email_outlined),
                   ),
                   validator: (value) {
-                    if (value == null ||
-                        value.trim().isEmpty) {
+                    if (value == null || value.trim().isEmpty) {
                       return 'Please enter your email';
                     }
-
-                    if (!value.contains('@')) {
-                      return 'Please enter a valid email';
-                    }
-
+                    if (!value.contains('@')) return 'Please enter a valid email';
                     return null;
                   },
                 ),
-
                 const SizedBox(height: 20),
-
-                const Text(
-                  'Password',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-
+                const Text('Password', style: TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
-
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
                   decoration: InputDecoration(
-                    hintText:
-                        'Enter your password',
-                    prefixIcon: const Icon(
-                      Icons.lock_outline,
-                    ),
+                    hintText: 'Enter your password',
+                    prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword =
-                              !_obscurePassword;
-                        });
-                      },
+                      onPressed: () => setState(
+                        () => _obscurePassword = !_obscurePassword,
+                      ),
                       icon: Icon(
                         _obscurePassword
-                            ? Icons
-                                .visibility_outlined
-                            : Icons
-                                .visibility_off_outlined,
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
                       ),
                     ),
                   ),
                   validator: (value) {
-                    if (value == null ||
-                        value.isEmpty) {
+                    if (value == null || value.isEmpty) {
                       return 'Please enter your password';
                     }
-
                     if (value.length < 6) {
                       return 'Password must be at least 6 characters';
                     }
-
                     return null;
                   },
                 ),
-
                 const SizedBox(height: 12),
-
                 Align(
-                  alignment:
-                      Alignment.centerRight,
+                  alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: () {
-                      // Forgot password will be connected later.
-                    },
-                    child: const Text(
-                      'Forgot password?',
-                    ),
+                    onPressed: () {},
+                    child: const Text('Forgot password?'),
                   ),
                 ),
-
                 const SizedBox(height: 20),
-
                 SizedBox(
                   width: double.infinity,
                   height: 54,
@@ -250,81 +173,50 @@ if (role == 'admin') {
                     onPressed: _login,
                     child: const Text(
                       'Login',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight:
-                            FontWeight.w700,
-                      ),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 28),
-
                 Row(
                   children: [
-                    const Expanded(
-                      child: Divider(),
-                    ),
+                    const Expanded(child: Divider()),
                     Padding(
-                      padding:
-                          const EdgeInsets.symmetric(
-                        horizontal: 16,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
                         'OR',
                         style: TextStyle(
-                          color:
-                              Colors.grey.shade600,
+                          color: Colors.grey.shade600,
                           fontSize: 12,
-                          fontWeight:
-                              FontWeight.w600,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
-                    const Expanded(
-                      child: Divider(),
-                    ),
+                    const Expanded(child: Divider()),
                   ],
                 ),
-
                 const SizedBox(height: 28),
-
                 SizedBox(
                   width: double.infinity,
                   height: 54,
                   child: OutlinedButton.icon(
-                    onPressed: () {
-                      // Google authentication will be connected later.
-                    },
-                    icon: const Icon(
-                      Icons.g_mobiledata,
-                    ),
+                    onPressed: () {},
+                    icon: const Icon(Icons.g_mobiledata),
                     label: const Text(
                       'Continue with Google',
-                      style: TextStyle(
-                        fontWeight:
-                            FontWeight.w600,
-                      ),
+                      style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 28),
-
                 Center(
                   child: TextButton(
                     onPressed: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              const RegisterScreen(),
-                        ),
+                        MaterialPageRoute(builder: (_) => const RegisterScreen()),
                       );
                     },
-                    child: const Text(
-                      "Don't have an account? Register",
-                    ),
+                    child: const Text("Don't have an account? Register"),
                   ),
                 ),
               ],
