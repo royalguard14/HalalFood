@@ -34,10 +34,16 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   int _preparingOrders = 0;
   int _readyOrders = 0;
   int _completedOrders = 0;
+  int _monthlyOrders = 0;
   double _todaySales = 0;
+  double _monthlySales = 0;
+  double _averageRating = 0;
+  int _reviewCount = 0;
 
   List<Map<String, dynamic>> _recentOrders = [];
+  List<Map<String, dynamic>> _topItems = [];
   RealtimeChannel? _ordersChannel;
+  RealtimeChannel? _reviewsChannel;
 
   @override
   void initState() {
@@ -49,13 +55,18 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   @override
   void dispose() {
     _ordersChannel?.unsubscribe();
+    _reviewsChannel?.unsubscribe();
     super.dispose();
+  }
+
+  DateTime _monthStart() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, 1);
   }
 
   Future<void> _logout() async {
     if (_isLoggingOut) return;
     setState(() => _isLoggingOut = true);
-
     try {
       await _supabase.auth.signOut();
       if (!mounted) return;
@@ -82,6 +93,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     try {
       await _refreshDashboardData();
       _subscribeToOrders();
+      _subscribeToReviews();
       if (!mounted) return;
       setState(() => _isLoading = false);
     } catch (e) {
@@ -95,9 +107,8 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
 
   void _subscribeToOrders() {
     _ordersChannel?.unsubscribe();
-
     _ordersChannel = _supabase
-        .channel('owner-orders-${widget.restaurantId}')
+        .channel('owner-dashboard-orders-${widget.restaurantId}')
         .onPostgresChanges(
           event: PostgresChangeEvent.insert,
           schema: 'public',
@@ -120,10 +131,28 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           ),
           callback: (_) => _refreshDashboardData(),
         )
+        .subscribe();
+  }
+
+  void _subscribeToReviews() {
+    _reviewsChannel?.unsubscribe();
+    _reviewsChannel = _supabase
+        .channel('owner-dashboard-reviews-${widget.restaurantId}')
         .onPostgresChanges(
-          event: PostgresChangeEvent.delete,
+          event: PostgresChangeEvent.insert,
           schema: 'public',
-          table: 'orders',
+          table: 'reviews',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'restaurant_id',
+            value: widget.restaurantId,
+          ),
+          callback: (_) => _refreshDashboardData(),
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'reviews',
           filter: PostgresChangeFilter(
             type: PostgresChangeFilterType.eq,
             column: 'restaurant_id',
@@ -138,8 +167,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     final ordersResponse = await _supabase
         .from('orders')
         .select(
-          'id, customer_id, status, payment_status, subtotal, delivery_fee, '
-          'total_amount, created_at',
+          'id, customer_id, status, payment_status, subtotal, delivery_fee, total_amount, created_at',
         )
         .eq('restaurant_id', widget.restaurantId)
         .order('created_at', ascending: false);
@@ -152,12 +180,16 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     int preparingOrders = 0;
     int readyOrders = 0;
     int completedOrders = 0;
+    int monthlyOrders = 0;
     double todaySales = 0;
+    double monthlySales = 0;
     final now = DateTime.now();
+    final monthStart = _monthStart();
+
+    final monthlyCompletedOrderIds = <String>[];
 
     for (final order in orders) {
       final status = order['status']?.toString().toLowerCase() ?? '';
-
       switch (status) {
         case 'pending':
           newOrders++;
@@ -178,12 +210,73 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       final createdAt = DateTime.tryParse(order['created_at']?.toString() ?? '');
       if (createdAt == null) continue;
 
-      if (createdAt.year == now.year &&
+      final isThisMonth =
+          createdAt.year == monthStart.year && createdAt.month == monthStart.month;
+      final isToday =
+          createdAt.year == now.year &&
           createdAt.month == now.month &&
-          createdAt.day == now.day &&
-          status == 'completed') {
+          createdAt.day == now.day;
+
+      if (isThisMonth) monthlyOrders++;
+
+      if (status == 'completed' && isThisMonth) {
+        final orderId = order['id']?.toString();
+        if (orderId != null) monthlyCompletedOrderIds.add(orderId);
+        monthlySales += (order['total_amount'] as num?)?.toDouble() ?? 0;
+      }
+
+      if (status == 'completed' && isToday) {
         todaySales += (order['total_amount'] as num?)?.toDouble() ?? 0;
       }
+    }
+
+    final itemTotals = <String, Map<String, dynamic>>{};
+    if (monthlyCompletedOrderIds.isNotEmpty) {
+      final orderItemsResponse = await _supabase
+          .from('order_items')
+          .select('menu_item_id, item_name, quantity, subtotal')
+          .inFilter('order_id', monthlyCompletedOrderIds);
+
+      for (final row in (orderItemsResponse as List)) {
+        final id = row['menu_item_id']?.toString();
+        if (id == null) continue;
+        final quantity = (row['quantity'] as num?)?.toInt() ?? 0;
+        final subtotal = (row['subtotal'] as num?)?.toDouble() ?? 0;
+        final current = itemTotals[id];
+        if (current == null) {
+          itemTotals[id] = {
+            'id': id,
+            'name': row['item_name']?.toString() ?? 'Menu Item',
+            'quantity': quantity,
+            'sales': subtotal,
+          };
+        } else {
+          current['quantity'] = (current['quantity'] as int) + quantity;
+          current['sales'] = (current['sales'] as double) + subtotal;
+        }
+      }
+    }
+
+    final topItems = itemTotals.values.toList()
+      ..sort((a, b) => (b['quantity'] as int).compareTo(a['quantity'] as int));
+
+    double averageRating = 0;
+    int reviewCount = 0;
+    try {
+      final reviewsResponse = await _supabase
+          .from('reviews')
+          .select('rating')
+          .eq('restaurant_id', widget.restaurantId);
+      final ratings = (reviewsResponse as List)
+          .map((row) => (row['rating'] as num?)?.toDouble())
+          .whereType<double>()
+          .toList();
+      reviewCount = ratings.length;
+      if (ratings.isNotEmpty) {
+        averageRating = ratings.reduce((a, b) => a + b) / ratings.length;
+      }
+    } catch (e) {
+      debugPrint('OWNER REVIEW STATS ERROR: $e');
     }
 
     if (!mounted) return;
@@ -192,8 +285,13 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       _preparingOrders = preparingOrders;
       _readyOrders = readyOrders;
       _completedOrders = completedOrders;
+      _monthlyOrders = monthlyOrders;
       _todaySales = todaySales;
+      _monthlySales = monthlySales;
+      _averageRating = averageRating;
+      _reviewCount = reviewCount;
       _recentOrders = orders.take(5).toList();
+      _topItems = topItems.take(5).toList();
     });
   }
 
@@ -204,7 +302,6 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           .select('name')
           .eq('id', widget.restaurantId)
           .maybeSingle();
-
       if (!mounted || response == null) return;
       setState(() => _restaurantName = response['name']?.toString() ?? '');
     } catch (e) {
@@ -214,9 +311,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
 
   Future<void> _switchRestaurant() async {
     await Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(
-        builder: (_) => const OwnerRestaurantSelectionScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const OwnerRestaurantSelectionScreen()),
       (route) => false,
     );
   }
@@ -298,7 +393,10 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
               children: [
                 const Icon(Icons.error_outline_rounded, size: 60, color: Colors.redAccent),
                 const SizedBox(height: 16),
-                const Text('Unable to load dashboard', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                const Text(
+                  'Unable to load dashboard',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                ),
                 const SizedBox(height: 8),
                 Text(_error!, textAlign: TextAlign.center),
                 const SizedBox(height: 18),
@@ -354,6 +452,24 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           ),
         ),
         const SizedBox(height: 24),
+        const Text('Business Overview', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(child: _StatCard(icon: Icons.payments_outlined, title: 'Sales This Month', value: '₱${_monthlySales.toStringAsFixed(0)}', color: HalalFoodTheme.primaryGreen)),
+            const SizedBox(width: 10),
+            Expanded(child: _StatCard(icon: Icons.receipt_long_outlined, title: 'Orders This Month', value: '$_monthlyOrders', color: Colors.blue)),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(child: _StatCard(icon: Icons.star_rounded, title: 'Rating', value: _reviewCount == 0 ? '—' : _averageRating.toStringAsFixed(1), color: Colors.orange)),
+            const SizedBox(width: 10),
+            Expanded(child: _StatCard(icon: Icons.reviews_outlined, title: 'Reviews', value: '$_reviewCount', color: Colors.deepPurple)),
+          ],
+        ),
+        const SizedBox(height: 24),
         const Text('Today', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
         const SizedBox(height: 12),
         _buildSalesCard(),
@@ -376,6 +492,10 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           ],
         ),
         const SizedBox(height: 28),
+        const Text('Best Sellers This Month', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 12),
+        _buildTopItems(),
+        const SizedBox(height: 28),
         const Text('Recent Orders', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
         const SizedBox(height: 12),
         if (_recentOrders.isEmpty) _buildEmptyOrders() else ..._recentOrders.map(_buildOrderCard),
@@ -397,7 +517,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           const SizedBox(height: 6),
           Text(_restaurantName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: HalalFoodTheme.primaryGreen)),
           const SizedBox(height: 6),
-          const Text('Manage your restaurant orders here.', style: TextStyle(color: HalalFoodTheme.textSecondary)),
+          const Text('Track your restaurant performance, orders, sales, and customer feedback.', style: TextStyle(color: HalalFoodTheme.textSecondary)),
         ],
       ),
     );
@@ -423,6 +543,57 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
             Text('₱${_todaySales.toStringAsFixed(2)}', style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: HalalFoodTheme.primaryGreen)),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildTopItems() {
+    if (_topItems.isEmpty) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
+              Icon(Icons.trending_up_rounded, size: 46, color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.55)),
+              const SizedBox(height: 10),
+              const Text('No completed item sales this month yet.', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: _topItems.asMap().entries.map((entry) {
+          final index = entry.key;
+          final item = entry.value;
+          final quantity = item['quantity'] as int;
+          final sales = item['sales'] as double;
+          return Column(
+            children: [
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: index == 0
+                      ? Colors.amber.withValues(alpha: 0.16)
+                      : HalalFoodTheme.primaryGreen.withValues(alpha: 0.10),
+                  child: Text(
+                    '${index + 1}',
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+                title: Text(item['name']?.toString() ?? 'Menu Item', style: const TextStyle(fontWeight: FontWeight.w800)),
+                subtitle: Text('$quantity sold this month'),
+                trailing: Text(
+                  '₱${sales.toStringAsFixed(2)}',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+              if (index != _topItems.length - 1) const Divider(height: 1, indent: 72),
+            ],
+          );
+        }).toList(),
       ),
     );
   }
@@ -479,31 +650,43 @@ class _StatCard extends StatelessWidget {
   final String value;
   final Color color;
 
-  const _StatCard({required this.icon, required this.title, required this.value, required this.color});
+  const _StatCard({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
               width: 42,
               height: 42,
-              decoration: BoxDecoration(color: color.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: Icon(icon, color: color, size: 22),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: const TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary)),
-                  const SizedBox(height: 2),
-                  Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-                ],
-              ),
+            const SizedBox(height: 12),
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 11, color: HalalFoodTheme.textSecondary),
             ),
           ],
         ),
