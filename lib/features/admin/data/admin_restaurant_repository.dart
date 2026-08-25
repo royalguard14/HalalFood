@@ -32,7 +32,6 @@ class AdminRestaurantRepository {
     double? longitude,
     String? logoUrl,
     String? coverImageUrl,
-    String halalStatus = 'unverified',
     bool isActive = true,
     bool isFeatured = false,
   }) async {
@@ -50,7 +49,7 @@ class AdminRestaurantRepository {
       'longitude': longitude,
       'logo_url': _clean(logoUrl),
       'cover_image_url': _clean(coverImageUrl),
-      'halal_status': halalStatus,
+      'halal_status': 'unverified',
       'is_active': isActive,
       'is_featured': isFeatured,
       'average_rating': 0,
