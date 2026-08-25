@@ -37,7 +37,7 @@ class MenuRepository {
         .from('orders')
         .select('id')
         .eq('restaurant_id', restaurantId)
-        .eq('status', 'completed')
+        .eq('status', 'delivered')
         .gte('created_at', _monthStart().toIso8601String());
 
     final orderIds = (ordersResponse as List)

@@ -6,7 +6,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../app/theme.dart';
 import '../auth/screens/login_screen.dart';
 import '../home/screens/home_screen.dart';
-import '../owner/screens/owner_dashboard_screen.dart';
 import '../owner/screens/owner_restaurant_selection_screen.dart';
 import '../admin/screens/admin_dashboard_screen.dart';
 

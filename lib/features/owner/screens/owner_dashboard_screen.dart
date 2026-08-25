@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'owner_order_details_screen.dart';
@@ -202,7 +202,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         case 'on_the_way':
           readyOrders++;
           break;
-        case 'completed':
+        case 'delivered':
           completedOrders++;
           break;
       }
@@ -219,13 +219,13 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
 
       if (isThisMonth) monthlyOrders++;
 
-      if (status == 'completed' && isThisMonth) {
+      if (status == 'delivered' && isThisMonth) {
         final orderId = order['id']?.toString();
         if (orderId != null) monthlyCompletedOrderIds.add(orderId);
         monthlySales += (order['total_amount'] as num?)?.toDouble() ?? 0;
       }
 
-      if (status == 'completed' && isToday) {
+      if (status == 'delivered' && isToday) {
         todaySales += (order['total_amount'] as num?)?.toDouble() ?? 0;
       }
     }
@@ -336,7 +336,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       case 'out_for_delivery':
       case 'on_the_way':
         return Colors.deepPurple;
-      case 'completed':
+      case 'delivered':
         return Colors.green;
       case 'cancelled':
         return Colors.red;
@@ -456,7 +456,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: _StatCard(icon: Icons.payments_outlined, title: 'Sales This Month', value: '₱${_monthlySales.toStringAsFixed(0)}', color: HalalFoodTheme.primaryGreen)),
+            Expanded(child: _StatCard(icon: Icons.payments_outlined, title: 'Sales This Month', value: 'â‚±${_monthlySales.toStringAsFixed(0)}', color: HalalFoodTheme.primaryGreen)),
             const SizedBox(width: 10),
             Expanded(child: _StatCard(icon: Icons.receipt_long_outlined, title: 'Orders This Month', value: '$_monthlyOrders', color: Colors.blue)),
           ],
@@ -464,7 +464,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         const SizedBox(height: 10),
         Row(
           children: [
-            Expanded(child: _StatCard(icon: Icons.star_rounded, title: 'Rating', value: _reviewCount == 0 ? '—' : _averageRating.toStringAsFixed(1), color: Colors.orange)),
+            Expanded(child: _StatCard(icon: Icons.star_rounded, title: 'Rating', value: _reviewCount == 0 ? 'â€”' : _averageRating.toStringAsFixed(1), color: Colors.orange)),
             const SizedBox(width: 10),
             Expanded(child: _StatCard(icon: Icons.reviews_outlined, title: 'Reviews', value: '$_reviewCount', color: Colors.deepPurple)),
           ],
@@ -488,7 +488,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           children: [
             Expanded(child: _StatCard(icon: Icons.check_circle_outline_rounded, title: 'Ready', value: '$_readyOrders', color: Colors.deepPurple)),
             const SizedBox(width: 10),
-            Expanded(child: _StatCard(icon: Icons.done_all_rounded, title: 'Completed', value: '$_completedOrders', color: Colors.green)),
+            Expanded(child: _StatCard(icon: Icons.done_all_rounded, title: 'Delivered', value: '$_completedOrders', color: Colors.green)),
           ],
         ),
         const SizedBox(height: 28),
@@ -540,7 +540,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
             ),
             const SizedBox(width: 14),
             const Expanded(child: Text("Today's Sales", style: TextStyle(fontSize: 13, color: HalalFoodTheme.textSecondary))),
-            Text('₱${_todaySales.toStringAsFixed(2)}', style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: HalalFoodTheme.primaryGreen)),
+            Text('â‚±${_todaySales.toStringAsFixed(2)}', style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: HalalFoodTheme.primaryGreen)),
           ],
         ),
       ),
@@ -556,7 +556,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
             children: [
               Icon(Icons.trending_up_rounded, size: 46, color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.55)),
               const SizedBox(height: 10),
-              const Text('No completed item sales this month yet.', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700)),
+              const Text('No delivered item sales this month yet\.', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700)),
             ],
           ),
         ),
@@ -586,7 +586,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                 title: Text(item['name']?.toString() ?? 'Menu Item', style: const TextStyle(fontWeight: FontWeight.w800)),
                 subtitle: Text('$quantity sold this month'),
                 trailing: Text(
-                  '₱${sales.toStringAsFixed(2)}',
+                  'â‚±${sales.toStringAsFixed(2)}',
                   style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
@@ -638,7 +638,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         ),
         title: Text('#${_shortOrderId(id)}', style: const TextStyle(fontWeight: FontWeight.w800)),
         subtitle: Text(_formatStatus(status), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _statusColor(status))),
-        trailing: Text('₱${total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w800)),
+        trailing: Text('â‚±${total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w800)),
       ),
     );
   }
@@ -694,3 +694,4 @@ class _StatCard extends StatelessWidget {
     );
   }
 }
+

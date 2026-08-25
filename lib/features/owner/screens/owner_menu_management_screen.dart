@@ -70,7 +70,7 @@ class _OwnerMenuManagementScreenState
           .from('orders')
           .select('id')
           .eq('restaurant_id', widget.restaurantId)
-          .eq('status', 'completed')
+          .eq('status', 'delivered')
           .gte('created_at', _monthStart().toIso8601String());
 
       final orderIds = (monthlyOrdersResponse as List)
