@@ -16,7 +16,7 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
   final AdminRepository _repository = AdminRepository();
   late final TabController _tabController;
 
-  bool _isLoading = true;
+  bool _loading = true;
   String? _error;
   List<Map<String, dynamic>> _verifications = [];
   List<Map<String, dynamic>> _restaurants = [];
@@ -41,11 +41,12 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
   }
 
   Future<void> _loadData() async {
-    if (!mounted) return;
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
 
     try {
       final results = await Future.wait([
@@ -55,39 +56,38 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
 
       if (!mounted) return;
       setState(() {
-        _verifications = results[0] as List<Map<String, dynamic>>;
-        _restaurants = results[1] as List<Map<String, dynamic>>;
-        _isLoading = false;
+        _verifications = results[0];
+        _restaurants = results[1];
+        _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _isLoading = false;
+        _loading = false;
         _error = e.toString();
       });
     }
   }
 
-  Map<String, dynamic> _restaurantFromVerification(
+  Map<String, dynamic> _restaurantForVerification(
     Map<String, dynamic> verification,
   ) {
-    final value = verification['restaurants'];
-    if (value is Map<String, dynamic>) return value;
-    if (value is Map) return Map<String, dynamic>.from(value);
+    final nested = verification['restaurants'];
+    if (nested is Map) return Map<String, dynamic>.from(nested);
 
-    final restaurantId = verification['restaurant_id']?.toString();
+    final id = verification['restaurant_id']?.toString();
     for (final restaurant in _restaurants) {
-      if (restaurant['id']?.toString() == restaurantId) return restaurant;
+      if (restaurant['id']?.toString() == id) return restaurant;
     }
     return <String, dynamic>{};
   }
 
   String _restaurantName(Map<String, dynamic> verification) {
-    return _restaurantFromVerification(verification)['name']?.toString() ??
+    return _restaurantForVerification(verification)['name']?.toString() ??
         'Unnamed Restaurant';
   }
 
-  String _halalStatusLabel(String? status) {
+  String _statusLabel(String? status) {
     switch (status) {
       case 'muslim_owned':
         return 'Muslim Owned';
@@ -100,7 +100,7 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
     }
   }
 
-  Color _halalStatusColor(String? status) {
+  Color _statusColor(String? status) {
     switch (status) {
       case 'muslim_owned':
         return Colors.blue;
@@ -113,114 +113,127 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
     }
   }
 
-  String _requestStatusLabel(String? status) {
-    switch (status) {
-      case 'pending':
-        return 'Pending Review';
-      case 'verified':
-        return 'Approved';
-      case 'rejected':
-        return 'Rejected';
-      default:
-        return status?.isNotEmpty == true ? status! : 'Unknown';
-    }
-  }
-
-  Color _requestStatusColor(String? status) {
-    switch (status) {
-      case 'pending':
-        return Colors.orange;
-      case 'verified':
-        return Colors.green;
-      case 'rejected':
-        return Colors.redAccent;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  // Verification Requests means ONLY an actual pending request from an
-  // unverified restaurant. A plain unverified restaurant is not a request.
   List<Map<String, dynamic>> get _pendingRequests {
     return _verifications.where((verification) {
       if (verification['status']?.toString() != 'pending') return false;
-      final restaurant = _restaurantFromVerification(verification);
+      final restaurant = _restaurantForVerification(verification);
       return restaurant['halal_status']?.toString() == 'unverified';
     }).toList();
   }
 
-  // Restaurant Status is ONLY for active restaurants that already received
-  // a positive halal classification. Unverified and inactive restaurants are
-  // intentionally excluded from this list.
-  List<Map<String, dynamic>> get _approvedRestaurants {
+  List<Map<String, dynamic>> get _restaurantStatuses {
     return _restaurants.where((restaurant) {
       final active = restaurant['is_active'] == true;
-      final halalStatus = restaurant['halal_status']?.toString();
-      return active && _positiveStatuses.contains(halalStatus);
+      final status = restaurant['halal_status']?.toString();
+      return active && _positiveStatuses.contains(status);
     }).toList();
   }
 
-  Future<void> _approve(Map<String, dynamic> verification) async {
-    final verificationId = verification['id']?.toString();
-    final restaurantId = verification['restaurant_id']?.toString();
-    if (verificationId == null || restaurantId == null) return;
+  Future<void> _editStatus(Map<String, dynamic> restaurant) async {
+    final restaurantId = restaurant['id']?.toString();
+    if (restaurantId == null || restaurantId.isEmpty) return;
 
-    final selectedStatus = await _showApprovalDialog(verification);
-    if (selectedStatus == null || !mounted) return;
+    String? selected = restaurant['halal_status']?.toString();
+    if (!_positiveStatuses.contains(selected)) {
+      selected = 'halal_verified';
+    }
 
-    final name = _restaurantName(verification);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text(
+              'Edit Halal Status',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  restaurant['name']?.toString() ?? 'Restaurant',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 14),
+                DropdownButtonFormField<String>(
+                  initialValue: selected,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Halal Status',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _positiveStatuses
+                      .map(
+                        (status) => DropdownMenuItem<String>(
+                          value: status,
+                          child: Text(_statusLabel(status)),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setDialogState(() => selected = value);
+                    }
+                  },
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Only positive halal classifications can be selected here. Unverified restaurants belong in Verification Requests.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: HalalFoodTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton.icon(
+                onPressed: selected == null
+                    ? null
+                    : () => Navigator.pop(context, selected),
+                icon: const Icon(Icons.save_rounded),
+                label: const Text('Save Status'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (result == null || result == restaurant['halal_status']?.toString()) {
+      return;
+    }
+
     try {
-      await _repository.approveHalalVerification(
-        verificationId: verificationId,
+      await _repository.setHalalStatus(
         restaurantId: restaurantId,
-        halalStatus: selectedStatus,
+        halalStatus: result,
       );
-
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '$name is now ${_halalStatusLabel(selectedStatus)}.',
+            '${restaurant['name'] ?? 'Restaurant'} is now ${_statusLabel(result)}.',
           ),
         ),
       );
       await _loadData();
     } catch (e) {
-      if (mounted) _showError('Unable to approve verification: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to update halal status: $e')),
+        );
+      }
     }
   }
 
-  Future<void> _reject(Map<String, dynamic> verification) async {
-    final verificationId = verification['id']?.toString();
-    final restaurantId = verification['restaurant_id']?.toString();
-    if (verificationId == null || restaurantId == null) return;
-
-    final name = _restaurantName(verification);
-    final remarks = await _showRejectDialog(name);
-    if (remarks == null || !mounted) return;
-
-    try {
-      await _repository.rejectHalalVerification(
-        verificationId: verificationId,
-        restaurantId: restaurantId,
-        remarks: remarks.trim().isEmpty ? null : remarks.trim(),
-      );
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$name verification was rejected.')),
-      );
-      await _loadData();
-    } catch (e) {
-      if (mounted) _showError('Unable to reject verification: $e');
-    }
-  }
-
-  Future<String?> _showApprovalDialog(
-    Map<String, dynamic> verification,
-  ) async {
-    var selected = 'halal_verified';
-    final name = _restaurantName(verification);
+  Future<String?> _chooseApprovalStatus(String restaurantName) {
+    String selected = 'halal_verified';
 
     return showDialog<String>(
       context: context,
@@ -235,20 +248,21 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Choose the final classification for "$name" after reviewing the submitted documents.',
+                'Choose the final classification for "$restaurantName" after reviewing the submitted documents.',
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               DropdownButtonFormField<String>(
-                value: selected,
+                initialValue: selected,
+                isExpanded: true,
                 decoration: const InputDecoration(
                   labelText: 'Halal Status',
                   border: OutlineInputBorder(),
                 ),
                 items: _positiveStatuses
                     .map(
-                      (status) => DropdownMenuItem(
+                      (status) => DropdownMenuItem<String>(
                         value: status,
-                        child: Text(_halalStatusLabel(status)),
+                        child: Text(_statusLabel(status)),
                       ),
                     )
                     .toList(),
@@ -257,14 +271,6 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
                     setDialogState(() => selected = value);
                   }
                 },
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'The restaurant will remain inactive if it is currently inactive. Restaurant Status only shows active halal-approved restaurants.',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: HalalFoodTheme.textSecondary,
-                ),
               ),
             ],
           ),
@@ -284,31 +290,53 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
     );
   }
 
-  Future<String?> _showRejectDialog(String restaurantName) async {
+  Future<void> _approve(Map<String, dynamic> verification) async {
+    final verificationId = verification['id']?.toString();
+    final restaurantId = verification['restaurant_id']?.toString();
+    if (verificationId == null || restaurantId == null) return;
+
+    final name = _restaurantName(verification);
+    final status = await _chooseApprovalStatus(name);
+    if (status == null) return;
+
+    try {
+      await _repository.approveHalalVerification(
+        verificationId: verificationId,
+        restaurantId: restaurantId,
+        halalStatus: status,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$name is now ${_statusLabel(status)}.')),
+      );
+      await _loadData();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to approve verification: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _reject(Map<String, dynamic> verification) async {
+    final verificationId = verification['id']?.toString();
+    final restaurantId = verification['restaurant_id']?.toString();
+    if (verificationId == null || restaurantId == null) return;
+
     final controller = TextEditingController();
-    final result = await showDialog<String?>(
+    final remarks = await showDialog<String?>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text(
-          'Reject Verification',
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Why is "$restaurantName" being rejected?'),
-            const SizedBox(height: 14),
-            TextField(
-              controller: controller,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'Remarks',
-                hintText: 'Enter the reason for rejection',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
+        title: const Text('Reject Verification'),
+        content: TextField(
+          controller: controller,
+          maxLines: 4,
+          decoration: const InputDecoration(
+            labelText: 'Remarks',
+            hintText: 'Reason for rejection',
+            border: OutlineInputBorder(),
+          ),
         ),
         actions: [
           TextButton(
@@ -324,13 +352,32 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
       ),
     );
     controller.dispose();
-    return result;
+
+    if (remarks == null) return;
+
+    try {
+      await _repository.rejectHalalVerification(
+        verificationId: verificationId,
+        restaurantId: restaurantId,
+        remarks: remarks.trim().isEmpty ? null : remarks.trim(),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${_restaurantName(verification)} was rejected.')),
+      );
+      await _loadData();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to reject verification: $e')),
+        );
+      }
+    }
   }
 
-  void _showDetails(Map<String, dynamic> verification) {
-    final restaurant = _restaurantFromVerification(verification);
+  void _showVerificationDetails(Map<String, dynamic> verification) {
+    final restaurant = _restaurantForVerification(verification);
     final name = _restaurantName(verification);
-    final requestStatus = verification['status']?.toString();
     final documentUrl = verification['certificate_url']?.toString().trim();
 
     showModalBottomSheet<void>(
@@ -351,78 +398,42 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _StatusBadge(
-                      label: _requestStatusLabel(requestStatus),
-                      color: _requestStatusColor(requestStatus),
-                    ),
-                    _StatusBadge(
-                      label: _halalStatusLabel(
-                        restaurant['halal_status']?.toString(),
-                      ),
-                      color: _halalStatusColor(
-                        restaurant['halal_status']?.toString(),
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 10),
+                const _StatusBadge(
+                  label: 'Unverified / Pending Review',
+                  color: Colors.orange,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 18),
                 const Text(
                   'Restaurant Information',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                 ),
-                const SizedBox(height: 10),
-                _DetailRow(
-                  label: 'Phone',
-                  value: restaurant['phone']?.toString() ?? 'Not provided',
-                ),
-                _DetailRow(
-                  label: 'Address',
-                  value: restaurant['address']?.toString() ?? 'Not provided',
-                ),
-                _DetailRow(
-                  label: 'City',
-                  value: restaurant['city']?.toString() ?? 'Not provided',
-                ),
-                _DetailRow(
-                  label: 'Province',
-                  value: restaurant['province']?.toString() ?? 'Not provided',
-                ),
-                const SizedBox(height: 8),
+                _DetailRow('Phone', restaurant['phone']?.toString() ?? 'Not provided'),
+                _DetailRow('Address', restaurant['address']?.toString() ?? 'Not provided'),
+                _DetailRow('City', restaurant['city']?.toString() ?? 'Not provided'),
+                _DetailRow('Province', restaurant['province']?.toString() ?? 'Not provided'),
+                const SizedBox(height: 12),
                 const Text(
                   'Submitted Documents',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                 ),
-                const SizedBox(height: 10),
                 _DetailRow(
-                  label: 'Certificate Number',
-                  value: verification['certificate_number']?.toString() ??
-                      'Not provided',
+                  'Certificate No.',
+                  verification['certificate_number']?.toString() ?? 'Not provided',
                 ),
                 _DetailRow(
-                  label: 'Issuing Authority',
-                  value: verification['issuing_authority']?.toString() ??
-                      'Not provided',
+                  'Authority',
+                  verification['issuing_authority']?.toString() ?? 'Not provided',
                 ),
-                _DetailRow(
-                  label: 'Issued Date',
-                  value: _displayDate(verification['issued_date']),
-                ),
-                _DetailRow(
-                  label: 'Expiry Date',
-                  value: _displayDate(verification['expiry_date']),
-                ),
-                if (documentUrl != null && documentUrl.isNotEmpty) ...[
-                  const SizedBox(height: 6),
+                _DetailRow('Issued', _displayDate(verification['issued_date'])),
+                _DetailRow('Expiry', _displayDate(verification['expiry_date'])),
+                const SizedBox(height: 8),
+                if (documentUrl != null && documentUrl.isNotEmpty)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: HalalFoodTheme.surface,
+                      color: Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.black12),
                     ),
@@ -430,57 +441,38 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
                       documentUrl,
                       style: const TextStyle(fontSize: 12),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Document URL is shown above. Open it from the Supabase storage link to inspect the submitted file.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: HalalFoodTheme.textSecondary,
-                    ),
-                  ),
-                ] else
+                  )
+                else
                   const Text(
                     'No document URL was submitted.',
                     style: TextStyle(color: HalalFoodTheme.textSecondary),
                   ),
-                if (verification['admin_remarks']?.toString().isNotEmpty ==
-                    true) ...[
-                  const SizedBox(height: 14),
-                  const Text(
-                    'Admin Remarks',
-                    style: TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(verification['admin_remarks'].toString()),
-                ],
                 const SizedBox(height: 20),
-                if (requestStatus == 'pending')
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _reject(verification);
-                          },
-                          icon: const Icon(Icons.close_rounded),
-                          label: const Text('Reject'),
-                        ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _reject(verification);
+                        },
+                        icon: const Icon(Icons.close_rounded),
+                        label: const Text('Reject'),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _approve(verification);
-                          },
-                          icon: const Icon(Icons.verified_rounded),
-                          label: const Text('Give Decision'),
-                        ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _approve(verification);
+                        },
+                        icon: const Icon(Icons.verified_rounded),
+                        label: const Text('Decide'),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -495,12 +487,6 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
     return text.split('T').first;
   }
 
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -512,7 +498,7 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
         actions: [
           IconButton(
             tooltip: 'Refresh',
-            onPressed: _isLoading ? null : _loadData,
+            onPressed: _loading ? null : _loadData,
             icon: const Icon(Icons.refresh_rounded),
           ),
         ],
@@ -524,21 +510,21 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
           ],
         ),
       ),
-      body: _isLoading
+      body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
               ? _ErrorView(message: _error!, onRetry: _loadData)
               : TabBarView(
                   controller: _tabController,
                   children: [
-                    _buildRequests(),
+                    _buildVerificationRequests(),
                     _buildRestaurantStatus(),
                   ],
                 ),
     );
   }
 
-  Widget _buildRequests() {
+  Widget _buildVerificationRequests() {
     final requests = _pendingRequests;
 
     return RefreshIndicator(
@@ -548,14 +534,14 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
           _SummaryCard(
-            'Pending Verification Requests',
-            '${requests.length}',
-            Colors.orange,
-            Icons.pending_actions_rounded,
+            label: 'Pending Verification Requests',
+            value: '${requests.length}',
+            color: Colors.orange,
+            icon: Icons.pending_actions_rounded,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           const Text(
-            'Only restaurants that are Unverified and have actually submitted a verification request appear here.',
+            'Only Unverified restaurants with an actual pending verification request appear here.',
             style: TextStyle(
               color: HalalFoodTheme.textSecondary,
               fontSize: 13,
@@ -566,116 +552,74 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
             const Padding(
               padding: EdgeInsets.only(top: 70),
               child: Center(
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.assignment_turned_in_outlined,
-                      size: 56,
-                      color: Colors.grey,
-                    ),
-                    SizedBox(height: 12),
-                    Text(
-                      'No verification requests found.',
-                      style: TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                  ],
+                child: Text(
+                  'No verification requests found.',
+                  style: TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
             )
           else
-            ...requests.map(_buildVerificationCard),
+            ...requests.map(_verificationCard),
         ],
       ),
     );
   }
 
-  Widget _buildVerificationCard(Map<String, dynamic> verification) {
-    final restaurant = _restaurantFromVerification(verification);
-    final name = _restaurantName(verification);
-    final certificate = verification['certificate_number']?.toString();
-    final authority = verification['issuing_authority']?.toString();
-    final documentUrl = verification['certificate_url']?.toString().trim();
+  Widget _verificationCard(Map<String, dynamic> verification) {
+    final restaurant = _restaurantForVerification(verification);
+    final document = verification['certificate_url']?.toString().trim();
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => _showDetails(verification),
+        onTap: () => _showVerificationDetails(verification),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Text(
-                      name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                      _restaurantName(verification),
                       style: const TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
                   const _StatusBadge(
-                    label: 'Pending Review',
+                    label: 'Pending',
                     color: Colors.orange,
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              const _StatusBadge(
-                label: 'Unverified',
-                color: Colors.grey,
+              const SizedBox(height: 7),
+              Text(
+                restaurant['address']?.toString() ?? 'Address not provided',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              if ((restaurant['address']?.toString() ?? '').isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(
-                  restaurant['address'].toString(),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 13),
-                ),
-              ],
-              if (certificate?.isNotEmpty == true) ...[
-                const SizedBox(height: 8),
-                Text(
-                  'Certificate: $certificate',
-                  style: const TextStyle(fontSize: 13),
-                ),
-              ],
-              if (authority?.isNotEmpty == true) ...[
-                const SizedBox(height: 4),
-                Text(
-                  'Authority: $authority',
-                  style: const TextStyle(fontSize: 13),
-                ),
-              ],
               const SizedBox(height: 8),
               Row(
                 children: [
                   Icon(
-                    documentUrl?.isNotEmpty == true
+                    document?.isNotEmpty == true
                         ? Icons.description_rounded
                         : Icons.description_outlined,
                     size: 18,
-                    color: documentUrl?.isNotEmpty == true
+                    color: document?.isNotEmpty == true
                         ? HalalFoodTheme.primaryGreen
                         : Colors.grey,
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    documentUrl?.isNotEmpty == true
+                    document?.isNotEmpty == true
                         ? 'Document submitted'
                         : 'No document URL',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                   ),
                 ],
               ),
@@ -683,7 +627,7 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () => _showDetails(verification),
+                  onPressed: () => _showVerificationDetails(verification),
                   icon: const Icon(Icons.visibility_outlined, size: 18),
                   label: const Text('Review Documents & Decide'),
                 ),
@@ -696,7 +640,7 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
   }
 
   Widget _buildRestaurantStatus() {
-    final restaurants = _approvedRestaurants;
+    final restaurants = _restaurantStatuses;
 
     return RefreshIndicator(
       onRefresh: _loadData,
@@ -711,7 +655,7 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
               color: HalalFoodTheme.textSecondary,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           const Text(
             'Only Active restaurants with Muslim Owned, Halal Verified, or Certified Halal status are shown here.',
             style: TextStyle(
@@ -724,16 +668,10 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
             const Padding(
               padding: EdgeInsets.only(top: 70),
               child: Center(
-                child: Column(
-                  children: [
-                    Icon(Icons.restaurant_outlined, size: 56, color: Colors.grey),
-                    SizedBox(height: 12),
-                    Text(
-                      'No active halal-approved restaurants found.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                  ],
+                child: Text(
+                  'No active halal-approved restaurants found.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
             )
@@ -743,7 +681,7 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
               return Card(
                 margin: const EdgeInsets.only(bottom: 10),
                 child: ListTile(
-                  contentPadding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                  contentPadding: const EdgeInsets.fromLTRB(16, 8, 10, 8),
                   title: Text(
                     restaurant['name']?.toString() ?? 'Unnamed Restaurant',
                     style: const TextStyle(fontWeight: FontWeight.w800),
@@ -755,8 +693,8 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
                       runSpacing: 7,
                       children: [
                         _StatusBadge(
-                          label: _halalStatusLabel(status),
-                          color: _halalStatusColor(status),
+                          label: _statusLabel(status),
+                          color: _statusColor(status),
                         ),
                         const _StatusBadge(
                           label: 'Active',
@@ -764,6 +702,11 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
                         ),
                       ],
                     ),
+                  ),
+                  trailing: IconButton(
+                    tooltip: 'Edit Halal Status',
+                    onPressed: () => _editStatus(restaurant),
+                    icon: const Icon(Icons.edit_rounded),
                   ),
                 ),
               );
@@ -780,13 +723,18 @@ class _SummaryCard extends StatelessWidget {
   final Color color;
   final IconData icon;
 
-  const _SummaryCard(this.label, this.value, this.color, this.icon);
+  const _SummaryCard({
+    required this.label,
+    required this.value,
+    required this.color,
+    required this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
+        padding: const EdgeInsets.all(16),
         child: Row(
           children: [
             CircleAvatar(
@@ -799,17 +747,18 @@ class _SummaryCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    value,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  Text(
                     label,
                     style: const TextStyle(
                       fontSize: 12,
                       color: HalalFoodTheme.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ],
@@ -831,16 +780,16 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
         label,
         style: TextStyle(
           fontSize: 11,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w700,
           color: color,
         ),
       ),
@@ -852,25 +801,34 @@ class _DetailRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _DetailRow({required this.label, required this.value});
+  const _DetailRow(this.label, this.value);
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: HalalFoodTheme.textSecondary,
+          SizedBox(
+            width: 105,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                color: HalalFoodTheme.textSecondary,
+              ),
             ),
           ),
-          const SizedBox(height: 3),
-          Text(value),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -891,15 +849,23 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline_rounded, size: 56),
+            const Icon(
+              Icons.error_outline_rounded,
+              size: 52,
+              color: Colors.redAccent,
+            ),
             const SizedBox(height: 12),
             const Text(
               'Unable to load halal verification',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
-            Text(message, textAlign: TextAlign.center),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              maxLines: 5,
+              overflow: TextOverflow.ellipsis,
+            ),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: onRetry,
