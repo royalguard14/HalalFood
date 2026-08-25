@@ -375,16 +375,18 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
     }
   }
 
-  void _showVerificationDetails(Map<String, dynamic> verification) {
+  Future<void> _showVerificationDetails(
+    Map<String, dynamic> verification,
+  ) async {
     final restaurant = _restaurantForVerification(verification);
     final name = _restaurantName(verification);
     final documentUrl = verification['certificate_url']?.toString().trim();
 
-    showModalBottomSheet<void>(
+    final action = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (context) => SafeArea(
+      builder: (sheetContext) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
           child: SingleChildScrollView(
@@ -408,10 +410,22 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
                   'Restaurant Information',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                 ),
-                _DetailRow('Phone', restaurant['phone']?.toString() ?? 'Not provided'),
-                _DetailRow('Address', restaurant['address']?.toString() ?? 'Not provided'),
-                _DetailRow('City', restaurant['city']?.toString() ?? 'Not provided'),
-                _DetailRow('Province', restaurant['province']?.toString() ?? 'Not provided'),
+                _DetailRow(
+                  'Phone',
+                  restaurant['phone']?.toString() ?? 'Not provided',
+                ),
+                _DetailRow(
+                  'Address',
+                  restaurant['address']?.toString() ?? 'Not provided',
+                ),
+                _DetailRow(
+                  'City',
+                  restaurant['city']?.toString() ?? 'Not provided',
+                ),
+                _DetailRow(
+                  'Province',
+                  restaurant['province']?.toString() ?? 'Not provided',
+                ),
                 const SizedBox(height: 12),
                 const Text(
                   'Submitted Documents',
@@ -419,14 +433,22 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
                 ),
                 _DetailRow(
                   'Certificate No.',
-                  verification['certificate_number']?.toString() ?? 'Not provided',
+                  verification['certificate_number']?.toString() ??
+                      'Not provided',
                 ),
                 _DetailRow(
                   'Authority',
-                  verification['issuing_authority']?.toString() ?? 'Not provided',
+                  verification['issuing_authority']?.toString() ??
+                      'Not provided',
                 ),
-                _DetailRow('Issued', _displayDate(verification['issued_date'])),
-                _DetailRow('Expiry', _displayDate(verification['expiry_date'])),
+                _DetailRow(
+                  'Issued',
+                  _displayDate(verification['issued_date']),
+                ),
+                _DetailRow(
+                  'Expiry',
+                  _displayDate(verification['expiry_date']),
+                ),
                 const SizedBox(height: 8),
                 if (documentUrl != null && documentUrl.isNotEmpty)
                   Container(
@@ -453,8 +475,7 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: () {
-                          Navigator.pop(context);
-                          _reject(verification);
+                          Navigator.pop(sheetContext, 'reject');
                         },
                         icon: const Icon(Icons.close_rounded),
                         label: const Text('Reject'),
@@ -464,8 +485,7 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () {
-                          Navigator.pop(context);
-                          _approve(verification);
+                          Navigator.pop(sheetContext, 'decide');
                         },
                         icon: const Icon(Icons.verified_rounded),
                         label: const Text('Decide'),
@@ -479,6 +499,14 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
         ),
       ),
     );
+
+    if (!mounted || action == null) return;
+
+    if (action == 'reject') {
+      await _reject(verification);
+    } else if (action == 'decide') {
+      await _approve(verification);
+    }
   }
 
   String _displayDate(dynamic value) {
@@ -619,7 +647,10 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
                     document?.isNotEmpty == true
                         ? 'Document submitted'
                         : 'No document URL',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),
