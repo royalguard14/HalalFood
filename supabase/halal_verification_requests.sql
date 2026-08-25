@@ -1,7 +1,15 @@
--- Owner halal verification request policies.
+-- Owner halal verification request support.
 -- Run this once in Supabase SQL Editor.
--- The owner can submit a request only for a restaurant they own.
--- Admins can review and decide on requests.
+
+alter table public.halal_verifications
+  add column if not exists requested_status text;
+
+alter table public.halal_verifications
+  drop constraint if exists halal_verifications_requested_status_check;
+
+alter table public.halal_verifications
+  add constraint halal_verifications_requested_status_check
+  check (requested_status is null or requested_status in ('muslim_owned', 'halal_verified', 'certified_halal'));
 
 drop policy if exists "Owners can view own halal verification requests"
 on public.halal_verifications;
