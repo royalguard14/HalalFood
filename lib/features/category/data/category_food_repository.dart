@@ -56,27 +56,57 @@ class CategoryFoodRepository {
     String categoryId,
   ) async {
     final response = await _supabase
-        .from('menu_items')
-        .select(
-          'id, restaurant_id, name, description, price, image_url, is_featured, restaurants(name)',
-        )
-        .eq('category_id', categoryId)
-        .eq('is_available', true)
-        .order(
-          'is_featured',
-          ascending: false,
-        )
-        .order(
-          'name',
-          ascending: true,
-        );
+        .from('menu_item_categories')
+        .select('''
+          menu_item_id,
+          menu_items (
+            id,
+            restaurant_id,
+            name,
+            description,
+            price,
+            image_url,
+            is_featured,
+            is_available,
+            restaurants (
+              name
+            )
+          )
+        ''')
+        .eq('food_category_id', categoryId);
 
-    return (response as List)
-        .map(
-          (item) => CategoryFoodResult.fromMap(
-            Map<String, dynamic>.from(item),
-          ),
-        )
-        .toList();
+    final results = <CategoryFoodResult>[];
+
+    for (final row in response as List) {
+      final menuItem =
+          row['menu_items']
+              as Map<String, dynamic>?;
+
+      if (menuItem == null) {
+        continue;
+      }
+
+      if (menuItem['is_available'] != true) {
+        continue;
+      }
+
+      results.add(
+        CategoryFoodResult.fromMap(menuItem),
+      );
+    }
+
+    results.sort((a, b) {
+      if (a.isFeatured != b.isFeatured) {
+        return a.isFeatured ? -1 : 1;
+      }
+
+      return a.foodName
+          .toLowerCase()
+          .compareTo(
+            b.foodName.toLowerCase(),
+          );
+    });
+
+    return results;
   }
 }
