@@ -155,7 +155,9 @@ class AdminRepository {
     required String halalStatus,
   }) async {
     if (!halalStatuses.contains(halalStatus) || halalStatus == 'unverified') {
-      throw ArgumentError('An approved verification needs a valid positive halal status.');
+      throw ArgumentError(
+        'An approved verification needs a valid positive halal status.',
+      );
     }
 
     final user = _supabase.auth.currentUser;
@@ -163,6 +165,10 @@ class AdminRepository {
 
     final now = DateTime.now().toIso8601String();
 
+    // A successful halal verification also makes the restaurant active.
+    // Restaurant visibility and halal classification are still separate concepts:
+    // an unverified restaurant can be activated manually, but approval always
+    // activates it so an approved restaurant cannot remain hidden by accident.
     await _supabase.from('halal_verifications').update({
       'status': 'verified',
       'verified_by': user.id,
@@ -171,7 +177,11 @@ class AdminRepository {
       'admin_remarks': null,
     }).eq('id', verificationId);
 
-    await setHalalStatus(restaurantId: restaurantId, halalStatus: halalStatus);
+    await _supabase.from('restaurants').update({
+      'halal_status': halalStatus,
+      'is_active': true,
+      'updated_at': now,
+    }).eq('id', restaurantId);
   }
 
   Future<void> rejectHalalVerification({
@@ -184,6 +194,10 @@ class AdminRepository {
 
     final now = DateTime.now().toIso8601String();
 
+    // Rejection only changes the verification decision and halal status.
+    // It deliberately does NOT change is_active, because restaurant visibility
+    // is an independent admin decision. An already-active unverified restaurant
+    // may remain available to customers with its unverified label.
     await _supabase.from('halal_verifications').update({
       'status': 'rejected',
       'verified_by': user.id,
@@ -192,7 +206,10 @@ class AdminRepository {
       'updated_at': now,
     }).eq('id', verificationId);
 
-    await setHalalStatus(restaurantId: restaurantId, halalStatus: 'unverified');
+    await setHalalStatus(
+      restaurantId: restaurantId,
+      halalStatus: 'unverified',
+    );
   }
 
   Future<int> getTodayOrderCount() async {
