@@ -11,7 +11,7 @@ import '../../../app/theme.dart';
 class OwnerDashboardScreen extends StatefulWidget {
   final String restaurantId;
   final String restaurantName;
-
+  
   const OwnerDashboardScreen({
     super.key,
     required this.restaurantId,
