@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'owner_order_details_screen.dart';
 import 'owner_menu_management_screen.dart';
+import 'owner_restaurant_profile_screen.dart';
 
 import '../../auth/screens/login_screen.dart';
 import '../../../app/theme.dart';
@@ -557,6 +558,31 @@ SizedBox(
     ),
     label: const Text(
       'Manage Menu',
+      style: TextStyle(
+        fontWeight: FontWeight.w800,
+      ),
+    ),
+  ),
+),
+
+const SizedBox(height: 10),
+
+SizedBox(
+  width: double.infinity,
+  child: OutlinedButton.icon(
+    onPressed: () {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) =>
+              const OwnerRestaurantProfileScreen(),
+        ),
+      );
+    },
+    icon: const Icon(
+      Icons.storefront_rounded,
+    ),
+    label: const Text(
+      'Restaurant Profile',
       style: TextStyle(
         fontWeight: FontWeight.w800,
       ),
