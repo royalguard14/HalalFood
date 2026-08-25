@@ -1,27 +1,20 @@
-
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'owner_order_details_screen.dart';
 import 'owner_menu_management_screen.dart';
 import 'owner_restaurant_profile_screen.dart';
-
 import '../../auth/screens/login_screen.dart';
 import '../../../app/theme.dart';
 
-
 class OwnerDashboardScreen extends StatefulWidget {
-  const OwnerDashboardScreen({
-    super.key,
-  });
+  const OwnerDashboardScreen({super.key});
 
   @override
-  State<OwnerDashboardScreen> createState() =>
-      _OwnerDashboardScreenState();
+  State<OwnerDashboardScreen> createState() => _OwnerDashboardScreenState();
 }
 
-class _OwnerDashboardScreenState
-    extends State<OwnerDashboardScreen> {
+class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   final _supabase = Supabase.instance.client;
 
   bool _isLoggingOut = false;
@@ -35,17 +28,14 @@ class _OwnerDashboardScreenState
   int _preparingOrders = 0;
   int _readyOrders = 0;
   int _completedOrders = 0;
-
   double _todaySales = 0;
 
   List<Map<String, dynamic>> _recentOrders = [];
-
   RealtimeChannel? _ordersChannel;
 
   @override
   void initState() {
     super.initState();
-
     _loadDashboard();
   }
 
@@ -55,48 +45,27 @@ class _OwnerDashboardScreenState
     super.dispose();
   }
 
-  // ============================================================
-  // LOGOUT
-  // ============================================================
-
   Future<void> _logout() async {
     if (_isLoggingOut) return;
 
-    setState(() {
-      _isLoggingOut = true;
-    });
+    setState(() => _isLoggingOut = true);
 
     try {
       await _supabase.auth.signOut();
-
       if (!mounted) return;
 
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => const LoginScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
         (route) => false,
       );
     } catch (e) {
       if (!mounted) return;
-
-      setState(() {
-        _isLoggingOut = false;
-      });
-
+      setState(() => _isLoggingOut = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Unable to logout: $e',
-          ),
-        ),
+        SnackBar(content: Text('Unable to logout: $e')),
       );
     }
   }
-
-  // ============================================================
-  // INITIAL DASHBOARD LOAD
-  // ============================================================
 
   Future<void> _loadDashboard() async {
     if (!mounted) return;
@@ -108,12 +77,7 @@ class _OwnerDashboardScreenState
 
     try {
       final user = _supabase.auth.currentUser;
-
-      if (user == null) {
-        throw Exception(
-          'User is not authenticated.',
-        );
-      }
+      if (user == null) throw Exception('User is not authenticated.');
 
       final restaurantResponse = await _supabase
           .from('restaurants')
@@ -122,35 +86,21 @@ class _OwnerDashboardScreenState
           .maybeSingle();
 
       if (restaurantResponse == null) {
-        throw Exception(
-          'No restaurant is linked to this account.',
-        );
+        throw Exception('No restaurant is linked to this account.');
       }
 
-      final restaurantId =
-          restaurantResponse['id'] as String;
-
-      final restaurantName =
-          restaurantResponse['name']?.toString() ?? '';
+      final restaurantId = restaurantResponse['id'] as String;
+      final restaurantName = restaurantResponse['name']?.toString() ?? '';
 
       _restaurantId = restaurantId;
-
-      // Subscribe to realtime only once.
       _subscribeToOrders(restaurantId);
 
-      await _refreshDashboardData(
-        restaurantId,
-        restaurantName,
-      );
+      await _refreshDashboardData(restaurantId, restaurantName);
 
       if (!mounted) return;
-
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     } catch (e) {
       if (!mounted) return;
-
       setState(() {
         _isLoading = false;
         _error = e.toString();
@@ -158,24 +108,37 @@ class _OwnerDashboardScreenState
     }
   }
 
-  // ============================================================
-  // REALTIME SUBSCRIPTION
-  // ============================================================
+  // Re-read only the restaurant name after returning from Restaurant Profile.
+  // This keeps the dashboard on screen without requiring a manual refresh.
+  Future<void> _refreshRestaurantName() async {
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user == null) return;
 
-  void _subscribeToOrders(
-    String restaurantId,
-  ) {
-    // Prevent duplicate subscriptions.
+      final restaurantResponse = await _supabase
+          .from('restaurants')
+          .select('id, name')
+          .eq('owner_id', user.id)
+          .maybeSingle();
+
+      if (restaurantResponse == null || !mounted) return;
+
+      setState(() {
+        _restaurantId = restaurantResponse['id']?.toString();
+        _restaurantName = restaurantResponse['name']?.toString() ?? '';
+      });
+    } catch (e) {
+      debugPrint('OWNER RESTAURANT NAME REFRESH ERROR: $e');
+    }
+  }
+
+  void _subscribeToOrders(String restaurantId) {
     _ordersChannel?.unsubscribe();
 
-    debugPrint(
-      'OWNER REALTIME: subscribing to restaurant $restaurantId',
-    );
+    debugPrint('OWNER REALTIME: subscribing to restaurant $restaurantId');
 
     _ordersChannel = _supabase
-        .channel(
-          'owner-orders-$restaurantId',
-        )
+        .channel('owner-orders-$restaurantId')
         .onPostgresChanges(
           event: PostgresChangeEvent.insert,
           schema: 'public',
@@ -186,10 +149,7 @@ class _OwnerDashboardScreenState
             value: restaurantId,
           ),
           callback: (payload) {
-            debugPrint(
-              'OWNER REALTIME: NEW ORDER RECEIVED',
-            );
-
+            debugPrint('OWNER REALTIME: NEW ORDER RECEIVED');
             _handleRealtimeOrderChange();
           },
         )
@@ -203,10 +163,7 @@ class _OwnerDashboardScreenState
             value: restaurantId,
           ),
           callback: (payload) {
-            debugPrint(
-              'OWNER REALTIME: ORDER UPDATED',
-            );
-
+            debugPrint('OWNER REALTIME: ORDER UPDATED');
             _handleRealtimeOrderChange();
           },
         )
@@ -220,49 +177,27 @@ class _OwnerDashboardScreenState
             value: restaurantId,
           ),
           callback: (payload) {
-            debugPrint(
-              'OWNER REALTIME: ORDER DELETED',
-            );
-
+            debugPrint('OWNER REALTIME: ORDER DELETED');
             _handleRealtimeOrderChange();
           },
         )
-        .subscribe(
-          (status, error) {
-            debugPrint(
-              'OWNER REALTIME STATUS: $status',
-            );
-
-            if (error != null) {
-              debugPrint(
-                'OWNER REALTIME ERROR: $error',
-              );
-            }
-          },
-        );
+        .subscribe((status, error) {
+          debugPrint('OWNER REALTIME STATUS: $status');
+          if (error != null) {
+            debugPrint('OWNER REALTIME ERROR: $error');
+          }
+        });
   }
 
   void _handleRealtimeOrderChange() {
     final restaurantId = _restaurantId;
+    if (restaurantId == null) return;
 
-    if (restaurantId == null) {
-      return;
-    }
-
-    final restaurantName =
-        _restaurantName ?? '';
-
-    // Re-read the dashboard data from Supabase.
-    // This is NOT a timer and NOT a manual refresh.
     _refreshDashboardData(
       restaurantId,
-      restaurantName,
+      _restaurantName ?? '',
     );
   }
-
-  // ============================================================
-  // REFRESH DASHBOARD DATA WITHOUT LOADING SCREEN
-  // ============================================================
 
   Future<void> _refreshDashboardData(
     String restaurantId,
@@ -273,86 +208,54 @@ class _OwnerDashboardScreenState
           .from('orders')
           .select(
             'id, customer_id, status, payment_status, '
-            'subtotal, delivery_fee, total_amount, '
-            'created_at',
+            'subtotal, delivery_fee, total_amount, created_at',
           )
-          .eq(
-            'restaurant_id',
-            restaurantId,
-          )
-          .order(
-            'created_at',
-            ascending: false,
-          );
+          .eq('restaurant_id', restaurantId)
+          .order('created_at', ascending: false);
 
-      final orders =
-          (ordersResponse as List)
-              .map(
-                (item) =>
-                    Map<String, dynamic>.from(item),
-              )
-              .toList();
+      final orders = (ordersResponse as List)
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList();
 
       int newOrders = 0;
       int preparingOrders = 0;
       int readyOrders = 0;
       int completedOrders = 0;
-
       double todaySales = 0;
-
       final now = DateTime.now();
 
       for (final order in orders) {
-        final status =
-            order['status']
-                    ?.toString()
-                    .toLowerCase() ??
-                '';
+        final status = order['status']?.toString().toLowerCase() ?? '';
 
         switch (status) {
           case 'pending':
             newOrders++;
             break;
-
           case 'preparing':
             preparingOrders++;
             break;
-
           case 'ready':
           case 'out_for_delivery':
           case 'on_the_way':
             readyOrders++;
             break;
-
           case 'completed':
             completedOrders++;
             break;
         }
 
-        final createdAtString =
-            order['created_at']?.toString();
+        final createdAtString = order['created_at']?.toString();
+        if (createdAtString == null) continue;
 
-        if (createdAtString == null) {
-          continue;
-        }
+        final createdAt = DateTime.tryParse(createdAtString);
+        if (createdAt == null) continue;
 
-        final createdAt =
-            DateTime.tryParse(createdAtString);
-
-        if (createdAt == null) {
-          continue;
-        }
-
-        final isToday =
-            createdAt.year == now.year &&
+        final isToday = createdAt.year == now.year &&
             createdAt.month == now.month &&
             createdAt.day == now.day;
 
         if (isToday && status == 'completed') {
-          todaySales +=
-              (order['total_amount'] as num?)
-                      ?.toDouble() ??
-                  0;
+          todaySales += (order['total_amount'] as num?)?.toDouble() ?? 0;
         }
       }
 
@@ -360,33 +263,20 @@ class _OwnerDashboardScreenState
 
       setState(() {
         _restaurantName = restaurantName;
-
         _newOrders = newOrders;
         _preparingOrders = preparingOrders;
         _readyOrders = readyOrders;
         _completedOrders = completedOrders;
-
         _todaySales = todaySales;
-
-        _recentOrders =
-            orders.take(5).toList();
+        _recentOrders = orders.take(5).toList();
       });
     } catch (e) {
-      debugPrint(
-        'OWNER DASHBOARD REFRESH ERROR: $e',
-      );
+      debugPrint('OWNER DASHBOARD REFRESH ERROR: $e');
     }
   }
 
-  // ============================================================
-  // HELPERS
-  // ============================================================
-
   String _shortOrderId(String id) {
-    if (id.length <= 8) {
-      return id;
-    }
-
+    if (id.length <= 8) return id;
     return id.substring(0, 8);
   }
 
@@ -394,12 +284,9 @@ class _OwnerDashboardScreenState
     return status
         .replaceAll('_', ' ')
         .split(' ')
-        .map(
-          (word) => word.isEmpty
-              ? word
-              : '${word[0].toUpperCase()}'
-                  '${word.substring(1)}',
-        )
+        .map((word) => word.isEmpty
+            ? word
+            : '${word[0].toUpperCase()}${word.substring(1)}')
         .join(' ');
   }
 
@@ -407,29 +294,20 @@ class _OwnerDashboardScreenState
     switch (status.toLowerCase()) {
       case 'pending':
         return Colors.orange;
-
       case 'preparing':
         return Colors.blue;
-
       case 'ready':
       case 'out_for_delivery':
       case 'on_the_way':
         return Colors.deepPurple;
-
       case 'completed':
         return Colors.green;
-
       case 'cancelled':
         return Colors.red;
-
       default:
         return HalalFoodTheme.primaryGreen;
     }
   }
-
-  // ============================================================
-  // UI
-  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -437,27 +315,19 @@ class _OwnerDashboardScreenState
       appBar: AppBar(
         title: const Text(
           'Restaurant Dashboard',
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-          ),
+          style: TextStyle(fontWeight: FontWeight.w800),
         ),
         actions: [
           IconButton(
             tooltip: 'Logout',
-            onPressed:
-                _isLoggingOut ? null : _logout,
+            onPressed: _isLoggingOut ? null : _logout,
             icon: _isLoggingOut
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child:
-                        CircularProgressIndicator(
-                      strokeWidth: 2,
-                    ),
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(
-                    Icons.logout_rounded,
-                  ),
+                : const Icon(Icons.logout_rounded),
           ),
         ],
       ),
@@ -470,20 +340,16 @@ class _OwnerDashboardScreenState
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (_error != null) {
       return ListView(
-        physics:
-            const AlwaysScrollableScrollPhysics(),
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
           const SizedBox(height: 150),
           Padding(
-            padding:
-                const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(24),
             child: Column(
               children: [
                 const Icon(
@@ -494,31 +360,21 @@ class _OwnerDashboardScreenState
                 const SizedBox(height: 16),
                 const Text(
                   'Unable to load dashboard',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight:
-                        FontWeight.w800,
-                  ),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   _error!,
-                  textAlign:
-                      TextAlign.center,
+                  textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 13,
-                    color:
-                        HalalFoodTheme
-                            .textSecondary,
+                    color: HalalFoodTheme.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 18),
                 ElevatedButton(
-                  onPressed:
-                      _loadDashboard,
-                  child: const Text(
-                    'Try Again',
-                  ),
+                  onPressed: _loadDashboard,
+                  child: const Text('Try Again'),
                 ),
               ],
             ),
@@ -528,220 +384,146 @@ class _OwnerDashboardScreenState
     }
 
     return ListView(
-      physics:
-          const AlwaysScrollableScrollPhysics(),
-      padding:
-          const EdgeInsets.fromLTRB(
-        20,
-        20,
-        20,
-        32,
-      ),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
       children: [
-_buildWelcomeCard(),
-
-const SizedBox(height: 16),
-
-SizedBox(
-  width: double.infinity,
-  child: ElevatedButton.icon(
-    onPressed: () {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) =>
-              const OwnerMenuManagementScreen(),
-        ),
-      );
-    },
-    icon: const Icon(
-      Icons.restaurant_menu_rounded,
-    ),
-    label: const Text(
-      'Manage Menu',
-      style: TextStyle(
-        fontWeight: FontWeight.w800,
-      ),
-    ),
-  ),
-),
-
-const SizedBox(height: 10),
-
-SizedBox(
-  width: double.infinity,
-  child: OutlinedButton.icon(
-    onPressed: () {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) =>
-              const OwnerRestaurantProfileScreen(),
-        ),
-      );
-    },
-    icon: const Icon(
-      Icons.storefront_rounded,
-    ),
-    label: const Text(
-      'Restaurant Profile',
-      style: TextStyle(
-        fontWeight: FontWeight.w800,
-      ),
-    ),
-  ),
-),
-
-const SizedBox(height: 24),
-
-const Text(
-  'Today',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight:
-                FontWeight.w800,
+        _buildWelcomeCard(),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const OwnerMenuManagementScreen(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.restaurant_menu_rounded),
+            label: const Text(
+              'Manage Menu',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
           ),
         ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const OwnerRestaurantProfileScreen(),
+                ),
+              );
 
-        const SizedBox(height: 12),
-
-        _buildSalesCard(),
-
+              if (!mounted) return;
+              await _refreshRestaurantName();
+            },
+            icon: const Icon(Icons.storefront_rounded),
+            label: const Text(
+              'Restaurant Profile',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+        ),
         const SizedBox(height: 24),
-
+        const Text(
+          'Today',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 12),
+        _buildSalesCard(),
+        const SizedBox(height: 24),
         const Text(
           'Order Summary',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight:
-                FontWeight.w800,
-          ),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
         ),
-
         const SizedBox(height: 12),
-
         Row(
           children: [
             Expanded(
               child: _StatCard(
-                icon: Icons
-                    .notifications_active_outlined,
+                icon: Icons.notifications_active_outlined,
                 title: 'New',
-                value:
-                    _newOrders.toString(),
+                value: _newOrders.toString(),
                 color: Colors.orange,
               ),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: _StatCard(
-                icon: Icons
-                    .restaurant_outlined,
+                icon: Icons.restaurant_outlined,
                 title: 'Preparing',
-                value:
-                    _preparingOrders
-                        .toString(),
+                value: _preparingOrders.toString(),
                 color: Colors.blue,
               ),
             ),
           ],
         ),
-
         const SizedBox(height: 10),
-
         Row(
           children: [
             Expanded(
               child: _StatCard(
-                icon: Icons
-                    .check_circle_outline_rounded,
+                icon: Icons.check_circle_outline_rounded,
                 title: 'Ready',
-                value:
-                    _readyOrders.toString(),
-                color:
-                    Colors.deepPurple,
+                value: _readyOrders.toString(),
+                color: Colors.deepPurple,
               ),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: _StatCard(
-                icon:
-                    Icons.done_all_rounded,
+                icon: Icons.done_all_rounded,
                 title: 'Completed',
-                value:
-                    _completedOrders
-                        .toString(),
+                value: _completedOrders.toString(),
                 color: Colors.green,
               ),
             ),
           ],
         ),
-
         const SizedBox(height: 28),
-
         const Text(
           'Recent Orders',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight:
-                FontWeight.w800,
-          ),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
         ),
-
         const SizedBox(height: 12),
-
         if (_recentOrders.isEmpty)
           _buildEmptyOrders()
         else
-          ..._recentOrders.map(
-            (order) =>
-                _buildOrderCard(order),
-          ),
+          ..._recentOrders.map(_buildOrderCard),
       ],
     );
   }
 
   Widget _buildWelcomeCard() {
     return Container(
-      padding:
-          const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: HalalFoodTheme
-            .primaryGreen
-            .withValues(alpha: 0.08),
-        borderRadius:
-            BorderRadius.circular(20),
+        color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             'Welcome, Restaurant Owner',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight:
-                  FontWeight.w800,
-            ),
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 6),
           Text(
             _restaurantName ?? '',
             style: const TextStyle(
               fontSize: 16,
-              fontWeight:
-                  FontWeight.w700,
-              color:
-                  HalalFoodTheme
-                      .primaryGreen,
+              fontWeight: FontWeight.w700,
+              color: HalalFoodTheme.primaryGreen,
             ),
           ),
           const SizedBox(height: 6),
           const Text(
             'Manage your restaurant orders here.',
-            style: TextStyle(
-              color:
-                  HalalFoodTheme
-                      .textSecondary,
-            ),
+            style: TextStyle(color: HalalFoodTheme.textSecondary),
           ),
         ],
       ),
@@ -751,45 +533,32 @@ const Text(
   Widget _buildSalesCard() {
     return Card(
       child: Padding(
-        padding:
-            const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(20),
         child: Row(
           children: [
             Container(
               width: 54,
               height: 54,
               decoration: BoxDecoration(
-                color: HalalFoodTheme
-                    .primaryGreen
-                    .withValues(
-                  alpha: 0.10,
-                ),
-                borderRadius:
-                    BorderRadius.circular(
-                  14,
-                ),
+                color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(14),
               ),
               child: const Icon(
                 Icons.payments_outlined,
                 size: 28,
-                color:
-                    HalalFoodTheme
-                        .primaryGreen,
+                color: HalalFoodTheme.primaryGreen,
               ),
             ),
             const SizedBox(width: 14),
             const Expanded(
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     "Today's Sales",
                     style: TextStyle(
                       fontSize: 13,
-                      color:
-                          HalalFoodTheme
-                              .textSecondary,
+                      color: HalalFoodTheme.textSecondary,
                     ),
                   ),
                   SizedBox(height: 4),
@@ -800,11 +569,8 @@ const Text(
               '₱${_todaySales.toStringAsFixed(2)}',
               style: const TextStyle(
                 fontSize: 21,
-                fontWeight:
-                    FontWeight.w800,
-                color:
-                    HalalFoodTheme
-                        .primaryGreen,
+                fontWeight: FontWeight.w800,
+                color: HalalFoodTheme.primaryGreen,
               ),
             ),
           ],
@@ -816,39 +582,26 @@ const Text(
   Widget _buildEmptyOrders() {
     return Card(
       child: Padding(
-        padding:
-            const EdgeInsets.all(28),
+        padding: const EdgeInsets.all(28),
         child: Column(
           children: [
             Icon(
-              Icons
-                  .receipt_long_outlined,
+              Icons.receipt_long_outlined,
               size: 52,
-              color: HalalFoodTheme
-                  .primaryGreen
-                  .withValues(
-                alpha: 0.55,
-              ),
+              color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.55),
             ),
             const SizedBox(height: 12),
             const Text(
               'No orders yet',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight:
-                    FontWeight.w800,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 6),
             const Text(
               'Customer orders will appear here.',
-              textAlign:
-                  TextAlign.center,
+              textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
-                color:
-                    HalalFoodTheme
-                        .textSecondary,
+                color: HalalFoodTheme.textSecondary,
               ),
             ),
           ],
@@ -857,97 +610,56 @@ const Text(
     );
   }
 
-  Widget _buildOrderCard(
-    Map<String, dynamic> order,
-  ) {
-    final id =
-        order['id']?.toString() ?? '';
-
-    final status =
-        order['status']?.toString() ??
-            'pending';
-
-    final total =
-        (order['total_amount'] as num?)
-                ?.toDouble() ??
-            0;
+  Widget _buildOrderCard(Map<String, dynamic> order) {
+    final id = order['id']?.toString() ?? '';
+    final status = order['status']?.toString() ?? 'pending';
+    final total = (order['total_amount'] as num?)?.toDouble() ?? 0;
 
     return Card(
-      margin:
-          const EdgeInsets.only(
-        bottom: 10,
-      ),
+      margin: const EdgeInsets.only(bottom: 10),
       child: ListTile(
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) =>
-                  OwnerOrderDetailsScreen(
-                order: order,
-              ),
+              builder: (_) => OwnerOrderDetailsScreen(order: order),
             ),
           );
         },
-        contentPadding:
-            const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 6,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         leading: Container(
           width: 44,
           height: 44,
           decoration: BoxDecoration(
-            color: HalalFoodTheme
-                .primaryGreen
-                .withValues(
-              alpha: 0.10,
-            ),
-            borderRadius:
-                BorderRadius.circular(
-              12,
-            ),
+            color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: const Icon(
-            Icons
-                .receipt_long_rounded,
-            color:
-                HalalFoodTheme
-                    .primaryGreen,
+            Icons.receipt_long_rounded,
+            color: HalalFoodTheme.primaryGreen,
           ),
         ),
         title: Text(
           '#${_shortOrderId(id)}',
-          style:
-              const TextStyle(
-            fontWeight:
-                FontWeight.w800,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.w800),
         ),
         subtitle: Text(
           _formatStatus(status),
           style: TextStyle(
             fontSize: 12,
-            fontWeight:
-                FontWeight.w700,
-            color:
-                _statusColor(status),
+            fontWeight: FontWeight.w700,
+            color: _statusColor(status),
           ),
         ),
         trailing: Text(
           '₱${total.toStringAsFixed(2)}',
-          style:
-              const TextStyle(
-            fontWeight:
-                FontWeight.w800,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.w800),
         ),
       ),
     );
   }
 }
 
-class _StatCard
-    extends StatelessWidget {
+class _StatCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String value;
@@ -961,62 +673,39 @@ class _StatCard
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding:
-            const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Row(
           children: [
             Container(
               width: 42,
               height: 42,
-              decoration:
-                  BoxDecoration(
-                color:
-                    color.withValues(
-                  alpha: 0.10,
-                ),
-                borderRadius:
-                    BorderRadius.circular(
-                  12,
-                ),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                icon,
-                color: color,
-                size: 22,
-              ),
+              child: Icon(icon, color: color, size: 22),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment
-                        .start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
-                    style:
-                        const TextStyle(
+                    style: const TextStyle(
                       fontSize: 12,
-                      color:
-                          HalalFoodTheme
-                              .textSecondary,
+                      color: HalalFoodTheme.textSecondary,
                     ),
                   ),
-                  const SizedBox(
-                    height: 2,
-                  ),
+                  const SizedBox(height: 2),
                   Text(
                     value,
-                    style:
-                        const TextStyle(
+                    style: const TextStyle(
                       fontSize: 20,
-                      fontWeight:
-                          FontWeight.w800,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ],
