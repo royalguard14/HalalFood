@@ -27,7 +27,6 @@ class _FoodCategoryManagementScreenState
 
   Future<void> _loadCategories() async {
     if (!mounted) return;
-
     setState(() {
       _isLoading = true;
       _error = null;
@@ -41,7 +40,6 @@ class _FoodCategoryManagementScreenState
           .order('name', ascending: true);
 
       if (!mounted) return;
-
       setState(() {
         _categories = (response as List)
             .map((item) => Map<String, dynamic>.from(item))
@@ -50,7 +48,6 @@ class _FoodCategoryManagementScreenState
       });
     } catch (e) {
       if (!mounted) return;
-
       setState(() {
         _isLoading = false;
         _error = e.toString();
@@ -63,7 +60,6 @@ class _FoodCategoryManagementScreenState
       context: context,
       builder: (_) => const _CategoryDialog(),
     );
-
     if (result == null || !mounted) return;
 
     try {
@@ -72,7 +68,6 @@ class _FoodCategoryManagementScreenState
           .select('id')
           .eq('slug', result.slug)
           .maybeSingle();
-
       if (existing != null) {
         _showMessage('A category with this slug already exists.');
         return;
@@ -83,13 +78,9 @@ class _FoodCategoryManagementScreenState
           .select('sort_order')
           .order('sort_order', ascending: false)
           .limit(1);
-
       var nextSortOrder = 0;
-      if (maxResponse.isNotEmpty) {
-        final current = maxResponse.first['sort_order'];
-        if (current is num) {
-          nextSortOrder = current.toInt() + 1;
-        }
+      if (maxResponse.isNotEmpty && maxResponse.first['sort_order'] is num) {
+        nextSortOrder = (maxResponse.first['sort_order'] as num).toInt() + 1;
       }
 
       await _supabase.from('food_categories').insert({
@@ -100,12 +91,10 @@ class _FoodCategoryManagementScreenState
         'sort_order': nextSortOrder,
       });
 
-      if (!mounted) return;
       await _loadCategories();
-      _showMessage('Food category added successfully.');
+      if (mounted) _showMessage('Food category added successfully.');
     } catch (e) {
-      if (!mounted) return;
-      _showMessage('Unable to add category:\n$e');
+      if (mounted) _showMessage('Unable to add category:\n$e');
     }
   }
 
@@ -124,7 +113,6 @@ class _FoodCategoryManagementScreenState
         submitLabel: 'Save Changes',
       ),
     );
-
     if (result == null || !mounted) return;
 
     try {
@@ -134,7 +122,6 @@ class _FoodCategoryManagementScreenState
           .eq('slug', result.slug)
           .neq('id', id)
           .maybeSingle();
-
       if (duplicate != null) {
         _showMessage('A category with this slug already exists.');
         return;
@@ -147,39 +134,16 @@ class _FoodCategoryManagementScreenState
         'is_active': result.isActive,
       }).eq('id', id);
 
-      if (!mounted) return;
       await _loadCategories();
-      _showMessage('Food category updated successfully.');
+      if (mounted) _showMessage('Food category updated successfully.');
     } catch (e) {
-      if (!mounted) return;
-      _showMessage('Unable to update category:\n$e');
-    }
-  }
-
-  Future<void> _toggleCategory(Map<String, dynamic> category) async {
-    final id = category['id']?.toString();
-    if (id == null || id.isEmpty) return;
-
-    final current = category['is_active'] == true;
-
-    try {
-      await _supabase
-          .from('food_categories')
-          .update({'is_active': !current})
-          .eq('id', id);
-
-      if (!mounted) return;
-      await _loadCategories();
-    } catch (e) {
-      if (!mounted) return;
-      _showMessage('Unable to update category:\n$e');
+      if (mounted) _showMessage('Unable to update category:\n$e');
     }
   }
 
   Future<void> _deleteCategory(Map<String, dynamic> category) async {
     final id = category['id']?.toString();
     final name = category['name']?.toString() ?? 'this category';
-
     if (id == null || id.isEmpty) return;
 
     final confirmed = await showDialog<bool>(
@@ -204,29 +168,24 @@ class _FoodCategoryManagementScreenState
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Delete'),
+            child: const Text('Remove'),
           ),
         ],
       ),
     );
-
     if (confirmed != true || !mounted) return;
 
     try {
       await _supabase.from('food_categories').delete().eq('id', id);
-
-      if (!mounted) return;
       await _loadCategories();
-      _showMessage('Food category deleted.');
+      if (mounted) _showMessage('Food category removed.');
     } catch (e) {
-      if (!mounted) return;
-      _showMessage('Unable to delete category:\n$e');
+      if (mounted) _showMessage('Unable to remove category:\n$e');
     }
   }
 
   void _showMessage(String message) {
     if (!mounted) return;
-
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
@@ -296,8 +255,8 @@ class _FoodCategoryManagementScreenState
   Widget _buildBody() {
     if (_isLoading) {
       return ListView(
-        physics: AlwaysScrollableScrollPhysics(),
-        children: [
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
           SizedBox(height: 260),
           Center(child: CircularProgressIndicator()),
         ],
@@ -383,20 +342,14 @@ class _FoodCategoryManagementScreenState
             subtitle: Text('$slug • ${isActive ? 'Active' : 'Inactive'}'),
             trailing: PopupMenuButton<String>(
               onSelected: (value) {
-                switch (value) {
-                  case 'edit':
-                    _editCategory(category);
-                    break;
-                  case 'toggle':
-                    _toggleCategory(category);
-                    break;
-                  case 'delete':
-                    _deleteCategory(category);
-                    break;
+                if (value == 'edit') {
+                  _editCategory(category);
+                } else if (value == 'delete') {
+                  _deleteCategory(category);
                 }
               },
-              itemBuilder: (_) => [
-                const PopupMenuItem(
+              itemBuilder: (_) => const [
+                PopupMenuItem(
                   value: 'edit',
                   child: ListTile(
                     leading: Icon(Icons.edit_rounded),
@@ -405,18 +358,10 @@ class _FoodCategoryManagementScreenState
                   ),
                 ),
                 PopupMenuItem(
-                  value: 'toggle',
-                  child: ListTile(
-                    leading: Icon(Icons.power_settings_new_rounded),
-                    title: Text('Toggle Active'),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-                const PopupMenuItem(
                   value: 'delete',
                   child: ListTile(
                     leading: Icon(Icons.delete_outline_rounded),
-                    title: Text('Delete'),
+                    title: Text('Remove'),
                     contentPadding: EdgeInsets.zero,
                   ),
                 ),
@@ -468,14 +413,12 @@ class _CategoryDialogState extends State<_CategoryDialog> {
   late final TextEditingController _nameController;
   late final TextEditingController _slugController;
   late final TextEditingController _iconController;
-
   late bool _isActive;
   bool _isSubmitting = false;
 
   @override
   void initState() {
     super.initState();
-
     _nameController = TextEditingController(text: widget.initialName);
     _slugController = TextEditingController(text: widget.initialSlug);
     _iconController = TextEditingController(text: widget.initialIcon);
@@ -499,18 +442,13 @@ class _CategoryDialogState extends State<_CategoryDialog> {
       _showValidation('Please enter a category name.');
       return;
     }
-
     if (slug.isEmpty) {
       _showValidation('Please enter a slug.');
       return;
     }
-
     if (_isSubmitting) return;
 
-    setState(() {
-      _isSubmitting = true;
-    });
-
+    setState(() => _isSubmitting = true);
     Navigator.of(context).pop(
       _CategoryFormResult(
         name: name,
@@ -578,20 +516,14 @@ class _CategoryDialogState extends State<_CategoryDialog> {
               value: _isActive,
               onChanged: _isSubmitting
                   ? null
-                  : (value) {
-                      setState(() {
-                        _isActive = value;
-                      });
-                    },
+                  : (value) => setState(() => _isActive = value),
             ),
           ],
         ),
       ),
       actions: [
         TextButton(
-          onPressed: _isSubmitting
-              ? null
-              : () => Navigator.of(context).pop(),
+          onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
         ElevatedButton(
