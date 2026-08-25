@@ -52,39 +52,62 @@ class OwnerRestaurantRepository {
       'review_count': 0,
     };
 
-    // An owner-submitted restaurant is automatically placed in the
-    // admin verification queue. The restaurant stays inactive until an
-    // admin reviews and approves it.
+    // Restaurant submission and halal verification are separate workflows.
+    // Creating a restaurant does NOT create a halal_verifications row.
+    await _supabase.from('restaurants').insert(clean);
+  }
+
+  Future<String?> getPendingVerificationId({
+    required String restaurantId,
+  }) async {
+    final response = await _supabase
+        .from('halal_verifications')
+        .select('id')
+        .eq('restaurant_id', restaurantId)
+        .eq('status', 'pending')
+        .limit(1)
+        .maybeSingle();
+
+    return response?['id']?.toString();
+  }
+
+  Future<bool> hasPendingVerification({
+    required String restaurantId,
+  }) async {
+    return await getPendingVerificationId(restaurantId: restaurantId) != null;
+  }
+
+  Future<void> requestHalalVerification({
+    required String restaurantId,
+  }) async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) throw Exception('User is not authenticated.');
+
     final restaurant = await _supabase
         .from('restaurants')
-        .insert(clean)
-        .select('id')
-        .single();
+        .select('id, owner_id, halal_status')
+        .eq('id', restaurantId)
+        .eq('owner_id', user.id)
+        .maybeSingle();
 
-    final restaurantId = restaurant['id']?.toString();
-    if (restaurantId == null || restaurantId.isEmpty) {
-      throw Exception('Restaurant was created but no restaurant ID was returned.');
+    if (restaurant == null) {
+      throw Exception('Restaurant not found or does not belong to this account.');
     }
 
-    try {
-      await _supabase.from('halal_verifications').insert({
-        'restaurant_id': restaurantId,
-        'submitted_by': user.id,
-        'status': 'pending',
-      });
-    } catch (e) {
-      // Avoid leaving a restaurant that the owner believes was submitted
-      // without its corresponding admin review request.
-      try {
-        await _supabase
-            .from('restaurants')
-            .delete()
-            .eq('id', restaurantId);
-      } catch (_) {
-        // Preserve the original verification error below.
-      }
-      throw Exception('Unable to submit the restaurant for admin verification: $e');
+    final halalStatus = restaurant['halal_status']?.toString() ?? 'unverified';
+    if (halalStatus != 'unverified') {
+      throw Exception('This restaurant already has a halal status.');
     }
+
+    if (await hasPendingVerification(restaurantId: restaurantId)) {
+      throw Exception('A halal verification request is already pending.');
+    }
+
+    await _supabase.from('halal_verifications').insert({
+      'restaurant_id': restaurantId,
+      'submitted_by': user.id,
+      'status': 'pending',
+    });
   }
 
   String? _clean(String? value) {
