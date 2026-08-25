@@ -3,19 +3,17 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/theme.dart';
 import 'owner_dashboard_screen.dart';
+import '../../auth/screens/login_screen.dart';
 
 class OwnerRestaurantSelectionScreen extends StatefulWidget {
   const OwnerRestaurantSelectionScreen({super.key});
 
   @override
-  State<OwnerRestaurantSelectionScreen> createState() =>
-      _OwnerRestaurantSelectionScreenState();
+  State<OwnerRestaurantSelectionScreen> createState() => _OwnerRestaurantSelectionScreenState();
 }
 
-class _OwnerRestaurantSelectionScreenState
-    extends State<OwnerRestaurantSelectionScreen> {
+class _OwnerRestaurantSelectionScreenState extends State<OwnerRestaurantSelectionScreen> {
   final _supabase = Supabase.instance.client;
-
   bool _isLoading = true;
   String? _error;
   List<Map<String, dynamic>> _restaurants = [];
@@ -35,9 +33,7 @@ class _OwnerRestaurantSelectionScreenState
 
     try {
       final user = _supabase.auth.currentUser;
-      if (user == null) {
-        throw Exception('User is not authenticated.');
-      }
+      if (user == null) throw Exception('User is not authenticated.');
 
       final response = await _supabase
           .from('restaurants')
@@ -45,13 +41,11 @@ class _OwnerRestaurantSelectionScreenState
           .eq('owner_id', user.id)
           .order('name', ascending: true);
 
-      final restaurants = (response as List)
-          .map((item) => Map<String, dynamic>.from(item))
-          .toList();
-
       if (!mounted) return;
       setState(() {
-        _restaurants = restaurants;
+        _restaurants = (response as List)
+            .map((item) => Map<String, dynamic>.from(item))
+            .toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -82,17 +76,17 @@ class _OwnerRestaurantSelectionScreenState
   Future<void> _logout() async {
     await _supabase.auth.signOut();
     if (!mounted) return;
-    Navigator.of(context).popUntil((route) => route.isFirst);
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Select Restaurant',
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
+        title: const Text('Select Restaurant', style: TextStyle(fontWeight: FontWeight.w800)),
         actions: [
           IconButton(
             tooltip: 'Logout',
@@ -106,9 +100,7 @@ class _OwnerRestaurantSelectionScreenState
   }
 
   Widget _buildBody() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    if (_isLoading) return const Center(child: CircularProgressIndicator());
 
     if (_error != null) {
       return RefreshIndicator(
@@ -118,31 +110,13 @@ class _OwnerRestaurantSelectionScreenState
           padding: const EdgeInsets.all(24),
           children: [
             const SizedBox(height: 120),
-            const Icon(
-              Icons.error_outline_rounded,
-              size: 60,
-              color: Colors.redAccent,
-            ),
+            const Icon(Icons.error_outline_rounded, size: 60, color: Colors.redAccent),
             const SizedBox(height: 16),
-            const Text(
-              'Unable to load restaurants',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-            ),
+            const Text('Unable to load restaurants', textAlign: TextAlign.center, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
             const SizedBox(height: 8),
-            Text(
-              _error!,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 13,
-                color: HalalFoodTheme.textSecondary,
-              ),
-            ),
+            Text(_error!, textAlign: TextAlign.center),
             const SizedBox(height: 18),
-            ElevatedButton(
-              onPressed: _loadRestaurants,
-              child: const Text('Try Again'),
-            ),
+            ElevatedButton(onPressed: _loadRestaurants, child: const Text('Try Again')),
           ],
         ),
       );
@@ -156,23 +130,11 @@ class _OwnerRestaurantSelectionScreenState
           padding: const EdgeInsets.all(24),
           children: const [
             SizedBox(height: 130),
-            Icon(
-              Icons.store_mall_directory_outlined,
-              size: 64,
-              color: HalalFoodTheme.primaryGreen,
-            ),
+            Icon(Icons.store_mall_directory_outlined, size: 64, color: HalalFoodTheme.primaryGreen),
             SizedBox(height: 18),
-            Text(
-              'No restaurants linked to this account.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
-            ),
+            Text('No restaurants linked to this account.', textAlign: TextAlign.center, style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
             SizedBox(height: 8),
-            Text(
-              'Please ask the administrator to link a restaurant to your owner account.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: HalalFoodTheme.textSecondary),
-            ),
+            Text('Please ask the administrator to link a restaurant to your owner account.', textAlign: TextAlign.center, style: TextStyle(color: HalalFoodTheme.textSecondary)),
           ],
         ),
       );
@@ -193,15 +155,9 @@ class _OwnerRestaurantSelectionScreenState
             child: const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Your Restaurants',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-                ),
+                Text('Your Restaurants', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
                 SizedBox(height: 6),
-                Text(
-                  'Select which restaurant you want to manage.',
-                  style: TextStyle(color: HalalFoodTheme.textSecondary),
-                ),
+                Text('Select which restaurant you want to manage.', style: TextStyle(color: HalalFoodTheme.textSecondary)),
               ],
             ),
           ),
@@ -222,15 +178,9 @@ class _OwnerRestaurantSelectionScreenState
         leading: CircleAvatar(
           radius: 25,
           backgroundColor: HalalFoodTheme.primaryGreen.withValues(alpha: 0.10),
-          child: const Icon(
-            Icons.restaurant_rounded,
-            color: HalalFoodTheme.primaryGreen,
-          ),
+          child: const Icon(Icons.restaurant_rounded, color: HalalFoodTheme.primaryGreen),
         ),
-        title: Text(
-          name,
-          style: const TextStyle(fontWeight: FontWeight.w800),
-        ),
+        title: Text(name, style: const TextStyle(fontWeight: FontWeight.w800)),
         subtitle: const Text('Open restaurant dashboard'),
         trailing: const Icon(Icons.chevron_right_rounded),
         onTap: () => _openRestaurant(restaurant),
