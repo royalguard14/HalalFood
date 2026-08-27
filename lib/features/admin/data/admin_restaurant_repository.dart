@@ -32,7 +32,7 @@ class AdminRestaurantRepository {
     double? longitude,
     String? logoUrl,
     String? coverImageUrl,
-    bool isActive = true,
+    bool isActive = false,
     bool isFeatured = false,
   }) async {
     final data = <String, dynamic>{
@@ -59,17 +59,52 @@ class AdminRestaurantRepository {
     await _supabase.from('restaurants').insert(data);
   }
 
+  Future<void> updateRestaurant({
+    required String restaurantId,
+    required String name,
+    String? ownerId,
+    String? description,
+    String? phone,
+    String? email,
+    String? website,
+    String? address,
+    String? city,
+    String? province,
+    double? latitude,
+    double? longitude,
+    String? logoUrl,
+    String? coverImageUrl,
+    required bool isActive,
+    required bool isFeatured,
+  }) async {
+    await _supabase.from('restaurants').update({
+      'name': name.trim(),
+      'owner_id': ownerId,
+      'description': _clean(description),
+      'phone': _clean(phone),
+      'email': _clean(email),
+      'website': _clean(website),
+      'address': _clean(address),
+      'city': _clean(city),
+      'province': _clean(province),
+      'latitude': latitude,
+      'longitude': longitude,
+      'logo_url': _clean(logoUrl),
+      'cover_image_url': _clean(coverImageUrl),
+      'is_active': isActive,
+      'is_featured': isFeatured,
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('id', restaurantId);
+  }
+
   Future<void> assignOwner({
     required String restaurantId,
     required String? ownerId,
   }) async {
-    await _supabase
-        .from('restaurants')
-        .update({
-          'owner_id': ownerId,
-          'updated_at': DateTime.now().toIso8601String(),
-        })
-        .eq('id', restaurantId);
+    await _supabase.from('restaurants').update({
+      'owner_id': ownerId,
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('id', restaurantId);
   }
 
   String? _clean(String? value) {
