@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../app/theme.dart';
 import '../../auth/screens/login_screen.dart';
 import '../data/admin_repository.dart';
+import 'admin_profile_screen.dart';
 import 'delivery_pricing_screen.dart';
 import 'food_category_management_screen.dart';
 import 'halal_verification_screen.dart';
@@ -13,8 +14,7 @@ import 'user_role_management_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
-  @override
-  State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
+  @override State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
 }
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
@@ -31,10 +31,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   RealtimeChannel? _restaurantsChannel;
   RealtimeChannel? _ordersChannel;
 
-  @override
-  void initState() { super.initState(); _loadDashboard(); }
-  @override
-  void dispose() { _restaurantsChannel?.unsubscribe(); _ordersChannel?.unsubscribe(); super.dispose(); }
+  @override void initState() { super.initState(); _loadDashboard(); }
+  @override void dispose() { _restaurantsChannel?.unsubscribe(); _ordersChannel?.unsubscribe(); super.dispose(); }
 
   Future<void> _loadDashboard() async {
     if (!mounted) return;
@@ -100,6 +98,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       elevation: 0, backgroundColor: Colors.white, surfaceTintColor: Colors.white,
       title: const Row(children: [Icon(Icons.admin_panel_settings_rounded), SizedBox(width: 10), Text('Admin Dashboard', style: TextStyle(fontWeight: FontWeight.w800))]),
       actions: [
+        IconButton(tooltip: 'Admin Profile', onPressed: _isLoading ? null : () => _open(const AdminProfileScreen()), icon: const Icon(Icons.account_circle_rounded)),
         IconButton(tooltip: 'Refresh dashboard', onPressed: _isLoading ? null : _loadDashboard, icon: const Icon(Icons.refresh_rounded)),
         IconButton(tooltip: 'Logout', onPressed: _isLoggingOut ? null : _logout, icon: _isLoggingOut ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.logout_rounded)),
       ],
