@@ -32,8 +32,6 @@ class AdminRestaurantRepository {
     double? longitude,
     String? logoUrl,
     String? coverImageUrl,
-    bool isActive = false,
-    bool isFeatured = false,
   }) async {
     final data = <String, dynamic>{
       'name': name.trim(),
@@ -50,8 +48,8 @@ class AdminRestaurantRepository {
       'logo_url': _clean(logoUrl),
       'cover_image_url': _clean(coverImageUrl),
       'halal_status': 'unverified',
-      'is_active': isActive,
-      'is_featured': isFeatured,
+      'is_active': false,
+      'is_featured': false,
       'average_rating': 0,
       'review_count': 0,
     };
@@ -74,8 +72,6 @@ class AdminRestaurantRepository {
     double? longitude,
     String? logoUrl,
     String? coverImageUrl,
-    required bool isActive,
-    required bool isFeatured,
   }) async {
     await _supabase.from('restaurants').update({
       'name': name.trim(),
@@ -91,8 +87,6 @@ class AdminRestaurantRepository {
       'longitude': longitude,
       'logo_url': _clean(logoUrl),
       'cover_image_url': _clean(coverImageUrl),
-      'is_active': isActive,
-      'is_featured': isFeatured,
       'updated_at': DateTime.now().toIso8601String(),
     }).eq('id', restaurantId);
   }
