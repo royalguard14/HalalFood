@@ -69,22 +69,22 @@ class _RestaurantManagementScreenState
 
   List<Map<String, dynamic>> get _filtered {
     return _restaurants.where((r) {
+      final q = _search.toLowerCase();
       final name = r['name']?.toString().toLowerCase() ?? '';
       final city = r['city']?.toString().toLowerCase() ?? '';
       final owner = _ownerName(r['owner_id']?.toString()).toLowerCase();
       final active = r['is_active'] == true;
-      final q = _search.toLowerCase();
+      final halal = r['halal_status']?.toString() ?? 'unverified';
 
       final matchesSearch = q.isEmpty ||
           name.contains(q) || city.contains(q) || owner.contains(q);
-
       final matchesFilter = switch (_filter) {
         'active' => active,
         'inactive' => !active,
         'unassigned' => r['owner_id'] == null,
+        'unverified' => halal == 'unverified',
         _ => true,
       };
-
       return matchesSearch && matchesFilter;
     }).toList();
   }
@@ -104,7 +104,7 @@ class _RestaurantManagementScreenState
       };
 
   Future<void> _addRestaurant() async {
-    final created = await showModalBottomSheet<bool>(
+    final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
@@ -113,105 +113,78 @@ class _RestaurantManagementScreenState
         repository: _restaurantRepository,
       ),
     );
-    if (created == true) {
+    if (saved == true) {
       await _load();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Restaurant added successfully.')),
-        );
-      }
+      if (mounted) _message('Restaurant added successfully.');
+    }
+  }
+
+  Future<void> _editRestaurant(Map<String, dynamic> restaurant) async {
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => _RestaurantForm(
+        owners: _owners,
+        repository: _restaurantRepository,
+        restaurant: restaurant,
+      ),
+    );
+    if (saved == true) {
+      await _load();
+      if (mounted) _message('Restaurant updated successfully.');
     }
   }
 
   Future<void> _assignOwner(Map<String, dynamic> restaurant) async {
     String? selected = restaurant['owner_id']?.toString();
-    final result = await showDialog<String?>(
+    final result = await showDialog<_OwnerSelectionResult>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Assign Restaurant Owner'),
-          content: DropdownButtonFormField<String?>(
-            value: selected,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Owner account'),
-            items: [
-              const DropdownMenuItem<String?>(
-                value: null,
-                child: Text('Unassigned'),
-              ),
-              ..._owners.map((owner) => DropdownMenuItem<String?>(
-                    value: owner['id']?.toString(),
-                    child: Text(
-                      owner['full_name']?.toString().trim().isNotEmpty == true
-                          ? owner['full_name'].toString()
-                          : 'Restaurant Owner',
-                    ),
-                  )),
-            ],
-            onChanged: (value) => setDialogState(() => selected = value),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, selected),
-              child: const Text('Save'),
-            ),
-          ],
-        ),
+      builder: (dialogContext) => _OwnerSelectionDialog(
+        owners: _owners,
+        initialOwnerId: selected,
       ),
     );
-
-    final old = restaurant['owner_id']?.toString();
-    if (result == null && old != null) return;
-    if (result == old) return;
+    if (result == null) return;
+    if (result.ownerId == selected) return;
 
     try {
       await _restaurantRepository.assignOwner(
         restaurantId: restaurant['id'].toString(),
-        ownerId: result,
+        ownerId: result.ownerId,
       );
       await _load();
+      if (mounted) _message('Restaurant owner updated.');
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Unable to assign owner: $e')),
-        );
-      }
+      if (mounted) _message('Unable to assign owner: $e');
     }
   }
 
   Future<void> _toggleActive(Map<String, dynamic> restaurant) async {
+    final next = restaurant['is_active'] != true;
     try {
       await _repository.setRestaurantActive(
         restaurantId: restaurant['id'].toString(),
-        isActive: restaurant['is_active'] != true,
+        isActive: next,
       );
       await _load();
+      if (mounted) _message(next ? 'Restaurant activated.' : 'Restaurant deactivated.');
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Unable to update status: $e')),
-        );
-      }
+      if (mounted) _message('Unable to update status: $e');
     }
   }
 
   Future<void> _toggleFeatured(Map<String, dynamic> restaurant) async {
+    final next = restaurant['is_featured'] != true;
     try {
       await _repository.setRestaurantFeatured(
         restaurantId: restaurant['id'].toString(),
-        isFeatured: restaurant['is_featured'] != true,
+        isFeatured: next,
       );
       await _load();
+      if (mounted) _message(next ? 'Restaurant featured.' : 'Restaurant removed from featured.');
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Unable to update featured status: $e')),
-        );
-      }
+      if (mounted) _message('Unable to update featured status: $e');
     }
   }
 
@@ -221,51 +194,67 @@ class _RestaurantManagementScreenState
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => SafeArea(
+      builder: (sheetContext) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                restaurant['name']?.toString() ?? 'Restaurant',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      restaurant['name']?.toString() ?? 'Restaurant',
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Edit restaurant',
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      _editRestaurant(restaurant);
+                    },
+                    icon: const Icon(Icons.edit_rounded),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              _DetailRow(
-                'Owner',
-                _ownerName(restaurant['owner_id']?.toString()),
-              ),
+              const SizedBox(height: 8),
+              _DetailRow('Owner', _ownerName(restaurant['owner_id']?.toString())),
               _DetailRow('Halal Status', _halalLabel(halal)),
-              _DetailRow(
-                'Status',
-                restaurant['is_active'] == true ? 'Active' : 'Inactive',
-              ),
+              _DetailRow('Status', restaurant['is_active'] == true ? 'Active' : 'Inactive'),
+              _DetailRow('Featured', restaurant['is_featured'] == true ? 'Yes' : 'No'),
               _DetailRow('Rating', '${restaurant['average_rating'] ?? 0}'),
               _DetailRow('Reviews', '${restaurant['review_count'] ?? 0}'),
-              _DetailRow(
-                'Address',
-                restaurant['address']?.toString() ?? 'Not provided',
-              ),
-              _DetailRow(
-                'City',
-                restaurant['city']?.toString() ?? 'Not provided',
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _assignOwner(restaurant);
-                  },
-                  icon: const Icon(Icons.person_add_alt_1_rounded),
-                  label: const Text('Assign Owner'),
-                ),
+              _DetailRow('Phone', restaurant['phone']?.toString() ?? 'Not provided'),
+              _DetailRow('Email', restaurant['email']?.toString() ?? 'Not provided'),
+              _DetailRow('Address', restaurant['address']?.toString() ?? 'Not provided'),
+              _DetailRow('City', restaurant['city']?.toString() ?? 'Not provided'),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        _assignOwner(restaurant);
+                      },
+                      icon: const Icon(Icons.person_add_alt_1_rounded),
+                      label: const Text('Owner'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        _editRestaurant(restaurant);
+                      },
+                      icon: const Icon(Icons.edit_rounded),
+                      label: const Text('Edit'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -274,26 +263,31 @@ class _RestaurantManagementScreenState
     );
   }
 
+  void _message(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(text)));
+  }
+
   @override
   Widget build(BuildContext context) {
     final restaurants = _filtered;
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Restaurant Management',
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
+        title: const Text('Restaurant Management', style: TextStyle(fontWeight: FontWeight.w800)),
         actions: [
           IconButton(
             onPressed: _loading ? null : _load,
             icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Refresh',
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _loading ? null : _addRestaurant,
         icon: const Icon(Icons.add_business_rounded),
-        label: const Text('Add Restaurant'),
+        label: const Text('Add Restaurant', style: TextStyle(fontWeight: FontWeight.w700)),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -305,10 +299,11 @@ class _RestaurantManagementScreenState
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
                     children: [
+                      _SummaryCard(restaurants: _restaurants),
+                      const SizedBox(height: 14),
                       TextField(
                         controller: _searchController,
-                        onChanged: (value) =>
-                            setState(() => _search = value.trim()),
+                        onChanged: (value) => setState(() => _search = value.trim()),
                         decoration: InputDecoration(
                           hintText: 'Search restaurants or owners...',
                           prefixIcon: const Icon(Icons.search_rounded),
@@ -329,40 +324,21 @@ class _RestaurantManagementScreenState
                         child: ListView(
                           scrollDirection: Axis.horizontal,
                           children: [
-                            _FilterChip(
-                              'All',
-                              'all',
-                              _filter,
-                              (v) => setState(() => _filter = v),
-                            ),
-                            _FilterChip(
-                              'Active',
-                              'active',
-                              _filter,
-                              (v) => setState(() => _filter = v),
-                            ),
-                            _FilterChip(
-                              'Inactive',
-                              'inactive',
-                              _filter,
-                              (v) => setState(() => _filter = v),
-                            ),
-                            _FilterChip(
-                              'Unassigned',
-                              'unassigned',
-                              _filter,
-                              (v) => setState(() => _filter = v),
-                            ),
+                            for (final item in const [
+                              ('All', 'all'),
+                              ('Active', 'active'),
+                              ('Inactive', 'inactive'),
+                              ('Unassigned', 'unassigned'),
+                              ('Unverified', 'unverified'),
+                            ])
+                              _FilterChip(item.$1, item.$2, _filter, (v) => setState(() => _filter = v)),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
                       Text(
                         '${restaurants.length} restaurant${restaurants.length == 1 ? '' : 's'}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: HalalFoodTheme.textSecondary,
-                        ),
+                        style: const TextStyle(fontWeight: FontWeight.w700, color: HalalFoodTheme.textSecondary),
                       ),
                       const SizedBox(height: 8),
                       if (restaurants.isEmpty)
@@ -382,8 +358,6 @@ class _RestaurantManagementScreenState
     final halal = r['halal_status']?.toString() ?? 'unverified';
     final active = r['is_active'] == true;
     final featured = r['is_featured'] == true;
-    final rating = r['average_rating'] ?? 0;
-    final reviews = r['review_count'] ?? 0;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -402,46 +376,28 @@ class _RestaurantManagementScreenState
                       r['name']?.toString() ?? 'Unnamed Restaurant',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                      ),
+                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
                     ),
                   ),
-                  if (featured)
-                    const Icon(Icons.star_rounded, color: Colors.amber),
+                  if (featured) const Icon(Icons.star_rounded, color: Colors.amber),
                 ],
               ),
               if ((r['city']?.toString() ?? '').isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 3),
-                  child: Text(
-                    r['city'].toString(),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: HalalFoodTheme.textSecondary,
-                    ),
-                  ),
+                  child: Text(r['city'].toString(), style: const TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary)),
                 ),
               const SizedBox(height: 7),
-              Text(
-                'Owner: ${_ownerName(r['owner_id']?.toString())}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+              Text('Owner: ${_ownerName(r['owner_id']?.toString())}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
                 children: [
                   _Badge(_halalLabel(halal), _halalColor(halal)),
-                  _Badge(
-                    active ? 'Active' : 'Inactive',
-                    active ? Colors.green : Colors.grey,
-                  ),
-                  _Badge('★ $rating ($reviews)', Colors.amber.shade700),
+                  _Badge(active ? 'Active' : 'Inactive', active ? Colors.green : Colors.grey),
+                  if (featured) _Badge('Featured', Colors.amber.shade800),
+                  _Badge('★ ${r['average_rating'] ?? 0} (${r['review_count'] ?? 0})', Colors.amber.shade700),
                 ],
               ),
               const SizedBox(height: 10),
@@ -449,35 +405,21 @@ class _RestaurantManagementScreenState
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () => _assignOwner(r),
-                      icon: const Icon(
-                        Icons.person_add_alt_1_rounded,
-                        size: 18,
-                      ),
-                      label: Text(
-                        r['owner_id'] == null
-                            ? 'Assign Owner'
-                            : 'Change Owner',
-                      ),
+                      onPressed: () => _editRestaurant(r),
+                      icon: const Icon(Icons.edit_rounded, size: 18),
+                      label: const Text('Edit'),
                     ),
                   ),
                   const SizedBox(width: 6),
                   IconButton(
+                    tooltip: active ? 'Deactivate' : 'Activate',
                     onPressed: () => _toggleActive(r),
-                    icon: Icon(
-                      active
-                          ? Icons.block_rounded
-                          : Icons.check_circle_outline_rounded,
-                    ),
+                    icon: Icon(active ? Icons.block_rounded : Icons.check_circle_outline_rounded),
                   ),
                   IconButton(
+                    tooltip: featured ? 'Remove featured' : 'Feature restaurant',
                     onPressed: () => _toggleFeatured(r),
-                    icon: Icon(
-                      featured
-                          ? Icons.star_rounded
-                          : Icons.star_border_rounded,
-                      color: Colors.amber.shade700,
-                    ),
+                    icon: Icon(featured ? Icons.star_rounded : Icons.star_border_rounded, color: Colors.amber.shade700),
                   ),
                 ],
               ),
@@ -489,14 +431,54 @@ class _RestaurantManagementScreenState
   }
 }
 
+class _SummaryCard extends StatelessWidget {
+  final List<Map<String, dynamic>> restaurants;
+  const _SummaryCard({required this.restaurants});
+
+  @override
+  Widget build(BuildContext context) {
+    final active = restaurants.where((r) => r['is_active'] == true).length;
+    final inactive = restaurants.length - active;
+    final verified = restaurants.where((r) => r['halal_status'] == 'halal_verified' || r['halal_status'] == 'certified_halal').length;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Expanded(child: _Metric('Total', restaurants.length.toString(), Icons.restaurant_rounded)),
+            Expanded(child: _Metric('Active', active.toString(), Icons.check_circle_rounded)),
+            Expanded(child: _Metric('Inactive', inactive.toString(), Icons.pause_circle_rounded)),
+            Expanded(child: _Metric('Halal', verified.toString(), Icons.verified_rounded)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Metric extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  const _Metric(this.label, this.value, this.icon);
+
+  @override
+  Widget build(BuildContext context) => Column(
+        children: [
+          Icon(icon, size: 20, color: HalalFoodTheme.primaryGreen),
+          const SizedBox(height: 5),
+          Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          Text(label, style: const TextStyle(fontSize: 10, color: HalalFoodTheme.textSecondary)),
+        ],
+      );
+}
+
 class _RestaurantForm extends StatefulWidget {
   final List<Map<String, dynamic>> owners;
   final AdminRestaurantRepository repository;
+  final Map<String, dynamic>? restaurant;
 
-  const _RestaurantForm({
-    required this.owners,
-    required this.repository,
-  });
+  const _RestaurantForm({required this.owners, required this.repository, this.restaurant});
 
   @override
   State<_RestaurantForm> createState() => _RestaurantFormState();
@@ -518,88 +500,122 @@ class _RestaurantFormState extends State<_RestaurantForm> {
   final _cover = TextEditingController();
 
   String? _ownerId;
-  bool _active = true;
+  bool _active = false;
   bool _featured = false;
   bool _saving = false;
 
+  bool get _editing => widget.restaurant != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final r = widget.restaurant;
+    if (r != null) {
+      _name.text = r['name']?.toString() ?? '';
+      _description.text = r['description']?.toString() ?? '';
+      _phone.text = r['phone']?.toString() ?? '';
+      _email.text = r['email']?.toString() ?? '';
+      _website.text = r['website']?.toString() ?? '';
+      _address.text = r['address']?.toString() ?? '';
+      _city.text = r['city']?.toString() ?? '';
+      _province.text = r['province']?.toString() ?? '';
+      _latitude.text = r['latitude']?.toString() ?? '';
+      _longitude.text = r['longitude']?.toString() ?? '';
+      _logo.text = r['logo_url']?.toString() ?? '';
+      _cover.text = r['cover_image_url']?.toString() ?? '';
+      _ownerId = r['owner_id']?.toString();
+      _active = r['is_active'] == true;
+      _featured = r['is_featured'] == true;
+    }
+  }
+
   @override
   void dispose() {
-    for (final c in [
-      _name,
-      _description,
-      _phone,
-      _email,
-      _website,
-      _address,
-      _city,
-      _province,
-      _latitude,
-      _longitude,
-      _logo,
-      _cover,
-    ]) {
+    for (final c in [_name, _description, _phone, _email, _website, _address, _city, _province, _latitude, _longitude, _logo, _cover]) {
       c.dispose();
     }
     super.dispose();
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate() || _saving) return;
     setState(() => _saving = true);
     try {
-      await widget.repository.createRestaurant(
-        name: _name.text,
-        ownerId: _ownerId,
-        description: _description.text,
-        phone: _phone.text,
-        email: _email.text,
-        website: _website.text,
-        address: _address.text,
-        city: _city.text,
-        province: _province.text,
-        latitude: double.tryParse(_latitude.text.trim()),
-        longitude: double.tryParse(_longitude.text.trim()),
-        logoUrl: _logo.text,
-        coverImageUrl: _cover.text,
-        isActive: _active,
-        isFeatured: _featured,
-      );
+      final values = {
+        'name': _name.text,
+        'ownerId': _ownerId,
+        'description': _description.text,
+        'phone': _phone.text,
+        'email': _email.text,
+        'website': _website.text,
+        'address': _address.text,
+        'city': _city.text,
+        'province': _province.text,
+        'latitude': double.tryParse(_latitude.text.trim()),
+        'longitude': double.tryParse(_longitude.text.trim()),
+        'logoUrl': _logo.text,
+        'coverImageUrl': _cover.text,
+      };
+
+      if (_editing) {
+        await widget.repository.updateRestaurant(
+          restaurantId: widget.restaurant!['id'].toString(),
+          name: values['name'] as String,
+          ownerId: values['ownerId'] as String?,
+          description: values['description'] as String,
+          phone: values['phone'] as String,
+          email: values['email'] as String,
+          website: values['website'] as String,
+          address: values['address'] as String,
+          city: values['city'] as String,
+          province: values['province'] as String,
+          latitude: values['latitude'] as double?,
+          longitude: values['longitude'] as double?,
+          logoUrl: values['logoUrl'] as String,
+          coverImageUrl: values['coverImageUrl'] as String,
+          isActive: _active,
+          isFeatured: _featured,
+        );
+      } else {
+        await widget.repository.createRestaurant(
+          name: values['name'] as String,
+          ownerId: values['ownerId'] as String?,
+          description: values['description'] as String,
+          phone: values['phone'] as String,
+          email: values['email'] as String,
+          website: values['website'] as String,
+          address: values['address'] as String,
+          city: values['city'] as String,
+          province: values['province'] as String,
+          latitude: values['latitude'] as double?,
+          longitude: values['longitude'] as double?,
+          logoUrl: values['logoUrl'] as String,
+          coverImageUrl: values['coverImageUrl'] as String,
+          isActive: _active,
+          isFeatured: _featured,
+        );
+      }
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to add restaurant: $e')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unable to ${_editing ? 'update' : 'add'} restaurant: $e')));
     }
   }
 
-  InputDecoration _decoration(String label, IconData icon) =>
-      InputDecoration(labelText: label, prefixIcon: Icon(icon));
+  InputDecoration _decoration(String label, IconData icon) => InputDecoration(labelText: label, prefixIcon: Icon(icon));
 
-  Widget _field(
-    TextEditingController c,
-    String label,
-    IconData icon, {
-    bool required = false,
-    int maxLines = 1,
-    TextInputType? type,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: TextFormField(
-        controller: c,
-        maxLines: maxLines,
-        keyboardType: type,
-        decoration: _decoration(label, icon),
-        validator: required
-            ? (v) => v == null || v.trim().isEmpty
-                ? '$label is required.'
-                : null
-            : null,
-      ),
-    );
-  }
+  Widget _field(TextEditingController c, String label, IconData icon, {bool required = false, int maxLines = 1, TextInputType? type}) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: TextFormField(
+          controller: c,
+          maxLines: maxLines,
+          keyboardType: type,
+          enabled: !_saving,
+          decoration: _decoration(label, icon),
+          validator: required ? (v) => v == null || v.trim().isEmpty ? '$label is required.' : null : null,
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -613,132 +629,59 @@ class _RestaurantFormState extends State<_RestaurantForm> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Add New Restaurant',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+                Text(_editing ? 'Edit Restaurant' : 'Add New Restaurant', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 6),
-                const Text(
-                  'Create the restaurant first. Halal verification is managed separately.',
-                  style: TextStyle(color: HalalFoodTheme.textSecondary),
+                Text(
+                  _editing
+                      ? 'Update restaurant information and admin visibility settings.'
+                      : 'New restaurants start inactive. Activate them only when you are ready to publish them.',
+                  style: const TextStyle(color: HalalFoodTheme.textSecondary),
                 ),
                 const SizedBox(height: 18),
-                _field(
-                  _name,
-                  'Restaurant Name',
-                  Icons.restaurant_rounded,
-                  required: true,
-                ),
-                _field(
-                  _description,
-                  'Description',
-                  Icons.description_outlined,
-                  maxLines: 3,
-                ),
-                _field(
-                  _phone,
-                  'Phone',
-                  Icons.phone_outlined,
-                  type: TextInputType.phone,
-                ),
-                _field(
-                  _email,
-                  'Email',
-                  Icons.email_outlined,
-                  type: TextInputType.emailAddress,
-                ),
-                _field(
-                  _website,
-                  'Website',
-                  Icons.language_rounded,
-                  type: TextInputType.url,
-                ),
+                _field(_name, 'Restaurant Name', Icons.restaurant_rounded, required: true),
+                _field(_description, 'Description', Icons.description_outlined, maxLines: 3),
+                _field(_phone, 'Phone', Icons.phone_outlined, type: TextInputType.phone),
+                _field(_email, 'Email', Icons.email_outlined, type: TextInputType.emailAddress),
+                _field(_website, 'Website', Icons.language_rounded, type: TextInputType.url),
                 _field(_address, 'Address', Icons.location_on_outlined),
                 _field(_city, 'City', Icons.location_city_outlined),
                 _field(_province, 'Province', Icons.map_outlined),
                 Row(
                   children: [
-                    Expanded(
-                      child: _field(
-                        _latitude,
-                        'Latitude',
-                        Icons.my_location_rounded,
-                        type: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                      ),
-                    ),
+                    Expanded(child: _field(_latitude, 'Latitude', Icons.my_location_rounded, type: const TextInputType.numberWithOptions(decimal: true))),
                     const SizedBox(width: 10),
-                    Expanded(
-                      child: _field(
-                        _longitude,
-                        'Longitude',
-                        Icons.explore_outlined,
-                        type: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                      ),
-                    ),
+                    Expanded(child: _field(_longitude, 'Longitude', Icons.explore_outlined, type: const TextInputType.numberWithOptions(decimal: true))),
                   ],
                 ),
-                _field(
-                  _logo,
-                  'Logo URL',
-                  Icons.image_outlined,
-                  type: TextInputType.url,
-                ),
-                _field(
-                  _cover,
-                  'Cover Image URL',
-                  Icons.photo_library_outlined,
-                  type: TextInputType.url,
-                ),
+                _field(_logo, 'Logo URL', Icons.image_outlined, type: TextInputType.url),
+                _field(_cover, 'Cover Image URL', Icons.photo_library_outlined, type: TextInputType.url),
                 DropdownButtonFormField<String?>(
                   value: _ownerId,
                   isExpanded: true,
-                  decoration: _decoration(
-                    'Owner Account',
-                    Icons.person_outline_rounded,
-                  ),
+                  decoration: _decoration('Owner Account', Icons.person_outline_rounded),
                   hint: const Text('Unassigned'),
                   items: [
-                    const DropdownMenuItem<String?>(
-                      value: null,
-                      child: Text('Unassigned'),
-                    ),
-                    ...widget.owners.map(
-                      (owner) => DropdownMenuItem<String?>(
-                        value: owner['id']?.toString(),
-                        child: Text(
-                          owner['full_name']?.toString().trim().isNotEmpty == true
-                              ? owner['full_name'].toString()
-                              : 'Restaurant Owner',
-                        ),
-                      ),
-                    ),
+                    const DropdownMenuItem<String?>(value: null, child: Text('Unassigned')),
+                    ...widget.owners.map((owner) => DropdownMenuItem<String?>(
+                          value: owner['id']?.toString(),
+                          child: Text(owner['full_name']?.toString().trim().isNotEmpty == true ? owner['full_name'].toString() : 'Restaurant Owner'),
+                        )),
                   ],
-                  onChanged: _saving
-                      ? null
-                      : (v) => setState(() => _ownerId = v),
+                  onChanged: _saving ? null : (v) => setState(() => _ownerId = v),
                 ),
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Active'),
+                  title: const Text('Active', style: TextStyle(fontWeight: FontWeight.w700)),
+                  subtitle: const Text('Controls whether customers can see and order from this restaurant.'),
                   value: _active,
-                  onChanged: _saving
-                      ? null
-                      : (v) => setState(() => _active = v),
+                  onChanged: _saving ? null : (v) => setState(() => _active = v),
                 ),
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Featured'),
+                  title: const Text('Featured', style: TextStyle(fontWeight: FontWeight.w700)),
+                  subtitle: const Text('Show this restaurant in featured/promoted areas.'),
                   value: _featured,
-                  onChanged: _saving
-                      ? null
-                      : (v) => setState(() => _featured = v),
+                  onChanged: _saving ? null : (v) => setState(() => _featured = v),
                 ),
                 const SizedBox(height: 12),
                 SizedBox(
@@ -746,19 +689,8 @@ class _RestaurantFormState extends State<_RestaurantForm> {
                   height: 52,
                   child: ElevatedButton.icon(
                     onPressed: _saving ? null : _save,
-                    icon: _saving
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.add_business_rounded),
-                    label: Text(
-                      _saving ? 'Creating...' : 'Create Restaurant',
-                    ),
+                    icon: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : Icon(_editing ? Icons.save_rounded : Icons.add_business_rounded),
+                    label: Text(_saving ? 'Saving...' : _editing ? 'Save Changes' : 'Create Restaurant'),
                   ),
                 ),
               ],
@@ -770,85 +702,92 @@ class _RestaurantFormState extends State<_RestaurantForm> {
   }
 }
 
+class _OwnerSelectionResult {
+  final String? ownerId;
+  const _OwnerSelectionResult(this.ownerId);
+}
+
+class _OwnerSelectionDialog extends StatefulWidget {
+  final List<Map<String, dynamic>> owners;
+  final String? initialOwnerId;
+  const _OwnerSelectionDialog({required this.owners, required this.initialOwnerId});
+
+  @override
+  State<_OwnerSelectionDialog> createState() => _OwnerSelectionDialogState();
+}
+
+class _OwnerSelectionDialogState extends State<_OwnerSelectionDialog> {
+  late String? _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = widget.initialOwnerId;
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('Assign Restaurant Owner', style: TextStyle(fontWeight: FontWeight.w800)),
+        content: DropdownButtonFormField<String?>(
+          value: _selected,
+          isExpanded: true,
+          decoration: const InputDecoration(labelText: 'Owner account'),
+          items: [
+            const DropdownMenuItem<String?>(value: null, child: Text('Unassigned')),
+            ...widget.owners.map((owner) => DropdownMenuItem<String?>(
+                  value: owner['id']?.toString(),
+                  child: Text(owner['full_name']?.toString().trim().isNotEmpty == true ? owner['full_name'].toString() : 'Restaurant Owner'),
+                )),
+          ],
+          onChanged: (value) => setState(() => _selected = value),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.pop(context, _OwnerSelectionResult(_selected)), child: const Text('Save')),
+        ],
+      );
+}
+
 class _FilterChip extends StatelessWidget {
   final String label;
   final String value;
   final String selected;
   final ValueChanged<String> onSelected;
-
-  const _FilterChip(
-    this.label,
-    this.value,
-    this.selected,
-    this.onSelected,
-  );
+  const _FilterChip(this.label, this.value, this.selected, this.onSelected);
 
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(right: 8),
-        child: FilterChip(
-          label: Text(label),
-          selected: selected == value,
-          onSelected: (_) => onSelected(value),
-        ),
+        child: FilterChip(label: Text(label), selected: selected == value, onSelected: (_) => onSelected(value)),
       );
 }
 
 class _Badge extends StatelessWidget {
   final String label;
   final Color color;
-
   const _Badge(this.label, this.color);
 
   @override
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-            color: color,
-          ),
-        ),
+        decoration: BoxDecoration(color: color.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(8)),
+        child: Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color)),
       );
 }
 
 class _DetailRow extends StatelessWidget {
   final String label;
   final String value;
-
   const _DetailRow(this.label, this.value);
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.symmetric(vertical: 5),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(
-              width: 105,
-              child: Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: HalalFoodTheme.textSecondary,
-                ),
-              ),
-            ),
-            Expanded(
-              child: Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
+            SizedBox(width: 90, child: Text(label, style: const TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary))),
+            Expanded(child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700))),
           ],
         ),
       );
@@ -857,7 +796,6 @@ class _DetailRow extends StatelessWidget {
 class _ErrorView extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
-
   const _ErrorView({required this.message, required this.onRetry});
 
   @override
@@ -867,31 +805,13 @@ class _ErrorView extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.error_outline_rounded,
-                size: 54,
-                color: Colors.redAccent,
-              ),
+              const Icon(Icons.error_outline_rounded, size: 54, color: Colors.redAccent),
               const SizedBox(height: 12),
-              const Text(
-                'Unable to load restaurants',
-                style: TextStyle(
-                  fontSize: 19,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
+              const Text('Unable to load restaurants', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
               const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                maxLines: 5,
-                overflow: TextOverflow.ellipsis,
-              ),
+              Text(message, textAlign: TextAlign.center, maxLines: 5, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: onRetry,
-                child: const Text('Try Again'),
-              ),
+              ElevatedButton(onPressed: onRetry, child: const Text('Try Again')),
             ],
           ),
         ),
