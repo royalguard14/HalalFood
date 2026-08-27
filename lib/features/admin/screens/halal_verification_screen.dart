@@ -7,8 +7,7 @@ class HalalVerificationScreen extends StatefulWidget {
   const HalalVerificationScreen({super.key});
 
   @override
-  State<HalalVerificationScreen> createState() =>
-      _HalalVerificationScreenState();
+  State<HalalVerificationScreen> createState() => _HalalVerificationScreenState();
 }
 
 class _HalalVerificationScreenState extends State<HalalVerificationScreen>
@@ -69,9 +68,7 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
     }
   }
 
-  Map<String, dynamic> _restaurantForVerification(
-    Map<String, dynamic> verification,
-  ) {
+  Map<String, dynamic> _restaurantForVerification(Map<String, dynamic> verification) {
     final nested = verification['restaurants'];
     if (nested is Map) return Map<String, dynamic>.from(nested);
 
@@ -134,100 +131,59 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
     if (restaurantId == null || restaurantId.isEmpty) return;
 
     String? selected = restaurant['halal_status']?.toString();
-    if (!_positiveStatuses.contains(selected)) {
-      selected = 'halal_verified';
-    }
+    if (!_positiveStatuses.contains(selected)) selected = 'halal_verified';
 
     final result = await showDialog<String>(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: const Text(
-              'Edit Halal Status',
-              style: TextStyle(fontWeight: FontWeight.w800),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  restaurant['name']?.toString() ?? 'Restaurant',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 14),
-                DropdownButtonFormField<String>(
-                  initialValue: selected,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Halal Status',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: _positiveStatuses
-                      .map(
-                        (status) => DropdownMenuItem<String>(
-                          value: status,
-                          child: Text(_statusLabel(status)),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setDialogState(() => selected = value);
-                    }
-                  },
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  'Only positive halal classifications can be selected here. Unverified restaurants belong in Verification Requests.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: HalalFoodTheme.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Edit Halal Status', style: TextStyle(fontWeight: FontWeight.w800)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(restaurant['name']?.toString() ?? 'Restaurant', style: const TextStyle(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 14),
+              DropdownButtonFormField<String>(
+                initialValue: selected,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Halal Status', border: OutlineInputBorder()),
+                items: _positiveStatuses.map((status) => DropdownMenuItem<String>(value: status, child: Text(_statusLabel(status)))).toList(),
+                onChanged: (value) {
+                  if (value != null) setDialogState(() => selected = value);
+                },
               ),
-              ElevatedButton.icon(
-                onPressed: selected == null
-                    ? null
-                    : () => Navigator.pop(context, selected),
-                icon: const Icon(Icons.save_rounded),
-                label: const Text('Save Status'),
+              const SizedBox(height: 10),
+              const Text(
+                'Only positive halal classifications can be selected here. Unverified restaurants belong in Verification Requests.',
+                style: TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary),
               ),
             ],
-          );
-        },
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            ElevatedButton.icon(
+              onPressed: selected == null ? null : () => Navigator.pop(context, selected),
+              icon: const Icon(Icons.save_rounded),
+              label: const Text('Save Status'),
+            ),
+          ],
+        ),
       ),
     );
 
-    if (result == null || result == restaurant['halal_status']?.toString()) {
-      return;
-    }
+    if (result == null || result == restaurant['halal_status']?.toString()) return;
 
     try {
-      await _repository.setHalalStatus(
-        restaurantId: restaurantId,
-        halalStatus: result,
-      );
+      await _repository.setHalalStatus(restaurantId: restaurantId, halalStatus: result);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '${restaurant['name'] ?? 'Restaurant'} is now ${_statusLabel(result)}.',
-          ),
-        ),
+        SnackBar(content: Text('${restaurant['name'] ?? 'Restaurant'} is now ${_statusLabel(result)}.')),
       );
       await _loadData();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Unable to update halal status: $e')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unable to update halal status: $e')));
       }
     }
   }
@@ -239,46 +195,26 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text(
-            'Give Halal Classification',
-            style: TextStyle(fontWeight: FontWeight.w800),
-          ),
+          title: const Text('Give Halal Classification', style: TextStyle(fontWeight: FontWeight.w800)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Choose the final classification for "$restaurantName" after reviewing the submitted documents.',
-              ),
+              Text('Choose the final classification for "$restaurantName" after reviewing the submitted documents.'),
               const SizedBox(height: 14),
               DropdownButtonFormField<String>(
                 initialValue: selected,
                 isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Halal Status',
-                  border: OutlineInputBorder(),
-                ),
-                items: _positiveStatuses
-                    .map(
-                      (status) => DropdownMenuItem<String>(
-                        value: status,
-                        child: Text(_statusLabel(status)),
-                      ),
-                    )
-                    .toList(),
+                decoration: const InputDecoration(labelText: 'Halal Status', border: OutlineInputBorder()),
+                items: _positiveStatuses.map((status) => DropdownMenuItem<String>(value: status, child: Text(_statusLabel(status)))).toList(),
                 onChanged: (value) {
-                  if (value != null) {
-                    setDialogState(() => selected = value);
-                  }
+                  if (value != null) setDialogState(() => selected = value);
                 },
               ),
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
             ElevatedButton.icon(
               onPressed: () => Navigator.pop(context, selected),
               icon: const Icon(Icons.verified_rounded),
@@ -306,16 +242,10 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
         halalStatus: status,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$name is now ${_statusLabel(status)}.')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$name is now ${_statusLabel(status)}.')));
       await _loadData();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Unable to approve verification: $e')),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unable to approve verification: $e')));
     }
   }
 
@@ -332,27 +262,15 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
         content: TextField(
           controller: controller,
           maxLines: 4,
-          decoration: const InputDecoration(
-            labelText: 'Remarks',
-            hintText: 'Reason for rejection',
-            border: OutlineInputBorder(),
-          ),
+          decoration: const InputDecoration(labelText: 'Remarks', hintText: 'Reason for rejection', border: OutlineInputBorder()),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () => Navigator.pop(context, controller.text),
-            icon: const Icon(Icons.close_rounded),
-            label: const Text('Reject'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton.icon(onPressed: () => Navigator.pop(context, controller.text), icon: const Icon(Icons.close_rounded), label: const Text('Reject')),
         ],
       ),
     );
     controller.dispose();
-
     if (remarks == null) return;
 
     try {
@@ -362,22 +280,14 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
         remarks: remarks.trim().isEmpty ? null : remarks.trim(),
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${_restaurantName(verification)} was rejected.')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${_restaurantName(verification)} was rejected.')));
       await _loadData();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Unable to reject verification: $e')),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unable to reject verification: $e')));
     }
   }
 
-  Future<void> _showVerificationDetails(
-    Map<String, dynamic> verification,
-  ) async {
+  Future<void> _showVerificationDetails(Map<String, dynamic> verification) async {
     final restaurant = _restaurantForVerification(verification);
     final name = _restaurantName(verification);
     final documentUrl = verification['certificate_url']?.toString().trim();
@@ -393,104 +303,37 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontSize: 23,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+                Text(name, style: const TextStyle(fontSize: 23, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 10),
-                const _StatusBadge(
-                  label: 'Unverified / Pending Review',
-                  color: Colors.orange,
-                ),
+                const _StatusBadge(label: 'Unverified / Pending Review', color: Colors.orange),
                 const SizedBox(height: 18),
-                const Text(
-                  'Restaurant Information',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-                ),
-                _DetailRow(
-                  'Phone',
-                  restaurant['phone']?.toString() ?? 'Not provided',
-                ),
-                _DetailRow(
-                  'Address',
-                  restaurant['address']?.toString() ?? 'Not provided',
-                ),
-                _DetailRow(
-                  'City',
-                  restaurant['city']?.toString() ?? 'Not provided',
-                ),
-                _DetailRow(
-                  'Province',
-                  restaurant['province']?.toString() ?? 'Not provided',
-                ),
+                const Text('Restaurant Information', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                _DetailRow('Phone', restaurant['phone']?.toString() ?? 'Not provided'),
+                _DetailRow('Address', restaurant['address']?.toString() ?? 'Not provided'),
+                _DetailRow('City', restaurant['city']?.toString() ?? 'Not provided'),
+                _DetailRow('Province', restaurant['province']?.toString() ?? 'Not provided'),
                 const SizedBox(height: 12),
-                const Text(
-                  'Submitted Documents',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-                ),
-                _DetailRow(
-                  'Certificate No.',
-                  verification['certificate_number']?.toString() ??
-                      'Not provided',
-                ),
-                _DetailRow(
-                  'Authority',
-                  verification['issuing_authority']?.toString() ??
-                      'Not provided',
-                ),
-                _DetailRow(
-                  'Issued',
-                  _displayDate(verification['issued_date']),
-                ),
-                _DetailRow(
-                  'Expiry',
-                  _displayDate(verification['expiry_date']),
-                ),
+                const Text('Submitted Documents', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                _DetailRow('Certificate No.', verification['certificate_number']?.toString() ?? 'Not provided'),
+                _DetailRow('Authority', verification['issuing_authority']?.toString() ?? 'Not provided'),
+                _DetailRow('Issued', _displayDate(verification['issued_date'])),
+                _DetailRow('Expiry', _displayDate(verification['expiry_date'])),
                 const SizedBox(height: 8),
                 if (documentUrl != null && documentUrl.isNotEmpty)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.black12),
-                    ),
-                    child: SelectableText(
-                      documentUrl,
-                      style: const TextStyle(fontSize: 12),
-                    ),
+                    decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.black12)),
+                    child: SelectableText(documentUrl, style: const TextStyle(fontSize: 12)),
                   )
                 else
-                  const Text(
-                    'No document URL was submitted.',
-                    style: TextStyle(color: HalalFoodTheme.textSecondary),
-                  ),
+                  const Text('No document URL was submitted.', style: TextStyle(color: HalalFoodTheme.textSecondary)),
                 const SizedBox(height: 20),
                 Row(
                   children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(sheetContext, 'reject');
-                        },
-                        icon: const Icon(Icons.close_rounded),
-                        label: const Text('Reject'),
-                      ),
-                    ),
+                    Expanded(child: OutlinedButton.icon(onPressed: () => Navigator.pop(sheetContext, 'reject'), icon: const Icon(Icons.close_rounded), label: const Text('Reject'))),
                     const SizedBox(width: 10),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(sheetContext, 'decide');
-                        },
-                        icon: const Icon(Icons.verified_rounded),
-                        label: const Text('Decide'),
-                      ),
-                    ),
+                    Expanded(child: ElevatedButton.icon(onPressed: () => Navigator.pop(sheetContext, 'decide'), icon: const Icon(Icons.verified_rounded), label: const Text('Decide'))),
                   ],
                 ),
               ],
@@ -501,12 +344,8 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
     );
 
     if (!mounted || action == null) return;
-
-    if (action == 'reject') {
-      await _reject(verification);
-    } else if (action == 'decide') {
-      await _approve(verification);
-    }
+    if (action == 'reject') await _reject(verification);
+    if (action == 'decide') await _approve(verification);
   }
 
   String _displayDate(dynamic value) {
@@ -519,73 +358,37 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Halal Verification',
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
+        title: const Text('Halal Verification', style: TextStyle(fontWeight: FontWeight.w800)),
         actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            onPressed: _loading ? null : _loadData,
-            icon: const Icon(Icons.refresh_rounded),
-          ),
+          IconButton(tooltip: 'Refresh', onPressed: _loading ? null : _loadData, icon: const Icon(Icons.refresh_rounded)),
         ],
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(text: 'Verification Requests'),
-            Tab(text: 'Restaurant Status'),
-          ],
+          tabs: const [Tab(text: 'Verification Requests'), Tab(text: 'Restaurant Status')],
         ),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
               ? _ErrorView(message: _error!, onRetry: _loadData)
-              : TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildVerificationRequests(),
-                    _buildRestaurantStatus(),
-                  ],
-                ),
+              : TabBarView(controller: _tabController, children: [_buildVerificationRequests(), _buildRestaurantStatus()]),
     );
   }
 
   Widget _buildVerificationRequests() {
     final requests = _pendingRequests;
-
     return RefreshIndicator(
       onRefresh: _loadData,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
-          _SummaryCard(
-            label: 'Pending Verification Requests',
-            value: '${requests.length}',
-            color: Colors.orange,
-            icon: Icons.pending_actions_rounded,
-          ),
+          _SummaryCard(label: 'Pending Verification Requests', value: '${requests.length}', color: Colors.orange, icon: Icons.pending_actions_rounded),
           const SizedBox(height: 12),
-          const Text(
-            'Only Unverified restaurants with an actual pending verification request appear here.',
-            style: TextStyle(
-              color: HalalFoodTheme.textSecondary,
-              fontSize: 13,
-            ),
-          ),
+          const Text('Only Unverified restaurants with an actual pending verification request appear here.', style: TextStyle(color: HalalFoodTheme.textSecondary, fontSize: 13)),
           const SizedBox(height: 14),
           if (requests.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: 70),
-              child: Center(
-                child: Text(
-                  'No verification requests found.',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
-            )
+            const Padding(padding: EdgeInsets.only(top: 70), child: Center(child: Text('No verification requests found.', style: TextStyle(fontWeight: FontWeight.w700))))
           else
             ...requests.map(_verificationCard),
         ],
@@ -609,60 +412,22 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
             children: [
               Row(
                 children: [
-                  Expanded(
-                    child: Text(
-                      _restaurantName(verification),
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  const _StatusBadge(
-                    label: 'Pending',
-                    color: Colors.orange,
-                  ),
+                  Expanded(child: Text(_restaurantName(verification), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800))),
+                  const _StatusBadge(label: 'Pending', color: Colors.orange),
                 ],
               ),
               const SizedBox(height: 7),
-              Text(
-                restaurant['address']?.toString() ?? 'Address not provided',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
+              Text(restaurant['address']?.toString() ?? 'Address not provided', maxLines: 2, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Icon(
-                    document?.isNotEmpty == true
-                        ? Icons.description_rounded
-                        : Icons.description_outlined,
-                    size: 18,
-                    color: document?.isNotEmpty == true
-                        ? HalalFoodTheme.primaryGreen
-                        : Colors.grey,
-                  ),
+                  Icon(document?.isNotEmpty == true ? Icons.description_rounded : Icons.description_outlined, size: 18, color: document?.isNotEmpty == true ? HalalFoodTheme.primaryGreen : Colors.grey),
                   const SizedBox(width: 6),
-                  Text(
-                    document?.isNotEmpty == true
-                        ? 'Document submitted'
-                        : 'No document URL',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                  Text(document?.isNotEmpty == true ? 'Document submitted' : 'No document URL', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                 ],
               ),
               const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => _showVerificationDetails(verification),
-                  icon: const Icon(Icons.visibility_outlined, size: 18),
-                  label: const Text('Review Documents & Decide'),
-                ),
-              ),
+              SizedBox(width: double.infinity, child: ElevatedButton.icon(onPressed: () => _showVerificationDetails(verification), icon: const Icon(Icons.visibility_outlined, size: 18), label: const Text('Review Documents & Decide'))),
             ],
           ),
         ),
@@ -672,77 +437,106 @@ class _HalalVerificationScreenState extends State<HalalVerificationScreen>
 
   Widget _buildRestaurantStatus() {
     final restaurants = _restaurantStatuses;
-
     return RefreshIndicator(
       onRefresh: _loadData,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
-          Text(
-            '${restaurants.length} active halal-approved restaurant${restaurants.length == 1 ? '' : 's'}',
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-              color: HalalFoodTheme.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'Only Active restaurants with Muslim Owned, Halal Verified, or Certified Halal status are shown here.',
-            style: TextStyle(
-              color: HalalFoodTheme.textSecondary,
-              fontSize: 13,
-            ),
+          Row(
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Halal-Approved Restaurants', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                    SizedBox(height: 3),
+                    Text('Active restaurants with an approved halal classification.', style: TextStyle(color: HalalFoodTheme.textSecondary, fontSize: 12)),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+                decoration: BoxDecoration(color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(12)),
+                child: Text('${restaurants.length}', style: const TextStyle(fontWeight: FontWeight.w800, color: HalalFoodTheme.primaryGreen)),
+              ),
+            ],
           ),
           const SizedBox(height: 14),
           if (restaurants.isEmpty)
             const Padding(
               padding: EdgeInsets.only(top: 70),
-              child: Center(
-                child: Text(
-                  'No active halal-approved restaurants found.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
+              child: Center(child: Text('No active halal-approved restaurants found.', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700))),
             )
           else
-            ...restaurants.map((restaurant) {
-              final status = restaurant['halal_status']?.toString();
-              return Card(
-                margin: const EdgeInsets.only(bottom: 10),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.fromLTRB(16, 8, 10, 8),
-                  title: Text(
-                    restaurant['name']?.toString() ?? 'Unnamed Restaurant',
-                    style: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                  subtitle: Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Wrap(
-                      spacing: 7,
-                      runSpacing: 7,
+            ...restaurants.map(_restaurantStatusCard),
+        ],
+      ),
+    );
+  }
+
+  Widget _restaurantStatusCard(Map<String, dynamic> restaurant) {
+    final status = restaurant['halal_status']?.toString();
+    final statusColor = _statusColor(status);
+    final name = restaurant['name']?.toString() ?? 'Unnamed Restaurant';
+    final city = restaurant['city']?.toString().trim() ?? '';
+    final address = restaurant['address']?.toString().trim() ?? '';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      clipBehavior: Clip.antiAlias,
+      elevation: 1.5,
+      child: InkWell(
+        onTap: () => _editStatus(restaurant),
+        child: Padding(
+          padding: const EdgeInsets.all(15),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(16)),
+                child: Icon(Icons.verified_rounded, color: statusColor, size: 29),
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                    if (city.isNotEmpty || address.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.location_on_outlined, size: 14, color: HalalFoodTheme.textSecondary),
+                          const SizedBox(width: 3),
+                          Expanded(child: Text(city.isNotEmpty ? city : address, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: HalalFoodTheme.textSecondary))),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
                       children: [
-                        _StatusBadge(
-                          label: _statusLabel(status),
-                          color: _statusColor(status),
-                        ),
-                        const _StatusBadge(
-                          label: 'Active',
-                          color: Colors.green,
-                        ),
+                        _StatusBadge(label: _statusLabel(status), color: statusColor),
+                        const _StatusBadge(label: 'Active', color: Colors.green),
                       ],
                     ),
-                  ),
-                  trailing: IconButton(
-                    tooltip: 'Edit Halal Status',
-                    onPressed: () => _editStatus(restaurant),
-                    icon: const Icon(Icons.edit_rounded),
-                  ),
+                  ],
                 ),
-              );
-            }),
-        ],
+              ),
+              const SizedBox(width: 8),
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
+                child: Icon(Icons.chevron_right_rounded, color: Colors.grey.shade700),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -754,12 +548,7 @@ class _SummaryCard extends StatelessWidget {
   final Color color;
   final IconData icon;
 
-  const _SummaryCard({
-    required this.label,
-    required this.value,
-    required this.color,
-    required this.icon,
-  });
+  const _SummaryCard({required this.label, required this.value, required this.color, required this.icon});
 
   @override
   Widget build(BuildContext context) {
@@ -768,30 +557,15 @@ class _SummaryCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            CircleAvatar(
-              backgroundColor: color.withValues(alpha: 0.10),
-              child: Icon(icon, color: color),
-            ),
+            CircleAvatar(backgroundColor: color.withValues(alpha: 0.10), child: Icon(icon, color: color)),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: HalalFoodTheme.textSecondary,
-                    ),
-                  ),
+                  Text(label, style: const TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary)),
                   const SizedBox(height: 2),
-                  Text(
-                    value,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
+                  Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
                 ],
               ),
             ),
@@ -811,19 +585,9 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: color,
-        ),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(8)),
+      child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
     );
   }
 }
@@ -841,25 +605,8 @@ class _DetailRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 105,
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontSize: 13,
-                color: HalalFoodTheme.textSecondary,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
+          SizedBox(width: 105, child: Text(label, style: const TextStyle(fontSize: 13, color: HalalFoodTheme.textSecondary))),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700))),
         ],
       ),
     );
@@ -880,28 +627,13 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.error_outline_rounded,
-              size: 52,
-              color: Colors.redAccent,
-            ),
+            const Icon(Icons.error_outline_rounded, size: 52, color: Colors.redAccent),
             const SizedBox(height: 12),
-            const Text(
-              'Unable to load halal verification',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-            ),
+            const Text('Unable to load halal verification', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
             const SizedBox(height: 8),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              maxLines: 5,
-              overflow: TextOverflow.ellipsis,
-            ),
+            Text(message, textAlign: TextAlign.center, maxLines: 5, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: onRetry,
-              child: const Text('Try Again'),
-            ),
+            ElevatedButton(onPressed: onRetry, child: const Text('Try Again')),
           ],
         ),
       ),
