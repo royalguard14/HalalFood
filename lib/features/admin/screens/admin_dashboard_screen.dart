@@ -9,6 +9,7 @@ import 'food_category_management_screen.dart';
 import 'halal_verification_screen.dart';
 import 'promo_management_screen.dart';
 import 'restaurant_management_screen.dart';
+import 'user_role_management_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -133,7 +134,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       _AdminTool(Icons.category_rounded, 'Food Categories', 'Create and manage food categories.', Colors.orange, () => _open(const FoodCategoryManagementScreen())),
       _AdminTool(Icons.local_offer_rounded, 'Promos & Discounts', 'Create promo codes and manage customer discounts.', Colors.pink, () => _open(const PromoManagementScreen())),
       _AdminTool(Icons.delivery_dining_rounded, 'Delivery Pricing', 'Manage delivery fees, distance rates and surcharges.', Colors.blue, () => _open(const DeliveryPricingScreen())),
-      _AdminTool(Icons.people_alt_rounded, 'Users & Roles', 'Manage platform accounts and assigned roles.', Colors.deepPurple, () => _message('Users & Roles module will be connected next.')),
+      _AdminTool(Icons.people_alt_rounded, 'Users & Roles', 'Manage platform accounts and assigned roles.', Colors.deepPurple, () => _open(const UserRoleManagementScreen())),
     ];
     if (wide) return GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: tools.length, gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 460, mainAxisExtent: 118, crossAxisSpacing: 12, mainAxisSpacing: 12), itemBuilder: (_, i) => tools[i]);
     return Column(children: [for (var i = 0; i < tools.length; i++) ...[tools[i], if (i != tools.length - 1) const SizedBox(height: 10)]]);
