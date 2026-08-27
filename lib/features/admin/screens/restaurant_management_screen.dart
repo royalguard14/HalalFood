@@ -201,23 +201,9 @@ class _RestaurantManagementScreenState
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      restaurant['name']?.toString() ?? 'Restaurant',
-                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Edit restaurant',
-                    onPressed: () {
-                      Navigator.pop(sheetContext);
-                      _editRestaurant(restaurant);
-                    },
-                    icon: const Icon(Icons.edit_rounded),
-                  ),
-                ],
+              Text(
+                restaurant['name']?.toString() ?? 'Restaurant',
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 8),
               _DetailRow('Owner', _ownerName(restaurant['owner_id']?.toString())),
@@ -403,14 +389,7 @@ class _RestaurantManagementScreenState
               const SizedBox(height: 10),
               Row(
                 children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _editRestaurant(r),
-                      icon: const Icon(Icons.edit_rounded, size: 18),
-                      label: const Text('Edit'),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
+                  const Spacer(),
                   IconButton(
                     tooltip: active ? 'Deactivate' : 'Activate',
                     onPressed: () => _toggleActive(r),
@@ -629,7 +608,30 @@ class _RestaurantFormState extends State<_RestaurantForm> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(_editing ? 'Edit Restaurant' : 'Add New Restaurant', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+                if (_editing)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: _saving
+                            ? null
+                            : () => Navigator.of(context).pop(false),
+                        icon: const Icon(Icons.arrow_back_rounded),
+                        label: const Text(
+                          'Back',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                  ),
+                Text(
+                  _editing ? 'Edit Restaurant' : 'Add New Restaurant',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
                 const SizedBox(height: 6),
                 Text(
                   _editing
