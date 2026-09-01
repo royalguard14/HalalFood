@@ -40,6 +40,11 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   double _averageRating = 0;
   int _reviewCount = 0;
 
+  String _subscriptionStatus = 'none';
+  String _subscriptionPlan = 'No active plan';
+  String _subscriptionEnd = '';
+  String _subscriptionBilling = '';
+
   List<Map<String, dynamic>> _recentOrders = [];
   List<Map<String, dynamic>> _topItems = [];
   RealtimeChannel? _ordersChannel;
@@ -92,6 +97,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
 
     try {
       await _refreshDashboardData();
+      await _refreshSubscription();
       _subscribeToOrders();
       _subscribeToReviews();
       if (!mounted) return;
@@ -295,6 +301,50 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     });
   }
 
+  Future<void> _refreshSubscription() async {
+    try {
+      final response = await _supabase
+          .from('restaurant_subscriptions')
+          .select('status, billing_cycle, current_period_end, subscription_plans(name)')
+          .eq('restaurant_id', widget.restaurantId)
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+
+      if (!mounted) return;
+
+      if (response == null) {
+        setState(() {
+          _subscriptionStatus = 'none';
+          _subscriptionPlan = 'No active plan';
+          _subscriptionEnd = '';
+          _subscriptionBilling = '';
+        });
+        return;
+      }
+
+      final plan = response['subscription_plans'];
+      final planName = plan is Map
+          ? plan['name']?.toString() ?? 'Subscription Plan'
+          : 'Subscription Plan';
+      final end = DateTime.tryParse(
+        response['current_period_end']?.toString() ?? '',
+      );
+
+      setState(() {
+        _subscriptionStatus = response['status']?.toString() ?? 'active';
+        _subscriptionPlan = planName;
+        _subscriptionEnd = end == null ? '' : _dateOnly(end);
+        _subscriptionBilling = response['billing_cycle']?.toString() ?? '';
+      });
+    } catch (e) {
+      debugPrint('OWNER SUBSCRIPTION STATUS ERROR: $e');
+    }
+  }
+
+  String _dateOnly(DateTime date) =>
+      '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
   Future<void> _refreshRestaurantName() async {
     try {
       final response = await _supabase
@@ -342,6 +392,35 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         return Colors.red;
       default:
         return HalalFoodTheme.primaryGreen;
+    }
+  }
+
+  Color _subscriptionColor() {
+    switch (_subscriptionStatus.toLowerCase()) {
+      case 'active':
+        return Colors.green;
+      case 'past_due':
+        return Colors.orange;
+      case 'suspended':
+      case 'cancelled':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _subscriptionLabel() {
+    switch (_subscriptionStatus.toLowerCase()) {
+      case 'active':
+        return 'Active';
+      case 'past_due':
+        return 'Past Due';
+      case 'suspended':
+        return 'Suspended';
+      case 'cancelled':
+        return 'Cancelled';
+      default:
+        return 'No Subscription';
     }
   }
 
@@ -413,6 +492,8 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
       children: [
         _buildWelcomeCard(),
+        const SizedBox(height: 16),
+        _buildSubscriptionCard(),
         const SizedBox(height: 16),
         SizedBox(
           width: double.infinity,
@@ -523,6 +604,59 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     );
   }
 
+  Widget _buildSubscriptionCard() {
+    final color = _subscriptionColor();
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Row(
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(Icons.workspace_premium_rounded, color: color, size: 27),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Subscription', style: TextStyle(fontSize: 13, color: HalalFoodTheme.textSecondary)),
+                  const SizedBox(height: 3),
+                  Text(_subscriptionPlan, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+                  if (_subscriptionEnd.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text('Valid until $_subscriptionEnd', style: const TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary)),
+                  ],
+                  if (_subscriptionBilling.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text('${_subscriptionBilling[0].toUpperCase()}${_subscriptionBilling.substring(1)} billing', style: const TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary)),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                _subscriptionLabel(),
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: color),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildSalesCard() {
     return Card(
       child: Padding(
@@ -556,7 +690,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
             children: [
               Icon(Icons.trending_up_rounded, size: 46, color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.55)),
               const SizedBox(height: 10),
-              const Text('No delivered item sales this month yet\.', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700)),
+              const Text('No delivered item sales this month yet.', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700)),
             ],
           ),
         ),
@@ -694,4 +828,3 @@ class _StatCard extends StatelessWidget {
     );
   }
 }
-
