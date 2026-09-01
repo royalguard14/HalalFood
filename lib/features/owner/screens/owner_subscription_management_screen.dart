@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/theme.dart';
+import 'owner_subscribe_screen.dart';
 
 class OwnerSubscriptionManagementScreen extends StatefulWidget {
   final String restaurantId;
@@ -39,9 +40,7 @@ class _OwnerSubscriptionManagementScreenState
     try {
       final response = await _supabase
           .from('restaurant_subscriptions')
-          .select(
-            '*, subscription_plans(id,name,monthly_price,annual_price)',
-          )
+          .select('*, subscription_plans(id,name,monthly_price,annual_price)')
           .eq('restaurant_id', widget.restaurantId)
           .order('created_at', ascending: false)
           .limit(1)
@@ -59,6 +58,18 @@ class _OwnerSubscriptionManagementScreenState
         _error = e.toString();
       });
     }
+  }
+
+  Future<void> _choosePlan() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => OwnerSubscribeScreen(
+          restaurantId: widget.restaurantId,
+          restaurantName: widget.restaurantName,
+        ),
+      ),
+    );
+    if (mounted) await _load();
   }
 
   String _date(dynamic value) {
@@ -103,28 +114,43 @@ class _OwnerSubscriptionManagementScreenState
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading
-            ? const Center(child: CircularProgressIndicator())
+            ? const ListView(
+                physics: AlwaysScrollableScrollPhysics(),
+                children: [
+                  SizedBox(height: 280),
+                  Center(child: CircularProgressIndicator()),
+                ],
+              )
             : _error != null
-                ? ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(24),
-                    children: [
-                      const SizedBox(height: 100),
-                      const Icon(Icons.error_outline_rounded, size: 56),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Unable to load subscription',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(_error!, textAlign: TextAlign.center),
-                      const SizedBox(height: 18),
-                      Center(child: ElevatedButton(onPressed: _load, child: const Text('Try Again'))),
-                    ],
-                  )
+                ? _errorView()
                 : _buildContent(),
       ),
+    );
+  }
+
+  Widget _errorView() {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(24),
+      children: [
+        const SizedBox(height: 100),
+        const Icon(Icons.error_outline_rounded, size: 56),
+        const SizedBox(height: 16),
+        const Text(
+          'Unable to load subscription',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 8),
+        Text(_error!, textAlign: TextAlign.center),
+        const SizedBox(height: 18),
+        Center(
+          child: ElevatedButton(
+            onPressed: _load,
+            child: const Text('Try Again'),
+          ),
+        ),
+      ],
     );
   }
 
@@ -135,8 +161,12 @@ class _OwnerSubscriptionManagementScreenState
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(20),
         children: [
-          const SizedBox(height: 70),
-          const Icon(Icons.workspace_premium_outlined, size: 72, color: Colors.grey),
+          const SizedBox(height: 55),
+          const Icon(
+            Icons.workspace_premium_outlined,
+            size: 72,
+            color: Colors.grey,
+          ),
           const SizedBox(height: 18),
           const Text(
             'No Active Plan',
@@ -149,21 +179,40 @@ class _OwnerSubscriptionManagementScreenState
             textAlign: TextAlign.center,
             style: TextStyle(color: HalalFoodTheme.textSecondary),
           ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _choosePlan,
+              icon: const Icon(Icons.workspace_premium_rounded),
+              label: const Text(
+                'Choose a Subscription Plan',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+          ),
         ],
       );
     }
 
     final plan = subscription['subscription_plans'];
-    final planName = plan is Map ? plan['name']?.toString() ?? 'Subscription Plan' : 'Subscription Plan';
+    final planName = plan is Map
+        ? plan['name']?.toString() ?? 'Subscription Plan'
+        : 'Subscription Plan';
     final status = subscription['status']?.toString() ?? 'unknown';
-    final billing = subscription['billing_cycle']?.toString() == 'annual' ? 'Annual' : 'Monthly';
+    final billing = subscription['billing_cycle']?.toString() == 'annual'
+        ? 'Annual'
+        : 'Monthly';
     final color = _statusColor(status);
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
       children: [
-        Text(widget.restaurantName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+        Text(
+          widget.restaurantName,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+        ),
         const SizedBox(height: 14),
         Card(
           child: Padding(
@@ -180,35 +229,60 @@ class _OwnerSubscriptionManagementScreenState
                         color: color.withValues(alpha: .10),
                         borderRadius: BorderRadius.circular(15),
                       ),
-                      child: Icon(Icons.workspace_premium_rounded, color: color, size: 28),
+                      child: Icon(
+                        Icons.workspace_premium_rounded,
+                        color: color,
+                        size: 28,
+                      ),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(planName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                          Text(
+                            planName,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                           const SizedBox(height: 4),
-                          Text(billing, style: const TextStyle(color: HalalFoodTheme.textSecondary)),
+                          Text(
+                            billing,
+                            style: const TextStyle(
+                              color: HalalFoodTheme.textSecondary,
+                            ),
+                          ),
                         ],
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 7,
+                      ),
                       decoration: BoxDecoration(
                         color: color.withValues(alpha: .10),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
                         _statusLabel(status),
-                        style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 12),
+                        style: TextStyle(
+                          color: color,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                   ],
                 ),
                 const Divider(height: 30),
                 _row('Started', _date(subscription['started_at'])),
-                _row('Current Period', '${_date(subscription['current_period_start'])} – ${_date(subscription['current_period_end'])}'),
+                _row(
+                  'Current Period',
+                  '${_date(subscription['current_period_start'])} – ${_date(subscription['current_period_end'])}',
+                ),
                 _row('Next Billing', _date(subscription['next_billing_at'])),
               ],
             ),
@@ -221,7 +295,10 @@ class _OwnerSubscriptionManagementScreenState
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.info_outline_rounded, color: HalalFoodTheme.primaryGreen),
+                Icon(
+                  Icons.info_outline_rounded,
+                  color: HalalFoodTheme.primaryGreen,
+                ),
                 SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -243,8 +320,19 @@ class _OwnerSubscriptionManagementScreenState
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 115, child: Text(label, style: const TextStyle(color: HalalFoodTheme.textSecondary))),
-          Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w700))),
+          SizedBox(
+            width: 115,
+            child: Text(
+              label,
+              style: const TextStyle(color: HalalFoodTheme.textSecondary),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
         ],
       ),
     );
