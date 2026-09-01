@@ -6,6 +6,7 @@ import '../../auth/screens/login_screen.dart';
 import '../data/admin_repository.dart';
 import 'admin_menu_management_screen.dart';
 import 'admin_order_management_screen.dart';
+import 'admin_payment_management_screen.dart';
 import 'admin_profile_screen.dart';
 import 'admin_settings_screen.dart';
 import 'delivery_pricing_screen.dart';
@@ -119,7 +120,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _sectionTitle(String title, String subtitle) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)), const SizedBox(height: 3), Text(subtitle, style: const TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary))]);
-  Widget _headerCard(bool wide) => Container(padding: EdgeInsets.all(wide ? 26 : 20), decoration: BoxDecoration(gradient: LinearGradient(colors: [HalalFoodTheme.primaryGreen, HalalFoodTheme.primaryGreen.withValues(alpha: .82)]), borderRadius: BorderRadius.circular(24)), child: const Row(children: [Icon(Icons.admin_panel_settings_rounded, color: Colors.white, size: 42), SizedBox(width: 16), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Welcome, Admin', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800)), SizedBox(height: 5), Text('Manage restaurants, verification, promos, delivery pricing and platform settings.', style: TextStyle(color: Colors.white70, fontSize: 13))]))]));
+  Widget _headerCard(bool wide) => Container(padding: EdgeInsets.all(wide ? 26 : 20), decoration: BoxDecoration(gradient: LinearGradient(colors: [HalalFoodTheme.primaryGreen, HalalFoodTheme.primaryGreen.withValues(alpha: .82)]), borderRadius: BorderRadius.circular(24)), child: const Row(children: [Icon(Icons.admin_panel_settings_rounded, color: Colors.white, size: 42), SizedBox(width: 16), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Welcome, Admin', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800)), SizedBox(height: 5), Text('Manage restaurants, verification, promos, delivery pricing, payments and platform settings.', style: TextStyle(color: Colors.white70, fontSize: 13))]))]));
 
   Widget _stats(bool wide) {
     final cards = [_DashboardStat(Icons.restaurant_rounded, 'Restaurants', '$_restaurantCount', 'Total registered', HalalFoodTheme.primaryGreen), _DashboardStat(Icons.check_circle_rounded, 'Active', '$_activeRestaurantCount', 'Currently visible', Colors.green), _DashboardStat(Icons.pending_actions_rounded, 'Verification', '$_pendingVerificationCount', 'Requests to review', Colors.orange), _DashboardStat(Icons.receipt_long_rounded, "Today's Orders", '$_todayOrderCount', 'Orders today', Colors.blue), _DashboardStat(Icons.local_shipping_rounded, 'Pending Orders', '$_pendingOrderCount', 'Need attention', Colors.deepPurple)];
@@ -134,6 +135,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       _AdminTool(Icons.restaurant_rounded, 'Restaurant Management', 'Manage restaurant profiles, ownership and status.', HalalFoodTheme.primaryGreen, () => _open(const RestaurantManagementScreen())),
       _AdminTool(Icons.restaurant_menu_rounded, 'Menu Management', 'Add, edit and manage menu items for each restaurant.', Colors.green, () => _open(const AdminMenuManagementScreen())),
       _AdminTool(Icons.receipt_long_rounded, 'Order Management', 'View and monitor customer orders and their status.', Colors.indigo, () => _open(const AdminOrderManagementScreen())),
+      _AdminTool(Icons.payments_rounded, 'Payments & Transactions', 'Monitor payment records, statuses, references and refunds.', Colors.deepOrange, () => _open(const AdminPaymentManagementScreen())),
       _AdminTool(Icons.verified_rounded, 'Halal Verification', 'Review verification requests and classifications.', Colors.teal, () => _open(const HalalVerificationScreen())),
       _AdminTool(Icons.category_rounded, 'Food Categories', 'Create and manage food categories.', Colors.orange, () => _open(const FoodCategoryManagementScreen())),
       _AdminTool(Icons.local_offer_rounded, 'Promos & Discounts', 'Create promo codes and manage customer discounts.', Colors.pink, () => _open(const PromoManagementScreen())),
