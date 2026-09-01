@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../app/theme.dart';
 import '../../auth/screens/login_screen.dart';
 import '../data/admin_repository.dart';
+import 'admin_menu_management_screen.dart';
 import 'admin_order_management_screen.dart';
 import 'admin_profile_screen.dart';
 import 'delivery_pricing_screen.dart';
@@ -130,6 +131,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget _tools(bool wide) {
     final tools = [
       _AdminTool(Icons.restaurant_rounded, 'Restaurant Management', 'Manage restaurant profiles, ownership and status.', HalalFoodTheme.primaryGreen, () => _open(const RestaurantManagementScreen())),
+      _AdminTool(Icons.restaurant_menu_rounded, 'Menu Management', 'Add, edit and manage menu items for each restaurant.', Colors.green, () => _open(const AdminMenuManagementScreen())),
       _AdminTool(Icons.receipt_long_rounded, 'Order Management', 'View and monitor customer orders and their status.', Colors.indigo, () => _open(const AdminOrderManagementScreen())),
       _AdminTool(Icons.verified_rounded, 'Halal Verification', 'Review verification requests and classifications.', Colors.teal, () => _open(const HalalVerificationScreen())),
       _AdminTool(Icons.category_rounded, 'Food Categories', 'Create and manage food categories.', Colors.orange, () => _open(const FoodCategoryManagementScreen())),
