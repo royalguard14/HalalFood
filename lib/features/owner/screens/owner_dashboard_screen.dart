@@ -5,6 +5,7 @@ import 'owner_menu_management_screen.dart';
 import 'owner_order_details_screen.dart';
 import 'owner_restaurant_profile_screen.dart';
 import 'owner_restaurant_selection_screen.dart';
+import 'owner_subscribe_screen.dart';
 import 'owner_subscription_management_screen.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../../app/theme.dart';
@@ -273,6 +274,25 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         _buildWelcomeCard(),
         const SizedBox(height: 16),
         _buildSubscriptionCard(),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => OwnerSubscribeScreen(
+                    restaurantId: widget.restaurantId,
+                    restaurantName: _restaurantName,
+                  ),
+                ),
+              );
+              if (mounted) await _refreshSubscription();
+            },
+            icon: const Icon(Icons.workspace_premium_rounded),
+            label: Text(_subscriptionStatus == 'active' ? 'Manage Subscription' : 'Choose Subscription Plan', style: const TextStyle(fontWeight: FontWeight.w800)),
+          ),
+        ),
         const SizedBox(height: 16),
         Row(
           children: [
