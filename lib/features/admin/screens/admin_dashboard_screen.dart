@@ -7,6 +7,7 @@ import '../data/admin_repository.dart';
 import 'admin_menu_management_screen.dart';
 import 'admin_order_management_screen.dart';
 import 'admin_profile_screen.dart';
+import 'admin_settings_screen.dart';
 import 'delivery_pricing_screen.dart';
 import 'food_category_management_screen.dart';
 import 'halal_verification_screen.dart';
@@ -138,6 +139,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       _AdminTool(Icons.local_offer_rounded, 'Promos & Discounts', 'Create promo codes and manage customer discounts.', Colors.pink, () => _open(const PromoManagementScreen())),
       _AdminTool(Icons.delivery_dining_rounded, 'Delivery Pricing', 'Manage delivery fees, distance rates and surcharges.', Colors.blue, () => _open(const DeliveryPricingScreen())),
       _AdminTool(Icons.people_alt_rounded, 'Users & Roles', 'Manage platform accounts and assigned roles.', Colors.deepPurple, () => _open(const UserRoleManagementScreen())),
+      _AdminTool(Icons.settings_rounded, 'Platform Settings', 'Control platform availability, registrations and notifications.', Colors.blueGrey, () => _open(const AdminSettingsScreen())),
     ];
     if (wide) return GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: tools.length, gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 460, mainAxisExtent: 118, crossAxisSpacing: 12, mainAxisSpacing: 12), itemBuilder: (_, i) => tools[i]);
     return Column(children: [for (var i = 0; i < tools.length; i++) ...[tools[i], if (i != tools.length - 1) const SizedBox(height: 10)]]);
