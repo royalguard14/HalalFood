@@ -1,0 +1,91 @@
+name: Owner Dashboard Patch
+
+on:
+  push:
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Patch owner dashboard
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('lib/features/owner/screens/owner_dashboard_screen.dart')
+          s = p.read_text(encoding='utf-8-sig')
+          changed = False
+
+          if "String _restaurantStatus = 'unknown';" not in s:
+              s = s.replace(
+                  "  String _restaurantName = '';\n",
+                  "  String _restaurantName = '';\n  String _restaurantStatus = 'unknown';\n"
+              )
+              changed = True
+
+          if "await _refreshRestaurantStatus();" not in s:
+              s = s.replace(
+                  "      await _refreshSubscription();\n",
+                  "      await _refreshSubscription();\n      await _refreshRestaurantStatus();\n"
+              )
+              changed = True
+
+          if "Future<void> _refreshRestaurantStatus() async" not in s:
+              marker = "  String _dateOnly(DateTime date) =>\n"
+              method = '''  Future<void> _refreshRestaurantStatus() async {\n    try {\n      final response = await _supabase\n          .from('restaurants')\n          .select('is_active')\n          .eq('id', widget.restaurantId)\n          .maybeSingle();\n\n      if (!mounted) return;\n      setState(() {\n        _restaurantStatus = response == null\n            ? 'unknown'\n            : (response['is_active'] == true ? 'active' : 'pending');\n      });\n    } catch (e) {\n      debugPrint('OWNER RESTAURANT STATUS ERROR: $e');\n    }\n  }\n\n'''
+              if marker not in s:
+                  raise SystemExit('Could not find insertion marker for restaurant status')
+              s = s.replace(marker, method + marker)
+              changed = True
+
+          old = """      setState(() {\n        _subscriptionStatus = response['status']?.toString() ?? 'active';\n        _subscriptionPlan = planName;\n        _subscriptionEnd = end == null ? '' : _dateOnly(end);\n        _subscriptionBilling = response['billing_cycle']?.toString() ?? '';\n      });"""
+          new = """      final rawStatus = response['status']?.toString().toLowerCase() ?? 'active';\n      final isExpired = end != null && !end.isAfter(DateTime.now());\n\n      setState(() {\n        _subscriptionStatus = isExpired && rawStatus == 'active'\n            ? 'expired'\n            : rawStatus;\n        _subscriptionPlan = planName;\n        _subscriptionEnd = end == null ? '' : _dateOnly(end);\n        _subscriptionBilling = response['billing_cycle']?.toString() ?? '';\n      });"""
+          if old in s:
+              s = s.replace(old, new)
+              changed = True
+
+          old_color = """      case 'suspended':\n      case 'cancelled':\n        return Colors.red;\n      default:"""
+          new_color = """      case 'suspended':\n      case 'cancelled':\n      case 'expired':\n        return Colors.red;\n      default:"""
+          if old_color in s and "case 'expired':\n        return Colors.red;" not in s:
+              s = s.replace(old_color, new_color, 1)
+              changed = True
+
+          old_label = """      case 'cancelled':\n        return 'Cancelled';\n      default:\n        return 'No Subscription';"""
+          new_label = """      case 'cancelled':\n        return 'Cancelled';\n      case 'expired':\n        return 'Expired';\n      default:\n        return 'No Subscription';"""
+          if old_label in s:
+              s = s.replace(old_label, new_label, 1)
+              changed = True
+
+          if "Widget _buildRestaurantStatusCard()" not in s:
+              marker = "  Widget _buildSubscriptionCard() {\n"
+              card = '''  Widget _buildRestaurantStatusCard() {\n    final isActive = _restaurantStatus == 'active';\n    final color = isActive ? Colors.green : Colors.orange;\n    final label = isActive ? 'Active' : 'Pending Approval';\n\n    return Card(\n      child: Padding(\n        padding: const EdgeInsets.all(18),\n        child: Row(\n          children: [\n            Container(\n              width: 50,\n              height: 50,\n              decoration: BoxDecoration(\n                color: color.withValues(alpha: 0.10),\n                borderRadius: BorderRadius.circular(14),\n              ),\n              child: Icon(Icons.storefront_rounded, color: color, size: 27),\n            ),\n            const SizedBox(width: 14),\n            const Expanded(\n              child: Column(\n                crossAxisAlignment: CrossAxisAlignment.start,\n                children: [\n                  Text('Restaurant Status', style: TextStyle(fontSize: 13, color: HalalFoodTheme.textSecondary)),\n                  SizedBox(height: 3),\n                  Text('Store availability and approval status', style: TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary)),\n                ],\n              ),\n            ),\n            Container(\n              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),\n              decoration: BoxDecoration(\n                color: color.withValues(alpha: 0.10),\n                borderRadius: BorderRadius.circular(20),\n              ),\n              child: Text(\n                label,\n                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: color),\n              ),\n            ),\n          ],\n        ),\n      ),\n    );\n  }\n\n'''
+              if marker not in s:
+                  raise SystemExit('Could not find subscription card marker')
+              s = s.replace(marker, card + marker, 1)
+              changed = True
+
+          old_body = """        _buildWelcomeCard(),\n        const SizedBox(height: 16),\n        _buildSubscriptionCard(),"""
+          new_body = """        _buildWelcomeCard(),\n        const SizedBox(height: 16),\n        _buildRestaurantStatusCard(),\n        const SizedBox(height: 12),\n        _buildSubscriptionCard(),"""
+          if old_body in s and "_buildRestaurantStatusCard()," not in s[s.index("Widget _buildBody()") : s.index("Widget _buildWelcomeCard()")]:
+              s = s.replace(old_body, new_body, 1)
+              changed = True
+
+          if changed:
+              p.write_text(s, encoding='utf-8')
+          else:
+              print('No patch changes needed')
+          PY
+
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/features/owner/screens/owner_dashboard_screen.dart
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: complete owner dashboard status and expiry"
+          git push
