@@ -1,0 +1,295 @@
+name: Apply subscription editing fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply_subscription_editing.yml'
+      - 'lib/features/admin/screens/admin_subscription_management_screen.dart'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, 'fix: add subscription editing') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch subscription editing
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path('lib/features/admin/screens/admin_subscription_management_screen.dart')
+          text = path.read_text()
+
+          marker = "  Future<void> _showPlanDialog([Map<String, dynamic>? existing]) async {"
+          insert = r'''  Future<void> _showSubscriptionEditDialog(
+    Map<String, dynamic> subscription,
+  ) async {
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (_) => _SubscriptionEditDialog(
+        supabase: _supabase,
+        subscription: subscription,
+        plans: _plans,
+      ),
+    );
+
+    if (saved == true && mounted) {
+      await _load();
+      if (mounted) _message('Subscription updated successfully.');
+    }
+  }
+
+'''
+          if '_showSubscriptionEditDialog(' not in text:
+              text = text.replace(marker, insert + marker, 1)
+
+          old = """                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: ["""
+          new = """                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      _showSubscriptionEditDialog(s);
+                    },
+                    icon: const Icon(Icons.edit_rounded, size: 18),
+                    label: const Text('Edit Subscription'),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: ["""
+          if old in text and 'label: const Text(\'Edit Subscription\')' not in text:
+              text = text.replace(old, new, 1)
+
+          marker2 = 'class _PlanDialog extends StatefulWidget {'
+          dialog = r'''class _SubscriptionEditDialog extends StatefulWidget {
+  final SupabaseClient supabase;
+  final Map<String, dynamic> subscription;
+  final List<Map<String, dynamic>> plans;
+
+  const _SubscriptionEditDialog({
+    required this.supabase,
+    required this.subscription,
+    required this.plans,
+  });
+
+  @override
+  State<_SubscriptionEditDialog> createState() => _SubscriptionEditDialogState();
+}
+
+class _SubscriptionEditDialogState extends State<_SubscriptionEditDialog> {
+  late String _planId;
+  late String _billingCycle;
+  late String _status;
+  late final TextEditingController _periodEnd;
+  late final TextEditingController _nextBilling;
+  late final TextEditingController _notes;
+  final _formKey = GlobalKey<FormState>();
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _planId = widget.subscription['plan_id']?.toString() ?? '';
+    _billingCycle = widget.subscription['billing_cycle']?.toString() ?? 'monthly';
+    _status = widget.subscription['status']?.toString() ?? 'active';
+    _periodEnd = TextEditingController(text: _dateValue(widget.subscription['current_period_end']));
+    _nextBilling = TextEditingController(text: _dateValue(widget.subscription['next_billing_at']));
+    _notes = TextEditingController(text: widget.subscription['notes']?.toString() ?? '');
+  }
+
+  String _dateValue(dynamic value) {
+    final d = DateTime.tryParse(value?.toString() ?? '');
+    if (d == null) return '';
+    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  void dispose() {
+    _periodEnd.dispose();
+    _nextBilling.dispose();
+    _notes.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDate(TextEditingController controller) async {
+    final initial = DateTime.tryParse(controller.text) ?? DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+      initialDate: initial,
+    );
+    if (picked == null || !mounted) return;
+    controller.text = '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _save() async {
+    if (_saving) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+
+    try {
+      final values = <String, dynamic>{
+        'plan_id': _planId,
+        'billing_cycle': _billingCycle,
+        'status': _status,
+        'current_period_end': DateTime.parse(_periodEnd.text).toUtc().toIso8601String(),
+        'next_billing_at': _nextBilling.text.trim().isEmpty
+            ? null
+            : DateTime.parse(_nextBilling.text).toUtc().toIso8601String(),
+        'notes': _notes.text.trim().isEmpty ? null : _notes.text.trim(),
+      };
+
+      await widget.supabase
+          .from('restaurant_subscriptions')
+          .update(values)
+          .eq('id', widget.subscription['id']);
+
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _error = 'Unable to update subscription: $e';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Edit Subscription'),
+      content: SizedBox(
+        width: 440,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: widget.plans.any((p) => p['id']?.toString() == _planId) ? _planId : null,
+                  decoration: const InputDecoration(labelText: 'Plan'),
+                  items: widget.plans
+                      .map((p) => DropdownMenuItem<String>(
+                            value: p['id']?.toString(),
+                            child: Text(p['name']?.toString() ?? 'Plan'),
+                          ))
+                      .toList(),
+                  onChanged: _saving ? null : (v) => setState(() => _planId = v ?? ''),
+                  validator: (v) => v == null || v.isEmpty ? 'Select a plan' : null,
+                ),
+                DropdownButtonFormField<String>(
+                  value: _billingCycle,
+                  decoration: const InputDecoration(labelText: 'Billing cycle'),
+                  items: const [
+                    DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
+                    DropdownMenuItem(value: 'annual', child: Text('Annual')),
+                  ],
+                  onChanged: _saving ? null : (v) => setState(() => _billingCycle = v ?? 'monthly'),
+                ),
+                DropdownButtonFormField<String>(
+                  value: _status,
+                  decoration: const InputDecoration(labelText: 'Status'),
+                  items: const [
+                    DropdownMenuItem(value: 'trial', child: Text('Trial')),
+                    DropdownMenuItem(value: 'active', child: Text('Active')),
+                    DropdownMenuItem(value: 'past_due', child: Text('Past Due')),
+                    DropdownMenuItem(value: 'grace_period', child: Text('Grace Period')),
+                    DropdownMenuItem(value: 'suspended', child: Text('Suspended')),
+                    DropdownMenuItem(value: 'cancelled', child: Text('Cancelled')),
+                    DropdownMenuItem(value: 'expired', child: Text('Expired')),
+                  ],
+                  onChanged: _saving ? null : (v) => setState(() => _status = v ?? 'active'),
+                ),
+                TextFormField(
+                  controller: _periodEnd,
+                  readOnly: true,
+                  enabled: !_saving,
+                  decoration: const InputDecoration(
+                    labelText: 'Current period end',
+                    suffixIcon: Icon(Icons.calendar_month_rounded),
+                  ),
+                  onTap: () => _pickDate(_periodEnd),
+                  validator: (v) => DateTime.tryParse(v?.trim() ?? '') == null ? 'Select a valid date' : null,
+                ),
+                TextFormField(
+                  controller: _nextBilling,
+                  readOnly: true,
+                  enabled: !_saving,
+                  decoration: const InputDecoration(
+                    labelText: 'Next billing date (optional)',
+                    suffixIcon: Icon(Icons.event_rounded),
+                  ),
+                  onTap: () => _pickDate(_nextBilling),
+                ),
+                TextFormField(
+                  controller: _notes,
+                  enabled: !_saving,
+                  maxLines: 3,
+                  decoration: const InputDecoration(labelText: 'Notes'),
+                ),
+                if (_error != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Text(_error!, style: const TextStyle(color: Colors.red)),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        SizedBox(
+          width: 100,
+          height: 44,
+          child: ElevatedButton(
+            onPressed: _saving ? null : _save,
+            child: _saving
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Text('Save'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+'''
+          if '_SubscriptionEditDialog extends StatefulWidget' not in text:
+              text = text.replace(marker2, dialog + marker2, 1)
+
+          path.write_text(text)
+          PY
+
+      - name: Commit changes and remove temporary workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/features/admin/screens/admin_subscription_management_screen.dart .github/workflows/apply_subscription_editing.yml
+          git rm .github/workflows/apply_subscription_editing.yml
+          git commit -m "fix: add subscription editing"
+          git push
