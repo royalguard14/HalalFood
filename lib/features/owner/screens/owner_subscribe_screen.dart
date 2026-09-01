@@ -136,9 +136,9 @@ class _OwnerSubscribeScreenState extends State<OwnerSubscribeScreen> {
 
   Widget _buildBody() {
     if (_loading) {
-      return const ListView(
-        physics: AlwaysScrollableScrollPhysics(),
-        children: [
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
           SizedBox(height: 280),
           Center(child: CircularProgressIndicator()),
         ],
@@ -162,10 +162,10 @@ class _OwnerSubscribeScreenState extends State<OwnerSubscribeScreen> {
     }
 
     if (_plans.isEmpty) {
-      return const ListView(
-        physics: AlwaysScrollableScrollPhysics(),
-        padding: EdgeInsets.all(24),
-        children: [
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(24),
+        children: const [
           SizedBox(height: 100),
           Center(child: Text('No subscription plans are available yet.')),
         ],
@@ -181,7 +181,7 @@ class _OwnerSubscribeScreenState extends State<OwnerSubscribeScreen> {
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 6),
-        const Text(
+        Text(
           'Choose the plan that fits your restaurant.',
           style: TextStyle(color: HalalFoodTheme.textSecondary),
         ),
@@ -217,7 +217,7 @@ class _OwnerSubscribeScreenState extends State<OwnerSubscribeScreen> {
                 padding: const EdgeInsets.only(top: 6),
                 child: Text(
                   plan['description'].toString(),
-                  style: const TextStyle(color: HalalFoodTheme.textSecondary),
+                  style: TextStyle(color: HalalFoodTheme.textSecondary),
                 ),
               ),
             const SizedBox(height: 14),
