@@ -42,7 +42,9 @@ class HalalFoodTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryGreen,
           foregroundColor: Colors.white,
-          minimumSize: const Size(double.infinity, 52),
+          // Keep a finite minimum width. A global double.infinity here
+          // breaks buttons placed inside Row/Wrap with unbounded width.
+          minimumSize: const Size(64, 52),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
