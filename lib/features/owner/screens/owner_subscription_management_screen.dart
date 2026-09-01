@@ -114,9 +114,9 @@ class _OwnerSubscriptionManagementScreenState
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading
-            ? const ListView(
-                physics: AlwaysScrollableScrollPhysics(),
-                children: [
+            ? ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: const [
                   SizedBox(height: 280),
                   Center(child: CircularProgressIndicator()),
                 ],
@@ -162,11 +162,7 @@ class _OwnerSubscriptionManagementScreenState
         padding: const EdgeInsets.all(20),
         children: [
           const SizedBox(height: 55),
-          const Icon(
-            Icons.workspace_premium_outlined,
-            size: 72,
-            color: Colors.grey,
-          ),
+          const Icon(Icons.workspace_premium_outlined, size: 72, color: Colors.grey),
           const SizedBox(height: 18),
           const Text(
             'No Active Plan',
@@ -196,23 +192,16 @@ class _OwnerSubscriptionManagementScreenState
     }
 
     final plan = subscription['subscription_plans'];
-    final planName = plan is Map
-        ? plan['name']?.toString() ?? 'Subscription Plan'
-        : 'Subscription Plan';
+    final planName = plan is Map ? plan['name']?.toString() ?? 'Subscription Plan' : 'Subscription Plan';
     final status = subscription['status']?.toString() ?? 'unknown';
-    final billing = subscription['billing_cycle']?.toString() == 'annual'
-        ? 'Annual'
-        : 'Monthly';
+    final billing = subscription['billing_cycle']?.toString() == 'annual' ? 'Annual' : 'Monthly';
     final color = _statusColor(status);
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
       children: [
-        Text(
-          widget.restaurantName,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-        ),
+        Text(widget.restaurantName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
         const SizedBox(height: 14),
         Card(
           child: Padding(
@@ -229,78 +218,50 @@ class _OwnerSubscriptionManagementScreenState
                         color: color.withValues(alpha: .10),
                         borderRadius: BorderRadius.circular(15),
                       ),
-                      child: Icon(
-                        Icons.workspace_premium_rounded,
-                        color: color,
-                        size: 28,
-                      ),
+                      child: Icon(Icons.workspace_premium_rounded, color: color, size: 28),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            planName,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
+                          Text(planName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
                           const SizedBox(height: 4),
-                          Text(
-                            billing,
-                            style: const TextStyle(
-                              color: HalalFoodTheme.textSecondary,
-                            ),
-                          ),
+                          Text(billing, style: TextStyle(color: HalalFoodTheme.textSecondary)),
                         ],
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 7,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                       decoration: BoxDecoration(
                         color: color.withValues(alpha: .10),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
                         _statusLabel(status),
-                        style: TextStyle(
-                          color: color,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12,
-                        ),
+                        style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 12),
                       ),
                     ),
                   ],
                 ),
                 const Divider(height: 30),
                 _row('Started', _date(subscription['started_at'])),
-                _row(
-                  'Current Period',
-                  '${_date(subscription['current_period_start'])} – ${_date(subscription['current_period_end'])}',
-                ),
+                _row('Current Period', '${_date(subscription['current_period_start'])} – ${_date(subscription['current_period_end'])}'),
                 _row('Next Billing', _date(subscription['next_billing_at'])),
               ],
             ),
           ),
         ),
         const SizedBox(height: 14),
-        const Card(
+        Card(
           child: Padding(
-            padding: EdgeInsets.all(18),
+            padding: const EdgeInsets.all(18),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.info_outline_rounded,
-                  color: HalalFoodTheme.primaryGreen,
-                ),
-                SizedBox(width: 12),
-                Expanded(
+                const Icon(Icons.info_outline_rounded, color: HalalFoodTheme.primaryGreen),
+                const SizedBox(width: 12),
+                const Expanded(
                   child: Text(
                     'Subscription changes are managed by the HALAL Food administrator. Contact support if your plan or expiry date is incorrect.',
                     style: TextStyle(height: 1.4),
@@ -322,17 +283,9 @@ class _OwnerSubscriptionManagementScreenState
         children: [
           SizedBox(
             width: 115,
-            child: Text(
-              label,
-              style: const TextStyle(color: HalalFoodTheme.textSecondary),
-            ),
+            child: Text(label, style: TextStyle(color: HalalFoodTheme.textSecondary)),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ),
+          Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w700))),
         ],
       ),
     );
