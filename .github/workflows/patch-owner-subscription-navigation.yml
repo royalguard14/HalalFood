@@ -1,0 +1,64 @@
+name: Patch owner subscription navigation
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Patch dashboard
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('lib/features/owner/screens/owner_dashboard_screen.dart')
+          text = path.read_text(encoding='utf-8-sig')
+
+          import_line = "import 'owner_subscription_management_screen.dart';"
+          if import_line not in text:
+              marker = "import 'owner_restaurant_selection_screen.dart';"
+              if marker not in text:
+                  raise SystemExit('Dashboard import marker not found')
+              text = text.replace(marker, marker + "\n" + import_line, 1)
+
+          if 'floatingActionButton: FloatingActionButton.extended(' not in text:
+              marker = "      body: RefreshIndicator("
+              button = """      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => OwnerSubscriptionManagementScreen(
+                restaurantId: widget.restaurantId,
+                restaurantName: _restaurantName,
+              ),
+            ),
+          );
+          if (mounted) await _refreshSubscription();
+        },
+        icon: const Icon(Icons.workspace_premium_rounded),
+        label: const Text('My Subscription'),
+      ),
+"""
+              if marker not in text:
+                  raise SystemExit('Dashboard body marker not found')
+              text = text.replace(marker, button + marker, 1)
+
+          path.write_text(text, encoding='utf-8')
+
+      - name: Commit dashboard patch and remove workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/features/owner/screens/owner_dashboard_screen.dart
+          git rm .github/workflows/patch-owner-subscription-navigation.yml
+          git commit -m "feat: add owner subscription access from dashboard"
+          git push
