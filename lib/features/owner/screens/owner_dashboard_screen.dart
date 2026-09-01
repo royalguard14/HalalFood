@@ -1,7 +1,6 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'owner_order_details_screen.dart';
 import 'owner_menu_management_screen.dart';
 import 'owner_restaurant_profile_screen.dart';
 import 'owner_restaurant_selection_screen.dart';
@@ -41,7 +40,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   }
 
   Future<void> _loadDashboard() async {
-    setState(() => _loading = true);
+    if (mounted) setState(() => _loading = true);
     try {
       final subscription = await _supabase
           .from('restaurant_subscriptions')
@@ -87,11 +86,26 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   bool get _hasActivePlan =>
       _subscriptionStatus == 'active' || _subscriptionStatus == 'trial';
 
+  Future<void> _openSubscription() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => OwnerSubscriptionManagementScreen(
+          restaurantId: widget.restaurantId,
+          restaurantName: _restaurantName,
+        ),
+      ),
+    );
+    if (mounted) await _loadDashboard();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Owner Dashboard', style: TextStyle(fontWeight: FontWeight.w800)),
+        title: const Text(
+          'Owner Dashboard',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
         actions: [
           IconButton(
             tooltip: 'Refresh',
@@ -106,34 +120,47 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
           children: [
-            Text(_restaurantName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+            Text(
+              _restaurantName,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+            ),
             const SizedBox(height: 4),
-            Text('Manage your restaurant', style: TextStyle(color: HalalFoodTheme.textSecondary)),
+            Text(
+              'Manage your restaurant',
+              style: TextStyle(color: HalalFoodTheme.textSecondary),
+            ),
             const SizedBox(height: 16),
             _buildSubscriptionCard(),
             const SizedBox(height: 16),
             Row(
               children: [
-                Expanded(child: _statCard(Icons.restaurant_menu_rounded, 'Menu Items', '$_menuCount')),
+                Expanded(
+                  child: _statCard(
+                    Icons.restaurant_menu_rounded,
+                    'Menu Items',
+                    '$_menuCount',
+                  ),
+                ),
                 const SizedBox(width: 12),
-                Expanded(child: _statCard(Icons.receipt_long_rounded, 'Open Orders', '$_pendingOrders')),
+                Expanded(
+                  child: _statCard(
+                    Icons.receipt_long_rounded,
+                    'Open Orders',
+                    '$_pendingOrders',
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () async {
-                  await Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => OwnerSubscriptionManagementScreen(
-                      restaurantId: widget.restaurantId,
-                      restaurantName: _restaurantName,
-                    ),
-                  ));
-                  if (mounted) await _loadDashboard();
-                },
+                onPressed: _openSubscription,
                 icon: const Icon(Icons.workspace_premium_rounded),
-                label: const Text('Subscription', style: TextStyle(fontWeight: FontWeight.w800)),
+                label: const Text(
+                  'Subscription',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
               ),
             ),
             const SizedBox(height: 10),
@@ -141,16 +168,21 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () async {
-                  await Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => OwnerMenuManagementScreen(
-                      restaurantId: widget.restaurantId,
-                      restaurantName: _restaurantName,
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => OwnerMenuManagementScreen(
+                        restaurantId: widget.restaurantId,
+                        restaurantName: _restaurantName,
+                      ),
                     ),
-                  ));
+                  );
                   if (mounted) await _loadDashboard();
                 },
                 icon: const Icon(Icons.restaurant_menu_rounded),
-                label: const Text('Manage Menu', style: TextStyle(fontWeight: FontWeight.w800)),
+                label: const Text(
+                  'Manage Menu',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
               ),
             ),
             const SizedBox(height: 10),
@@ -158,26 +190,31 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: () async {
-                  await Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => OwnerRestaurantProfileScreen(
-                      restaurantId: widget.restaurantId,
-                      restaurantName: _restaurantName,
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => OwnerRestaurantProfileScreen(
+                        restaurantId: widget.restaurantId,
+                        restaurantName: _restaurantName,
+                      ),
                     ),
-                  ));
+                  );
                   if (mounted) await _loadDashboard();
                 },
                 icon: const Icon(Icons.storefront_rounded),
-                label: const Text('Restaurant Profile', style: TextStyle(fontWeight: FontWeight.w800)),
+                label: const Text(
+                  'Restaurant Profile',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
               ),
             ),
             const SizedBox(height: 10),
             OutlinedButton.icon(
               onPressed: () async {
-                await Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => OwnerRestaurantSelectionScreen(
-                    currentRestaurantId: widget.restaurantId,
+                await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const OwnerRestaurantSelectionScreen(),
                   ),
-                ));
+                );
               },
               icon: const Icon(Icons.swap_horiz_rounded),
               label: const Text('Switch Restaurant'),
@@ -203,48 +240,63 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
 
   Widget _buildSubscriptionCard() {
     final active = _hasActivePlan;
-    final status = _subscriptionStatus?.toUpperCase().replaceAll('_', ' ') ?? 'NO ACTIVE PLAN';
+    final status = _subscriptionStatus == null
+        ? 'NO ACTIVE PLAN'
+        : _subscriptionStatus!.toUpperCase().replaceAll('_', ' ');
+
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: (active ? Colors.green : Colors.grey).withValues(alpha: .10),
-                borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: _openSubscription,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: (active ? Colors.green : Colors.grey)
+                      .withValues(alpha: .10),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  Icons.workspace_premium_rounded,
+                  color: active ? Colors.green : Colors.grey,
+                ),
               ),
-              child: Icon(Icons.workspace_premium_rounded, color: active ? Colors.green : Colors.grey),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Subscription', style: TextStyle(fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 4),
-                  Text(status, style: TextStyle(fontWeight: FontWeight.w800, color: active ? Colors.green : Colors.grey)),
-                  if (_subscriptionPlan != null) Text(_subscriptionPlan!),
-                  if (_subscriptionExpiry != null) Text('Expires: ${_formatDate(_subscriptionExpiry)}'),
-                ],
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Subscription',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      status,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: active ? Colors.green : Colors.grey,
+                      ),
+                    ),
+                    if (_subscriptionPlan != null)
+                      Text(_subscriptionPlan!),
+                    if (_subscriptionExpiry != null)
+                      Text('Expires: ${_formatDate(_subscriptionExpiry)}'),
+                    if (!active)
+                      const Text(
+                        'Tap to choose a plan',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                  ],
+                ),
               ),
-            ),
-            IconButton(
-              tooltip: 'Manage subscription',
-              onPressed: () async {
-                await Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => OwnerSubscriptionManagementScreen(
-                    restaurantId: widget.restaurantId,
-                    restaurantName: _restaurantName,
-                  ),
-                ));
-                if (mounted) await _loadDashboard();
-              },
-              icon: const Icon(Icons.chevron_right_rounded),
-            ),
-          ],
+              const Icon(Icons.chevron_right_rounded),
+            ],
+          ),
         ),
       ),
     );
@@ -262,8 +314,20 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
-                  Text(label, style: TextStyle(color: HalalFoodTheme.textSecondary, fontSize: 12)),
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: HalalFoodTheme.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
                 ],
               ),
             ),
