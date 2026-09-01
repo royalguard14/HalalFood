@@ -26,4 +26,15 @@ class AdminUserRepository {
         .update({'role': role})
         .eq('id', userId);
   }
+
+  Future<void> updateProfile({
+    required String userId,
+    required String fullName,
+    required String phone,
+  }) async {
+    await _supabase.from('profiles').update({
+      'full_name': fullName.trim(),
+      'phone': phone.trim(),
+    }).eq('id', userId);
+  }
 }
