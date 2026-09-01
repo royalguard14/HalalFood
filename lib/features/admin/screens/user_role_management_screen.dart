@@ -20,8 +20,6 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
   String _filter = 'all';
   List<Map<String, dynamic>> _users = [];
 
-  static const _roles = <String>['admin', 'restaurant_owner', 'customer'];
-
   @override
   void initState() {
     super.initState();
@@ -83,7 +81,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
 
     final selected = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => _RoleDialog(currentRole: current),
+      builder: (_) => _RoleDialog(currentRole: current),
     );
     if (selected == null || selected == current || !mounted) return;
 
@@ -93,6 +91,29 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
       if (mounted) _message('Role updated to ${_roleLabel(selected)}.');
     } catch (e) {
       if (mounted) _message('Unable to update role: $e');
+    }
+  }
+
+  Future<void> _editProfile(Map<String, dynamic> user) async {
+    final id = user['id']?.toString();
+    if (id == null || id.isEmpty) return;
+
+    final result = await showDialog<_ProfileEditResult>(
+      context: context,
+      builder: (_) => _EditProfileDialog(user: user),
+    );
+    if (result == null || !mounted) return;
+
+    try {
+      await _repository.updateProfile(
+        userId: id,
+        fullName: result.fullName,
+        phone: result.phone,
+      );
+      await _load();
+      if (mounted) _message('User profile updated successfully.');
+    } catch (e) {
+      if (mounted) _message('Unable to update profile: $e');
     }
   }
 
@@ -119,6 +140,14 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
                   user['full_name']?.toString().trim().isNotEmpty == true ? user['full_name'].toString() : 'Unnamed User',
                   style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800),
                 )),
+                IconButton(
+                  tooltip: 'Edit profile',
+                  onPressed: () {
+                    Navigator.pop(sheetContext);
+                    _editProfile(user);
+                  },
+                  icon: const Icon(Icons.edit_rounded),
+                ),
               ]),
               const SizedBox(height: 18),
               _DetailRow('Role', _roleLabel(role)),
@@ -126,18 +155,29 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
               _DetailRow('User ID', user['id']?.toString() ?? 'Unknown'),
               _DetailRow('Joined', _formatDate(user['created_at']?.toString())),
               const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(sheetContext);
-                    _changeRole(user);
-                  },
-                  icon: const Icon(Icons.manage_accounts_rounded),
-                  label: const Text('Change Role'),
+              Row(children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      _editProfile(user);
+                    },
+                    icon: const Icon(Icons.edit_rounded),
+                    label: const Text('Edit Profile'),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      _changeRole(user);
+                    },
+                    icon: const Icon(Icons.manage_accounts_rounded),
+                    label: const Text('Change Role'),
+                  ),
+                ),
+              ]),
             ],
           ),
         ),
@@ -306,6 +346,75 @@ class _RoleDialogState extends State<_RoleDialog> {
     actions: [
       TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
       ElevatedButton(onPressed: () => Navigator.pop(context, _selected), child: const Text('Save')),
+    ],
+  );
+}
+
+class _ProfileEditResult {
+  final String fullName;
+  final String phone;
+  const _ProfileEditResult(this.fullName, this.phone);
+}
+
+class _EditProfileDialog extends StatefulWidget {
+  final Map<String, dynamic> user;
+  const _EditProfileDialog({required this.user});
+
+  @override
+  State<_EditProfileDialog> createState() => _EditProfileDialogState();
+}
+
+class _EditProfileDialogState extends State<_EditProfileDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _name;
+  late final TextEditingController _phone;
+
+  @override
+  void initState() {
+    super.initState();
+    _name = TextEditingController(text: widget.user['full_name']?.toString() ?? '');
+    _phone = TextEditingController(text: widget.user['phone']?.toString() ?? '');
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _phone.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Edit User Profile', style: TextStyle(fontWeight: FontWeight.w800)),
+    content: Form(
+      key: _formKey,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextFormField(
+            controller: _name,
+            textCapitalization: TextCapitalization.words,
+            decoration: const InputDecoration(labelText: 'Full Name', prefixIcon: Icon(Icons.person_outline_rounded)),
+            validator: (v) => v == null || v.trim().isEmpty ? 'Full Name is required.' : null,
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _phone,
+            keyboardType: TextInputType.phone,
+            decoration: const InputDecoration(labelText: 'Phone', prefixIcon: Icon(Icons.phone_outlined)),
+          ),
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+      ElevatedButton(
+        onPressed: () {
+          if (!_formKey.currentState!.validate()) return;
+          Navigator.pop(context, _ProfileEditResult(_name.text.trim(), _phone.text.trim()));
+        },
+        child: const Text('Save Changes'),
+      ),
     ],
   );
 }
