@@ -261,123 +261,17 @@ class _AdminSubscriptionManagementScreenState
   }
 
   Future<void> _showPlanDialog([Map<String, dynamic>? existing]) async {
-    final name = TextEditingController(
-      text: existing?['name']?.toString() ?? '',
-    );
-    final price = TextEditingController(
-      text: existing?['monthly_price']?.toString() ?? '',
-    );
-    final description = TextEditingController(
-      text: existing?['description']?.toString() ?? '',
-    );
-    final features = TextEditingController(
-      text: existing?['features'] is List
-          ? (existing!['features'] as List).join(', ')
-          : '',
-    );
-    final formKey = GlobalKey<FormState>();
-
     final saved = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(
-          existing == null ? 'Add Subscription Plan' : 'Edit Subscription Plan',
-        ),
-        content: SizedBox(
-          width: 420,
-          child: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: name,
-                    decoration: const InputDecoration(labelText: 'Plan name'),
-                    validator: (v) =>
-                        v == null || v.trim().isEmpty ? 'Required' : null,
-                  ),
-                  TextFormField(
-                    controller: price,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: const InputDecoration(
-                      labelText: 'Monthly price (PHP)',
-                    ),
-                    validator: (v) => double.tryParse(v?.trim() ?? '') == null
-                        ? 'Enter a valid price'
-                        : null,
-                  ),
-                  TextFormField(
-                    controller: description,
-                    decoration: const InputDecoration(labelText: 'Description'),
-                  ),
-                  TextFormField(
-                    controller: features,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'Features (comma separated)',
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (!formKey.currentState!.validate()) return;
-              try {
-                final featureList = features.text
-                    .split(',')
-                    .map((e) => e.trim())
-                    .where((e) => e.isNotEmpty)
-                    .toList();
-                final values = {
-                  'name': name.text.trim(),
-                  'monthly_price': double.parse(price.text.trim()),
-                  'description': description.text.trim(),
-                  'features': featureList,
-                };
-
-                if (existing == null) {
-                  await _supabase.from('subscription_plans').insert(values);
-                } else {
-                  await _supabase
-                      .from('subscription_plans')
-                      .update(values)
-                      .eq('id', existing['id']);
-                }
-
-                if (dialogContext.mounted) {
-                  Navigator.pop(dialogContext, true);
-                }
-              } catch (e) {
-                if (dialogContext.mounted) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    SnackBar(content: Text('Unable to save plan: $e')),
-                  );
-                }
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
+      builder: (dialogContext) => _PlanDialog(
+        supabase: _supabase,
+        existing: existing,
       ),
     );
 
-    name.dispose();
-    price.dispose();
-    description.dispose();
-    features.dispose();
-
-    if (saved == true) await _load();
+    if (saved == true && mounted) {
+      await _load();
+    }
   }
 
   Future<void> _deletePlan(Map<String, dynamic> plan) async {
@@ -653,8 +547,13 @@ class _AdminSubscriptionManagementScreenState
               ),
               const SizedBox(width: 12),
               SizedBox(
+                width: 120,
                 height: 44,
                 child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: Size.zero,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                  ),
                   onPressed: () => _showPlanDialog(),
                   icon: const Icon(Icons.add_rounded),
                   label: const Text('Add Plan'),
@@ -742,11 +641,19 @@ class _AdminSubscriptionManagementScreenState
                 spacing: 6,
                 children: [
                   OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: Size.zero,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                    ),
                     onPressed: () => _showPlanDialog(plan),
                     icon: const Icon(Icons.edit_rounded, size: 17),
                     label: const Text('Edit'),
                   ),
                   OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: Size.zero,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                    ),
                     onPressed: () => _deletePlan(plan),
                     icon: const Icon(Icons.delete_outline_rounded, size: 17),
                     label: const Text('Delete'),
@@ -757,6 +664,182 @@ class _AdminSubscriptionManagementScreenState
           ],
         ),
       ),
+    );
+  }
+}
+
+class _PlanDialog extends StatefulWidget {
+  final SupabaseClient supabase;
+  final Map<String, dynamic>? existing;
+
+  const _PlanDialog({
+    required this.supabase,
+    this.existing,
+  });
+
+  @override
+  State<_PlanDialog> createState() => _PlanDialogState();
+}
+
+class _PlanDialogState extends State<_PlanDialog> {
+  late final TextEditingController _name;
+  late final TextEditingController _price;
+  late final TextEditingController _description;
+  late final TextEditingController _features;
+  final _formKey = GlobalKey<FormState>();
+
+  bool _saving = false;
+  String? _error;
+
+  bool get _editing => widget.existing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.existing;
+    _name = TextEditingController(text: existing?['name']?.toString() ?? '');
+    _price = TextEditingController(
+      text: existing?['monthly_price']?.toString() ?? '',
+    );
+    _description = TextEditingController(
+      text: existing?['description']?.toString() ?? '',
+    );
+    _features = TextEditingController(
+      text: existing?['features'] is List
+          ? (existing!['features'] as List).join(', ')
+          : '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _price.dispose();
+    _description.dispose();
+    _features.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_saving) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+
+    try {
+      final featureList = _features.text
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+
+      final values = <String, dynamic>{
+        'name': _name.text.trim(),
+        'monthly_price': double.parse(_price.text.trim()),
+        'description': _description.text.trim(),
+        'features': featureList,
+      };
+
+      if (_editing) {
+        await widget.supabase
+            .from('subscription_plans')
+            .update(values)
+            .eq('id', widget.existing!['id']);
+      } else {
+        await widget.supabase.from('subscription_plans').insert(values);
+      }
+
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _error = 'Unable to save plan: $e';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(_editing ? 'Edit Subscription Plan' : 'Add Subscription Plan'),
+      content: SizedBox(
+        width: 420,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _name,
+                  enabled: !_saving,
+                  decoration: const InputDecoration(labelText: 'Plan name'),
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'Required' : null,
+                ),
+                TextFormField(
+                  controller: _price,
+                  enabled: !_saving,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Monthly price (PHP)',
+                  ),
+                  validator: (v) => double.tryParse(v?.trim() ?? '') == null
+                      ? 'Enter a valid price'
+                      : null,
+                ),
+                TextFormField(
+                  controller: _description,
+                  enabled: !_saving,
+                  decoration: const InputDecoration(labelText: 'Description'),
+                ),
+                TextFormField(
+                  controller: _features,
+                  enabled: !_saving,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Features (comma separated)',
+                  ),
+                ),
+                if (_error != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Text(
+                      _error!,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            minimumSize: const Size(90, 44),
+          ),
+          onPressed: _saving ? null : _save,
+          child: _saving
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Save'),
+        ),
+      ],
     );
   }
 }
@@ -899,6 +982,10 @@ class _ActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OutlinedButton.icon(
+      style: OutlinedButton.styleFrom(
+        minimumSize: Size.zero,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+      ),
       onPressed: onPressed,
       icon: Icon(icon, size: 17, color: color),
       label: Text(label, style: TextStyle(color: color)),
@@ -969,7 +1056,11 @@ class _ErrorView extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: onRetry, child: const Text('Try Again')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(minimumSize: const Size(110, 44)),
+              onPressed: onRetry,
+              child: const Text('Try Again'),
+            ),
           ],
         ),
       ),
