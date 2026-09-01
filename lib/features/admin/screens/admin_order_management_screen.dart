@@ -247,7 +247,7 @@ class _AdminOrderManagementScreenState
       body: RefreshIndicator(
         onRefresh: _loadOrders,
         child: _loading
-            ? const ListView(children: [SizedBox(height: 260), Center(child: CircularProgressIndicator())])
+            ? ListView(children: [const SizedBox(height: 260), const Center(child: CircularProgressIndicator())])
             : _error != null
                 ? _ErrorView(message: _error!, onRetry: _loadOrders)
                 : ListView(
