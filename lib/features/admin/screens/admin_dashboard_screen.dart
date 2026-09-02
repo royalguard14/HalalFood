@@ -9,6 +9,7 @@ import 'admin_order_management_screen.dart';
 import 'admin_profile_screen.dart';
 import 'admin_settings_screen.dart';
 import 'admin_subscription_management_screen.dart';
+import 'admin_subscription_payment_methods_screen.dart';
 import 'delivery_pricing_screen.dart';
 import 'food_category_management_screen.dart';
 import 'halal_verification_screen.dart';
@@ -136,6 +137,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       _AdminTool(Icons.restaurant_menu_rounded, 'Menu Management', 'Add, edit and manage menu items for each restaurant.', Colors.green, () => _open(const AdminMenuManagementScreen())),
       _AdminTool(Icons.receipt_long_rounded, 'Order Management', 'View and monitor customer orders and their status.', Colors.indigo, () => _open(const AdminOrderManagementScreen())),
       _AdminTool(Icons.workspace_premium_rounded, 'SaaS Subscriptions', 'Manage restaurant plans, subscriptions, billing status and recurring revenue.', Colors.deepOrange, () => _open(const AdminSubscriptionManagementScreen())),
+      _AdminTool(Icons.payments_rounded, 'Subscription Payment Methods', 'Configure GCash, bank transfer and other payment methods shown to owners.', Colors.teal, () => _open(const AdminSubscriptionPaymentMethodsScreen())),
       _AdminTool(Icons.verified_rounded, 'Halal Verification', 'Review verification requests and classifications.', Colors.teal, () => _open(const HalalVerificationScreen())),
       _AdminTool(Icons.category_rounded, 'Food Categories', 'Create and manage food categories.', Colors.orange, () => _open(const FoodCategoryManagementScreen())),
       _AdminTool(Icons.local_offer_rounded, 'Promos & Discounts', 'Create promo codes and manage customer discounts.', Colors.pink, () => _open(const PromoManagementScreen())),
