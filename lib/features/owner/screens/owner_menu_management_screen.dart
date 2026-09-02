@@ -188,21 +188,37 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
     }
   }
 
+  String? _storagePathFromPublicUrl(String? url, String bucket) {
+    if (url == null || url.trim().isEmpty) return null;
+    final marker = '/storage/v1/object/public/$bucket/';
+    final index = url.indexOf(marker);
+    if (index == -1) return null;
+    return Uri.decodeComponent(url.substring(index + marker.length));
+  }
+
+  Future<void> _deleteFoodPhoto(String menuItemId, {String? oldUrl}) async {
+    final paths = <String>{'${widget.restaurantId}/$menuItemId.jpg'};
+    final oldPath = _storagePathFromPublicUrl(oldUrl, 'menu-item-images');
+    if (oldPath != null) paths.add(oldPath);
+    await _supabase.storage.from('menu-item-images').remove(paths.toList());
+  }
+
   Future<String> _uploadFoodPhoto(String menuItemId, XFile file) async {
     final bytes = await file.readAsBytes();
-    final path =
-        '${widget.restaurantId}/$menuItemId-${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final path = '${widget.restaurantId}/$menuItemId.jpg';
 
     await _supabase.storage.from('menu-item-images').uploadBinary(
           path,
           bytes,
           fileOptions: const FileOptions(
             contentType: 'image/jpeg',
-            upsert: false,
+            upsert: true,
           ),
         );
 
-    return _supabase.storage.from('menu-item-images').getPublicUrl(path);
+    final baseUrl =
+        _supabase.storage.from('menu-item-images').getPublicUrl(path);
+    return '$baseUrl?v=${DateTime.now().millisecondsSinceEpoch}';
   }
 
   Future<_Draft?> _dialog({
@@ -482,7 +498,12 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
             .update({'image_url': url})
             .eq('id', id)
             .eq('restaurant_id', widget.restaurantId);
+        final oldPath = _storagePathFromPublicUrl(oldImage, 'menu-item-images');
+        if (oldPath != null && oldPath != '${widget.restaurantId}/$id.jpg') {
+          await _supabase.storage.from('menu-item-images').remove([oldPath]);
+        }
       } else if (draft.removePhoto) {
+        await _deleteFoodPhoto(id, oldUrl: oldImage);
         await _supabase
             .from('menu_items')
             .update({'image_url': null})
@@ -583,6 +604,7 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
         );
         return;
       }
+      await _deleteFoodPhoto(id, oldUrl: item['image_url']?.toString());
       await _supabase
           .from('menu_item_categories')
           .delete()
