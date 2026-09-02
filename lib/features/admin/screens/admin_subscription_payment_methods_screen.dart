@@ -145,85 +145,80 @@ class _AdminSubscriptionPaymentMethodsScreenState
         ),
     };
 
-    Map<String, dynamic>? values;
-
-    try {
-      values = await showModalBottomSheet<Map<String, dynamic>>(
-        context: context,
-        isScrollControlled: true,
-        showDragHandle: true,
-        builder: (sheetContext) {
-          return Padding(
-            padding: EdgeInsets.fromLTRB(
-              20,
-              10,
-              20,
-              MediaQuery.of(sheetContext).viewInsets.bottom + 20,
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    existing == null
-                        ? 'Add Payment Method'
-                        : 'Edit Payment Method',
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                    ),
+    final values = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            10,
+            20,
+            MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  existing == null
+                      ? 'Add Payment Method'
+                      : 'Edit Payment Method',
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
                   ),
-                  const SizedBox(height: 16),
-                  ...controllers.entries.map(
-                    (entry) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: TextField(
-                        controller: entry.value,
-                        maxLines: entry.key == 'instructions' ? 4 : 1,
-                        keyboardType: entry.key == 'sort_order'
-                            ? TextInputType.number
-                            : null,
-                        decoration: InputDecoration(
-                          labelText: entry.key.replaceAll('_', ' ').toUpperCase(),
-                          border: const OutlineInputBorder(),
-                        ),
+                ),
+                const SizedBox(height: 16),
+                ...controllers.entries.map(
+                  (entry) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: TextField(
+                      controller: entry.value,
+                      maxLines: entry.key == 'instructions' ? 4 : 1,
+                      keyboardType: entry.key == 'sort_order'
+                          ? TextInputType.number
+                          : null,
+                      decoration: InputDecoration(
+                        labelText: entry.key.replaceAll('_', ' ').toUpperCase(),
+                        border: const OutlineInputBorder(),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  FilledButton(
-                    onPressed: () {
-                      final formValues = <String, dynamic>{
-                        'name': controllers['name']!.text.trim(),
-                        'type': controllers['type']!.text.trim().toLowerCase(),
-                        'account_name':
-                            _nullable(controllers['account_name']!.text),
-                        'account_number':
-                            _nullable(controllers['account_number']!.text),
-                        'instructions':
-                            _nullable(controllers['instructions']!.text),
-                        'qr_code_url':
-                            _nullable(controllers['qr_code_url']!.text),
-                        'sort_order':
-                            int.tryParse(controllers['sort_order']!.text) ?? 0,
-                        'updated_at': DateTime.now().toUtc().toIso8601String(),
-                      };
-                      Navigator.of(sheetContext).pop(formValues);
-                    },
-                    child: const Text('Save Payment Method'),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 4),
+                FilledButton(
+                  onPressed: () {
+                    final formValues = <String, dynamic>{
+                      'name': controllers['name']!.text.trim(),
+                      'type': controllers['type']!.text.trim().toLowerCase(),
+                      'account_name':
+                          _nullable(controllers['account_name']!.text),
+                      'account_number':
+                          _nullable(controllers['account_number']!.text),
+                      'instructions':
+                          _nullable(controllers['instructions']!.text),
+                      'qr_code_url':
+                          _nullable(controllers['qr_code_url']!.text),
+                      'sort_order':
+                          int.tryParse(controllers['sort_order']!.text) ?? 0,
+                      'updated_at': DateTime.now().toUtc().toIso8601String(),
+                    };
+                    Navigator.of(sheetContext).pop(formValues);
+                  },
+                  child: const Text('Save Payment Method'),
+                ),
+              ],
             ),
-          );
-        },
-      );
-    } finally {
-      for (final controller in controllers.values) {
-        controller.dispose();
-      }
-    }
+          ),
+        );
+      },
+    );
 
+    // The controllers belong only to this short-lived form. Do not dispose
+    // them here because the bottom-sheet route may still be completing its
+    // widget teardown when showModalBottomSheet returns.
     if (values != null && mounted) {
       await _save(values, existing?['id']?.toString());
     }
