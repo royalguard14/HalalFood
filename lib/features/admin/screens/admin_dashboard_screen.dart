@@ -61,11 +61,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     ]);
     if (!mounted) return;
     setState(() {
-      _restaurantCount = results[0] as int;
-      _activeRestaurantCount = results[1] as int;
-      _pendingVerificationCount = results[2] as int;
-      _todayOrderCount = results[3] as int;
-      _pendingOrderCount = results[4] as int;
+      _restaurantCount = results[0];
+      _activeRestaurantCount = results[1];
+      _pendingVerificationCount = results[2];
+      _todayOrderCount = results[3];
+      _pendingOrderCount = results[4];
     });
   }
 
