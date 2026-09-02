@@ -101,6 +101,45 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     ScaffoldMessenger.of(context)..hideCurrentSnackBar()..showSnackBar(SnackBar(content: Text(text)));
   }
 
+  Future<void> _openGroup(_AdminGroup group) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 4, 18, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Container(width: 46, height: 46, decoration: BoxDecoration(color: group.color.withValues(alpha: .10), borderRadius: BorderRadius.circular(14)), child: Icon(group.icon, color: group.color)),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(group.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)), const SizedBox(height: 2), Text(group.subtitle, style: const TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary))])),
+              ]),
+              const SizedBox(height: 14),
+              for (final item in group.items) ...[
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                  leading: Container(width: 40, height: 40, decoration: BoxDecoration(color: group.color.withValues(alpha: .08), borderRadius: BorderRadius.circular(12)), child: Icon(item.icon, size: 21, color: group.color)),
+                  title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  subtitle: Text(item.subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: HalalFoodTheme.textSecondary)),
+                  trailing: Icon(Icons.chevron_right_rounded, color: group.color),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    item.onTap();
+                  },
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: const Color(0xFFF6F8F7),
@@ -128,8 +167,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _sectionTitle('Platform Overview', 'Live summary of your HALAL Food platform'), const SizedBox(height: 12),
         _stats(wide), const SizedBox(height: 24),
         if (_pendingVerificationCount > 0) ...[_verificationAlert(), const SizedBox(height: 24)],
-        _sectionTitle('Admin Tools', 'Quick access to the areas you manage most'), const SizedBox(height: 12),
-        _tools(wide),
+        _sectionTitle('Admin Tools', 'Organized by the main areas of your platform'), const SizedBox(height: 12),
+        _groups(wide),
       ]);
     });
   }
@@ -139,7 +178,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget _headerCard(bool wide) => Container(
     padding: EdgeInsets.all(wide ? 26 : 20),
     decoration: BoxDecoration(gradient: LinearGradient(colors: [HalalFoodTheme.primaryGreen, HalalFoodTheme.primaryGreen.withValues(alpha: .82)]), borderRadius: BorderRadius.circular(24)),
-    child: const Row(children: [Icon(Icons.admin_panel_settings_rounded, color: Colors.white, size: 42), SizedBox(width: 16), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Welcome, Admin', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800)), SizedBox(height: 5), Text('Manage restaurants, verification, promos, delivery pricing, subscriptions and platform settings.', style: TextStyle(color: Colors.white70, fontSize: 13))]))]),
+    child: const Row(children: [Icon(Icons.admin_panel_settings_rounded, color: Colors.white, size: 42), SizedBox(width: 16), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Welcome, Admin', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800)), SizedBox(height: 5), Text('Manage restaurants, orders, users, subscriptions, marketing and platform settings.', style: TextStyle(color: Colors.white70, fontSize: 13))]))]),
   );
 
   Widget _stats(bool wide) {
@@ -156,22 +195,92 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   Widget _verificationAlert() => Card(color: Colors.orange.withValues(alpha: .08), child: ListTile(leading: const Icon(Icons.priority_high_rounded, color: Colors.orange), title: Text('$_pendingVerificationCount verification request${_pendingVerificationCount == 1 ? '' : 's'} waiting', style: const TextStyle(fontWeight: FontWeight.w800)), subtitle: const Text('Review submitted documents and make the halal classification decision.'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => _open(const HalalVerificationScreen())));
 
-  Widget _tools(bool wide) {
-    final tools = [
-      _AdminTool(Icons.restaurant_rounded, 'Restaurant Management', 'Manage restaurant profiles, ownership and status.', HalalFoodTheme.primaryGreen, () => _open(const RestaurantManagementScreen())),
-      _AdminTool(Icons.restaurant_menu_rounded, 'Menu Management', 'Add, edit and manage menu items for each restaurant.', Colors.green, () => _open(const AdminMenuManagementScreen())),
-      _AdminTool(Icons.receipt_long_rounded, 'Order Management', 'View and monitor customer orders and their status.', Colors.indigo, () => _open(const AdminOrderManagementScreen())),
-      _AdminTool(Icons.workspace_premium_rounded, 'SaaS Subscriptions', 'Plans, restaurant subscriptions, payment review and plan payment settings.', Colors.deepOrange, () => _open(const AdminSaasSubscriptionHubScreen())),
-      _AdminTool(Icons.verified_rounded, 'Halal Verification', 'Review verification requests and classifications.', Colors.teal, () => _open(const HalalVerificationScreen())),
-      _AdminTool(Icons.category_rounded, 'Food Categories', 'Create and manage food categories.', Colors.orange, () => _open(const FoodCategoryManagementScreen())),
-      _AdminTool(Icons.local_offer_rounded, 'Promos & Discounts', 'Create promo codes and manage customer discounts.', Colors.pink, () => _open(const PromoManagementScreen())),
-      _AdminTool(Icons.delivery_dining_rounded, 'Delivery Pricing', 'Manage delivery fees, distance rates and surcharges.', Colors.blue, () => _open(const DeliveryPricingScreen())),
-      _AdminTool(Icons.people_alt_rounded, 'Users & Roles', 'Manage platform accounts and assigned roles.', Colors.deepPurple, () => _open(const UserRoleManagementScreen())),
-      _AdminTool(Icons.settings_rounded, 'My Settings', 'Platform settings and SaaS configuration, including payment methods.', Colors.blueGrey, () => _open(const AdminSettingsScreen())),
-    ];
-    if (wide) return GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: tools.length, gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, mainAxisExtent: 118, crossAxisSpacing: 12, mainAxisSpacing: 12), itemBuilder: (_, i) => tools[i]);
-    return Column(children: [for (var i = 0; i < tools.length; i++) ...[tools[i], if (i != tools.length - 1) const SizedBox(height: 10)]]);
+  List<_AdminGroup> get _adminGroups => [
+    _AdminGroup(Icons.restaurant_rounded, 'Restaurants & Menu', 'Restaurants, menu, categories and halal verification', HalalFoodTheme.primaryGreen, [
+      _AdminGroupItem(Icons.restaurant_rounded, 'Restaurant Management', 'Profiles, ownership and restaurant status', () => _open(const RestaurantManagementScreen())),
+      _AdminGroupItem(Icons.restaurant_menu_rounded, 'Menu Management', 'Add, edit and manage menu items', () => _open(const AdminMenuManagementScreen())),
+      _AdminGroupItem(Icons.category_rounded, 'Food Categories', 'Create and manage food categories', () => _open(const FoodCategoryManagementScreen())),
+      _AdminGroupItem(Icons.verified_rounded, 'Halal Verification', 'Review verification requests and classifications', () => _open(const HalalVerificationScreen())),
+    ]),
+    _AdminGroup(Icons.receipt_long_rounded, 'Orders & Delivery', 'Customer orders, delivery fees and delivery operations', Colors.indigo, [
+      _AdminGroupItem(Icons.receipt_long_rounded, 'Order Management', 'View and monitor customer orders and status', () => _open(const AdminOrderManagementScreen())),
+      _AdminGroupItem(Icons.delivery_dining_rounded, 'Delivery Pricing', 'Delivery fees, distance rates and surcharges', () => _open(const DeliveryPricingScreen())),
+    ]),
+    _AdminGroup(Icons.people_alt_rounded, 'Users & Accounts', 'Manage platform accounts and assigned roles', Colors.deepPurple, [
+      _AdminGroupItem(Icons.people_alt_rounded, 'Users & Roles', 'Manage accounts and assigned roles', () => _open(const UserRoleManagementScreen())),
+    ]),
+    _AdminGroup(Icons.workspace_premium_rounded, 'Subscription & Billing', 'SaaS plans, subscriptions and payment review', Colors.deepOrange, [
+      _AdminGroupItem(Icons.workspace_premium_rounded, 'SaaS Subscriptions', 'Plans, subscriptions and payment review', () => _open(const AdminSaasSubscriptionHubScreen())),
+    ]),
+    _AdminGroup(Icons.local_offer_rounded, 'Marketing', 'Promos, discounts and customer campaigns', Colors.pink, [
+      _AdminGroupItem(Icons.local_offer_rounded, 'Promos & Discounts', 'Create promo codes and customer discounts', () => _open(const PromoManagementScreen())),
+    ]),
+    _AdminGroup(Icons.settings_rounded, 'System Settings', 'Platform configuration and admin controls', Colors.blueGrey, [
+      _AdminGroupItem(Icons.settings_rounded, 'My Settings', 'Platform settings and SaaS payment configuration', () => _open(const AdminSettingsScreen())),
+    ]),
+  ];
+
+  Widget _groups(bool wide) {
+    final groups = _adminGroups;
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: groups.length,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: wide ? 3 : 1,
+        mainAxisExtent: wide ? 136 : 112,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+      ),
+      itemBuilder: (_, i) => _AdminGroupCard(group: groups[i], onTap: () => _openGroup(groups[i])),
+    );
   }
+}
+
+class _AdminGroup {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final List<_AdminGroupItem> items;
+  const _AdminGroup(this.icon, this.title, this.subtitle, this.color, this.items);
+}
+
+class _AdminGroupItem {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  const _AdminGroupItem(this.icon, this.title, this.subtitle, this.onTap);
+}
+
+class _AdminGroupCard extends StatelessWidget {
+  final _AdminGroup group;
+  final VoidCallback onTap;
+  const _AdminGroupCard({required this.group, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => Card(
+    clipBehavior: Clip.antiAlias,
+    child: InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(children: [
+          Container(width: 52, height: 52, decoration: BoxDecoration(color: group.color.withValues(alpha: .10), borderRadius: BorderRadius.circular(15)), child: Icon(group.icon, color: group.color, size: 27)),
+          const SizedBox(width: 14),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
+            Text(group.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 5),
+            Text(group.subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, height: 1.3, color: HalalFoodTheme.textSecondary)),
+            const SizedBox(height: 7),
+            Text('${group.items.length} ${group.items.length == 1 ? 'section' : 'sections'}', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: group.color)),
+          ])),
+          Icon(Icons.arrow_forward_ios_rounded, size: 15, color: group.color),
+        ]),
+      ),
+    ),
+  );
 }
 
 class _DashboardStat extends StatelessWidget {
@@ -179,11 +288,4 @@ class _DashboardStat extends StatelessWidget {
   const _DashboardStat(this.icon, this.title, this.value, this.caption, this.color);
   @override
   Widget build(BuildContext context) => Card(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12), child: Row(children: [Icon(icon, color: color, size: 25), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: HalalFoodTheme.textSecondary)), const SizedBox(height: 2), Text(value, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800)), Text(caption, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 9, color: color, fontWeight: FontWeight.w700))]))])));
-}
-
-class _AdminTool extends StatelessWidget {
-  final IconData icon; final String title; final String subtitle; final Color color; final VoidCallback onTap;
-  const _AdminTool(this.icon, this.title, this.subtitle, this.color, this.onTap);
-  @override
-  Widget build(BuildContext context) => Card(clipBehavior: Clip.antiAlias, child: InkWell(onTap: onTap, child: Padding(padding: const EdgeInsets.all(16), child: Row(children: [Container(width: 50, height: 50, decoration: BoxDecoration(color: color.withValues(alpha: .10), borderRadius: BorderRadius.circular(15)), child: Icon(icon, color: color)), const SizedBox(width: 14), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)), const SizedBox(height: 4), Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, height: 1.3, color: HalalFoodTheme.textSecondary))])), Icon(Icons.arrow_forward_ios_rounded, size: 15, color: color)]))));
 }
