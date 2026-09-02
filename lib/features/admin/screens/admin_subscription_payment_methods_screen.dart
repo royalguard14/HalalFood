@@ -55,7 +55,6 @@ class _AdminSubscriptionPaymentMethodsScreenState
             .update(values)
             .eq('id', id);
       }
-      if (mounted) Navigator.of(context).pop();
       await _load();
     } catch (e) {
       if (mounted) {
@@ -125,7 +124,7 @@ class _AdminSubscriptionPaymentMethodsScreenState
     return trimmed.isEmpty ? null : trimmed;
   }
 
-  void _showForm([Map<String, dynamic>? existing]) {
+  Future<void> _showForm([Map<String, dynamic>? existing]) async {
     final controllers = <String, TextEditingController>{
       for (final key in [
         'name',
@@ -146,81 +145,88 @@ class _AdminSubscriptionPaymentMethodsScreenState
         ),
     };
 
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (sheetContext) {
-        return Padding(
-          padding: EdgeInsets.fromLTRB(
-            20,
-            10,
-            20,
-            MediaQuery.of(sheetContext).viewInsets.bottom + 20,
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  existing == null
-                      ? 'Add Payment Method'
-                      : 'Edit Payment Method',
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
+    Map<String, dynamic>? values;
+
+    try {
+      values = await showModalBottomSheet<Map<String, dynamic>>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        builder: (sheetContext) {
+          return Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              10,
+              20,
+              MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    existing == null
+                        ? 'Add Payment Method'
+                        : 'Edit Payment Method',
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                ...controllers.entries.map(
-                  (entry) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: TextField(
-                      controller: entry.value,
-                      maxLines: entry.key == 'instructions' ? 4 : 1,
-                      keyboardType: entry.key == 'sort_order'
-                          ? TextInputType.number
-                          : null,
-                      decoration: InputDecoration(
-                        labelText: entry.key.replaceAll('_', ' ').toUpperCase(),
-                        border: const OutlineInputBorder(),
+                  const SizedBox(height: 16),
+                  ...controllers.entries.map(
+                    (entry) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: TextField(
+                        controller: entry.value,
+                        maxLines: entry.key == 'instructions' ? 4 : 1,
+                        keyboardType: entry.key == 'sort_order'
+                            ? TextInputType.number
+                            : null,
+                        decoration: InputDecoration(
+                          labelText: entry.key.replaceAll('_', ' ').toUpperCase(),
+                          border: const OutlineInputBorder(),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                FilledButton(
-                  onPressed: () {
-                    final values = <String, dynamic>{
-                      'name': controllers['name']!.text.trim(),
-                      'type': controllers['type']!.text.trim().toLowerCase(),
-                      'account_name':
-                          _nullable(controllers['account_name']!.text),
-                      'account_number':
-                          _nullable(controllers['account_number']!.text),
-                      'instructions':
-                          _nullable(controllers['instructions']!.text),
-                      'qr_code_url':
-                          _nullable(controllers['qr_code_url']!.text),
-                      'sort_order':
-                          int.tryParse(controllers['sort_order']!.text) ?? 0,
-                      'updated_at': DateTime.now().toUtc().toIso8601String(),
-                    };
-                    Navigator.of(sheetContext).pop();
-                    _save(values, existing?['id']?.toString());
-                  },
-                  child: const Text('Save Payment Method'),
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  FilledButton(
+                    onPressed: () {
+                      final formValues = <String, dynamic>{
+                        'name': controllers['name']!.text.trim(),
+                        'type': controllers['type']!.text.trim().toLowerCase(),
+                        'account_name':
+                            _nullable(controllers['account_name']!.text),
+                        'account_number':
+                            _nullable(controllers['account_number']!.text),
+                        'instructions':
+                            _nullable(controllers['instructions']!.text),
+                        'qr_code_url':
+                            _nullable(controllers['qr_code_url']!.text),
+                        'sort_order':
+                            int.tryParse(controllers['sort_order']!.text) ?? 0,
+                        'updated_at': DateTime.now().toUtc().toIso8601String(),
+                      };
+                      Navigator.of(sheetContext).pop(formValues);
+                    },
+                    child: const Text('Save Payment Method'),
+                  ),
+                ],
+              ),
             ),
-          ),
-        );
-      },
-    ).whenComplete(() {
+          );
+        },
+      );
+    } finally {
       for (final controller in controllers.values) {
         controller.dispose();
       }
-    });
+    }
+
+    if (values != null && mounted) {
+      await _save(values, existing?['id']?.toString());
+    }
   }
 
   IconData _iconFor(String? type) {
