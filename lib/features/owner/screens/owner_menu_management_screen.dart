@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -92,7 +94,6 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
             .from('order_items')
             .select('menu_item_id, quantity')
             .inFilter('order_id', orderIds);
-
         for (final row in (orderItems as List)) {
           final itemId = row['menu_item_id']?.toString();
           if (itemId == null) continue;
@@ -102,7 +103,6 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
       }
 
       if (!mounted) return;
-
       final categories = (categoriesResponse as List)
           .map((row) => Map<String, dynamic>.from(row))
           .toList();
@@ -164,7 +164,6 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
         return false;
       }
       if (query.isEmpty) return true;
-
       final name = item['name']?.toString().toLowerCase() ?? '';
       final description = item['description']?.toString().toLowerCase() ?? '';
       final category =
@@ -221,6 +220,7 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
     String? selectedCategory = categoryId;
     bool isAvailable = available;
     XFile? selectedPhoto;
+    Uint8List? selectedPhotoBytes;
     bool removePhoto = false;
 
     if (!_categories.any(
@@ -245,12 +245,15 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
               children: [
                 _PhotoPickerBox(
                   imageUrl: imageUrl,
-                  selectedPhoto: selectedPhoto,
+                  selectedPhotoBytes: selectedPhotoBytes,
                   onPick: () async {
                     final photo = await _pickFoodPhoto();
                     if (photo == null) return;
+                    final bytes = await photo.readAsBytes();
+                    if (!dialogContext.mounted) return;
                     setDialogState(() {
                       selectedPhoto = photo;
+                      selectedPhotoBytes = bytes;
                       removePhoto = false;
                     });
                   },
@@ -258,6 +261,7 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
                       ? () {
                           setDialogState(() {
                             selectedPhoto = null;
+                            selectedPhotoBytes = null;
                             removePhoto = true;
                           });
                         }
@@ -375,7 +379,6 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
                   );
                   return;
                 }
-
                 Navigator.pop(
                   dialogContext,
                   _Draft(
@@ -399,7 +402,6 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
 
   Future<void> _add() async {
     if (_isSaving || _categories.isEmpty) return;
-
     final draft = await _dialog(
       title: 'Add Menu Item',
       categoryId: _selectedCategoryId,
@@ -408,7 +410,6 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
 
     try {
       setState(() => _isSaving = true);
-
       final inserted = await _supabase
           .from('menu_items')
           .insert({
@@ -434,7 +435,6 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
             .eq('id', id)
             .eq('restaurant_id', widget.restaurantId);
       }
-
       await _loadMenu();
     } catch (e) {
       if (!mounted) return;
@@ -462,7 +462,6 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
 
     try {
       setState(() => _isSaving = true);
-
       await _supabase
           .from('menu_items')
           .update({
@@ -490,7 +489,6 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
             .eq('id', id)
             .eq('restaurant_id', widget.restaurantId);
       }
-
       await _loadMenu();
     } catch (e) {
       if (!mounted) return;
@@ -503,13 +501,11 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
     if (_isSaving) return;
     final id = item['id']?.toString();
     if (id == null) return;
-    final current = item['is_available'] == true;
-
     try {
       setState(() => _isSaving = true);
       await _supabase
           .from('menu_items')
-          .update({'is_available': !current})
+          .update({'is_available': item['is_available'] != true})
           .eq('id', id)
           .eq('restaurant_id', widget.restaurantId);
       await _loadMenu();
@@ -524,13 +520,11 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
     if (_isSaving) return;
     final id = item['id']?.toString();
     if (id == null) return;
-    final current = item['is_featured'] == true;
-
     try {
       setState(() => _isSaving = true);
       await _supabase
           .from('menu_items')
-          .update({'is_featured': !current})
+          .update({'is_featured': item['is_featured'] != true})
           .eq('id', id)
           .eq('restaurant_id', widget.restaurantId);
       await _loadMenu();
@@ -573,7 +567,6 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
         ],
       ),
     );
-
     if (confirmed != true || !mounted) return;
 
     try {
@@ -583,16 +576,13 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
           .select('id')
           .eq('menu_item_id', id)
           .limit(1);
-
       if ((references as List).isNotEmpty) {
-        if (!mounted) return;
         setState(() => _isSaving = false);
         _showError(
           'This item is already in an order. Use Available/Unavailable instead.',
         );
         return;
       }
-
       await _supabase
           .from('menu_item_categories')
           .delete()
@@ -612,7 +602,6 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
 
   Future<void> _manageCategories() async {
     if (_isSaving) return;
-
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -646,7 +635,6 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
                 const Text(
                   'Create, rename, reorder, or remove categories. Categories with menu items cannot be deleted.',
                   style: TextStyle(
@@ -748,14 +736,12 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
         ),
       ),
     );
-
     if (mounted) await _loadMenu();
   }
 
   Future<void> _addCategory() async {
     final draft = await _categoryDialog(title: 'Add Category');
     if (draft == null || !mounted) return;
-
     try {
       setState(() => _isSaving = true);
       await _supabase.from('menu_categories').insert({
@@ -776,14 +762,12 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
   Future<void> _editCategory(Map<String, dynamic> category) async {
     final id = category['id']?.toString();
     if (id == null) return;
-
     final draft = await _categoryDialog(
       title: 'Edit Category',
       name: category['name']?.toString() ?? '',
       description: category['description']?.toString() ?? '',
     );
     if (draft == null || !mounted) return;
-
     try {
       setState(() => _isSaving = true);
       await _supabase
@@ -807,7 +791,6 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
     final id = category['id']?.toString();
     final name = category['name']?.toString() ?? 'this category';
     if (id == null) return;
-
     final itemCount = _items
         .where((item) => item['category_id']?.toString() == id)
         .length;
@@ -817,7 +800,6 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
       );
       return;
     }
-
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -843,7 +825,6 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
       ),
     );
     if (confirmed != true || !mounted) return;
-
     try {
       setState(() => _isSaving = true);
       await _supabase
@@ -862,17 +843,14 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
 
   Future<void> _moveCategory(int from, int to) async {
     if (_isSaving || from == to) return;
-
     final reordered = List<Map<String, dynamic>>.from(_categories);
     final moved = reordered.removeAt(from);
     reordered.insert(to, moved);
-
     try {
       setState(() {
         _isSaving = true;
         _categories = reordered;
       });
-
       for (var index = 0; index < reordered.length; index++) {
         final id = reordered[index]['id']?.toString();
         if (id == null) continue;
@@ -882,9 +860,7 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
             .eq('id', id)
             .eq('restaurant_id', widget.restaurantId);
       }
-
-      if (!mounted) return;
-      setState(() => _isSaving = false);
+      if (mounted) setState(() => _isSaving = false);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSaving = false);
@@ -900,7 +876,6 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
   }) async {
     String categoryName = name;
     String categoryDescription = description;
-
     return showDialog<_CategoryDraft>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -1002,9 +977,7 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
   }
 
   Widget _buildBody() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    if (_isLoading) return const Center(child: CircularProgressIndicator());
     if (_error != null) {
       return Center(
         child: Padding(
@@ -1012,11 +985,8 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.error_outline_rounded,
-                size: 56,
-                color: Colors.redAccent,
-              ),
+              const Icon(Icons.error_outline_rounded,
+                  size: 56, color: Colors.redAccent),
               const SizedBox(height: 12),
               const Text(
                 'Unable to load menu',
@@ -1044,53 +1014,42 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.08),
+              color: HalalFoodTheme.primaryGreen.withValues(alpha: .08),
               borderRadius: BorderRadius.circular(18),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Restaurant Menu',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: HalalFoodTheme.textSecondary,
-                  ),
-                ),
+                const Text('Restaurant Menu',
+                    style: TextStyle(
+                        fontSize: 13, color: HalalFoodTheme.textSecondary)),
                 const SizedBox(height: 4),
-                Text(
-                  widget.restaurantName,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+                Text(widget.restaurantName,
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
                       child: _StatCard(
-                        icon: Icons.restaurant_menu_rounded,
-                        label: 'Items',
-                        value: '${_items.length}',
-                      ),
+                          icon: Icons.restaurant_menu_rounded,
+                          label: 'Items',
+                          value: '${_items.length}'),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: _StatCard(
-                        icon: Icons.category_outlined,
-                        label: 'Categories',
-                        value: '${_categories.length}',
-                      ),
+                          icon: Icons.category_outlined,
+                          label: 'Categories',
+                          value: '${_categories.length}'),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: _StatCard(
-                        icon: Icons.star_rounded,
-                        label: 'Featured',
-                        value:
-                            '${_items.where((item) => item['is_featured'] == true).length}',
-                      ),
+                          icon: Icons.star_rounded,
+                          label: 'Featured',
+                          value:
+                              '${_items.where((item) => item['is_featured'] == true).length}'),
                     ),
                   ],
                 ),
@@ -1113,9 +1072,8 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
                       },
                       icon: const Icon(Icons.clear_rounded),
                     ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
             ),
           ),
           const SizedBox(height: 18),
@@ -1127,11 +1085,9 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
                   children: [
                     const Icon(Icons.category_outlined, size: 48),
                     const SizedBox(height: 12),
-                    const Text(
-                      'Create your first menu category',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontWeight: FontWeight.w800),
-                    ),
+                    const Text('Create your first menu category',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontWeight: FontWeight.w800)),
                     const SizedBox(height: 6),
                     const Text(
                       'Items must belong to a category before they can be added.',
@@ -1165,10 +1121,8 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
         Row(
           children: [
             const Expanded(
-              child: Text(
-                'Categories',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
-              ),
+              child: Text('Categories',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
             ),
             TextButton.icon(
               onPressed: _isSaving ? null : _manageCategories,
@@ -1245,23 +1199,17 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
           padding: const EdgeInsets.all(28),
           child: Column(
             children: [
-              Icon(
-                Icons.restaurant_menu_rounded,
-                size: 52,
-                color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.7),
-              ),
+              Icon(Icons.restaurant_menu_rounded,
+                  size: 52,
+                  color: HalalFoodTheme.primaryGreen.withValues(alpha: .7)),
               const SizedBox(height: 12),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
+              Text(message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
               const SizedBox(height: 6),
-              const Text(
-                'Tap Add Item to create a menu item.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: HalalFoodTheme.textSecondary),
-              ),
+              const Text('Tap Add Item to create a menu item.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: HalalFoodTheme.textSecondary)),
             ],
           ),
         ),
@@ -1276,26 +1224,18 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
             child: Row(
               children: [
-                const Icon(
-                  Icons.restaurant_menu_rounded,
-                  size: 20,
-                  color: HalalFoodTheme.primaryGreen,
-                ),
+                const Icon(Icons.restaurant_menu_rounded,
+                    size: 20, color: HalalFoodTheme.primaryGreen),
                 const SizedBox(width: 8),
-                Text(
-                  '${items.length} item${items.length == 1 ? '' : 's'}',
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
+                Text('${items.length} item${items.length == 1 ? '' : 's'}',
+                    style: const TextStyle(fontWeight: FontWeight.w800)),
                 const Spacer(),
                 if (_selectedCategoryId != null)
-                  Text(
-                    _categoryName(_selectedCategoryId),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: HalalFoodTheme.textSecondary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  Text(_categoryName(_selectedCategoryId),
+                      style: const TextStyle(
+                          fontSize: 12,
+                          color: HalalFoodTheme.textSecondary,
+                          fontWeight: FontWeight.w600)),
               ],
             ),
           ),
@@ -1332,10 +1272,8 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
       title: Row(
         children: [
           Flexible(
-            child: Text(
-              name,
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
+            child: Text(name,
+                style: const TextStyle(fontWeight: FontWeight.w800)),
           ),
           if (bestSeller) _badge('BEST SELLER', Colors.orange),
           if (featured) _badge('FEATURED', HalalFoodTheme.primaryGreen),
@@ -1347,50 +1285,37 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
           spacing: 7,
           runSpacing: 4,
           children: [
-            Text(
-              _categoryName(item['category_id']?.toString()),
-              style: const TextStyle(
-                color: HalalFoodTheme.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            Text(_categoryName(item['category_id']?.toString()),
+                style: const TextStyle(
+                    color: HalalFoodTheme.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600)),
             if (description.isNotEmpty)
               Text(
                 '• ${description.length > 35 ? '${description.substring(0, 35)}…' : description}',
                 style: const TextStyle(
-                  color: HalalFoodTheme.textSecondary,
-                  fontSize: 12,
-                ),
+                    color: HalalFoodTheme.textSecondary, fontSize: 12),
               ),
-            Text(
-              '• $soldThisMonth sold this month',
-              style: TextStyle(
-                color: soldThisMonth > 0
-                    ? HalalFoodTheme.primaryGreen
-                    : HalalFoodTheme.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            Text(
-              available ? 'Available' : 'Unavailable',
-              style: TextStyle(
-                color: available ? Colors.green : Colors.redAccent,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            Text('• $soldThisMonth sold this month',
+                style: TextStyle(
+                    color: soldThisMonth > 0
+                        ? HalalFoodTheme.primaryGreen
+                        : HalalFoodTheme.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700)),
+            Text(available ? 'Available' : 'Unavailable',
+                style: TextStyle(
+                    color: available ? Colors.green : Colors.redAccent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700)),
           ],
         ),
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            '₱${price.toStringAsFixed(2)}',
-            style: const TextStyle(fontWeight: FontWeight.w800),
-          ),
+          Text('₱${price.toStringAsFixed(2)}',
+              style: const TextStyle(fontWeight: FontWeight.w800)),
           PopupMenuButton<String>(
             onSelected: (value) {
               if (value == 'edit') _edit(item);
@@ -1399,25 +1324,17 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
               if (value == 'remove') _remove(item);
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'edit',
-                child: Text('Edit Item'),
-              ),
+              const PopupMenuItem(value: 'edit', child: Text('Edit Item')),
               PopupMenuItem(
-                value: 'availability',
-                child: Text(
-                    available ? 'Mark Unavailable' : 'Mark Available'),
-              ),
+                  value: 'availability',
+                  child:
+                      Text(available ? 'Mark Unavailable' : 'Mark Available')),
               PopupMenuItem(
-                value: 'featured',
-                child: Text(
-                    featured ? 'Remove Featured' : 'Mark Featured'),
-              ),
+                  value: 'featured',
+                  child: Text(featured ? 'Remove Featured' : 'Mark Featured')),
               const PopupMenuDivider(),
               const PopupMenuItem(
-                value: 'remove',
-                child: Text('Remove Permanently'),
-              ),
+                  value: 'remove', child: Text('Remove Permanently')),
             ],
           ),
         ],
@@ -1430,36 +1347,31 @@ class _OwnerMenuManagementScreenState extends State<OwnerMenuManagementScreen> {
       margin: const EdgeInsets.only(left: 6),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: .12),
-        borderRadius: BorderRadius.circular(9),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 8,
-          fontWeight: FontWeight.w900,
-          color: color,
-        ),
-      ),
+          color: color.withValues(alpha: .12),
+          borderRadius: BorderRadius.circular(9)),
+      child: Text(label,
+          style: TextStyle(
+              fontSize: 8, fontWeight: FontWeight.w900, color: color)),
     );
   }
 }
 
 class _PhotoPickerBox extends StatelessWidget {
   final String? imageUrl;
-  final XFile? selectedPhoto;
+  final Uint8List? selectedPhotoBytes;
   final VoidCallback onPick;
   final VoidCallback? onRemove;
 
   const _PhotoPickerBox({
     required this.imageUrl,
-    required this.selectedPhoto,
+    required this.selectedPhotoBytes,
     required this.onPick,
     required this.onRemove,
   });
 
   @override
   Widget build(BuildContext context) {
+    final hasUrl = imageUrl != null && imageUrl!.trim().isNotEmpty;
     return Column(
       children: [
         ClipRRect(
@@ -1467,14 +1379,13 @@ class _PhotoPickerBox extends StatelessWidget {
           child: SizedBox(
             width: double.infinity,
             height: 170,
-            child: selectedPhoto != null
-                ? Image.file(
-                    File(selectedPhoto!.path),
+            child: selectedPhotoBytes != null
+                ? Image.memory(
+                    selectedPhotoBytes!,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        _placeholder(),
+                    errorBuilder: (context, error, stackTrace) => _placeholder(),
                   )
-                : imageUrl != null && imageUrl!.trim().isNotEmpty
+                : hasUrl
                     ? Image.network(
                         imageUrl!,
                         fit: BoxFit.cover,
@@ -1491,10 +1402,9 @@ class _PhotoPickerBox extends StatelessWidget {
               child: OutlinedButton.icon(
                 onPressed: onPick,
                 icon: const Icon(Icons.photo_library_outlined),
-                label: Text(
-                    imageUrl == null && selectedPhoto == null
-                        ? 'Add Photo'
-                        : 'Change Photo'),
+                label: Text(hasUrl || selectedPhotoBytes != null
+                    ? 'Change Photo'
+                    : 'Add Photo'),
               ),
             ),
             if (onRemove != null) ...[
@@ -1517,20 +1427,13 @@ class _PhotoPickerBox extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.fastfood_outlined,
-            size: 48,
-            color: Colors.grey.shade500,
-          ),
+          Icon(Icons.fastfood_outlined, size: 48, color: Colors.grey.shade500),
           const SizedBox(height: 8),
-          Text(
-            'NO PHOTO',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-              color: Colors.grey.shade600,
-            ),
-          ),
+          Text('NO PHOTO',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.grey.shade600)),
         ],
       ),
     );
@@ -1564,13 +1467,11 @@ class _ItemImage extends StatelessWidget {
       width: 52,
       height: 52,
       decoration: BoxDecoration(
-        color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.10),
+        color: HalalFoodTheme.primaryGreen.withValues(alpha: .10),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: const Icon(
-        Icons.fastfood_rounded,
-        color: HalalFoodTheme.primaryGreen,
-      ),
+      child: const Icon(Icons.fastfood_rounded,
+          color: HalalFoodTheme.primaryGreen),
     );
   }
 }
@@ -1602,17 +1503,10 @@ class _StatCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  value,
-                  style: const TextStyle(fontWeight: FontWeight.w900),
-                ),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: HalalFoodTheme.textSecondary,
-                  ),
-                ),
+                Text(value, style: const TextStyle(fontWeight: FontWeight.w900)),
+                Text(label,
+                    style: const TextStyle(
+                        fontSize: 10, color: HalalFoodTheme.textSecondary)),
               ],
             ),
           ),
