@@ -881,3 +881,4 @@ class _DashboardStat extends StatelessWidget {
           ),
         ),
       );
+}
