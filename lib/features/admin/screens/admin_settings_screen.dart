@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/theme.dart';
+import 'admin_saas_settings_screen.dart';
 
 class AdminSettingsScreen extends StatefulWidget {
   const AdminSettingsScreen({super.key});
@@ -15,7 +16,6 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
   bool _loading = true;
   bool _saving = false;
   String? _error;
-
   bool _maintenance = false;
   bool _acceptOrders = true;
   bool _customerRegistration = true;
@@ -24,22 +24,12 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
   bool _ownerNotifications = true;
 
   @override
-  void initState() {
-    super.initState();
-    _load();
-  }
+  void initState() { super.initState(); _load(); }
 
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    setState(() { _loading = true; _error = null; });
     try {
-      final row = await _supabase
-          .from('app_settings')
-          .select()
-          .eq('id', true)
-          .maybeSingle();
+      final row = await _supabase.from('app_settings').select().eq('id', true).maybeSingle();
       if (!mounted) return;
       if (row != null) {
         _maintenance = row['maintenance_mode'] == true;
@@ -52,10 +42,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
       setState(() => _loading = false);
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _error = e.toString();
-      });
+      setState(() { _loading = false; _error = e.toString(); });
     }
   }
 
@@ -83,9 +70,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
 
   void _message(String text) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(text)));
+    ScaffoldMessenger.of(context)..hideCurrentSnackBar()..showSnackBar(SnackBar(content: Text(text)));
   }
 
   @override
@@ -93,13 +78,9 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8F7),
       appBar: AppBar(
-        title: const Text('Platform Settings', style: TextStyle(fontWeight: FontWeight.w800)),
+        title: const Text('My Settings', style: TextStyle(fontWeight: FontWeight.w800)),
         actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            onPressed: _loading || _saving ? null : _load,
-            icon: const Icon(Icons.refresh_rounded),
-          ),
+          IconButton(tooltip: 'Refresh', onPressed: _loading || _saving ? null : _load, icon: const Icon(Icons.refresh_rounded)),
         ],
       ),
       body: _loading
@@ -115,21 +96,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                       'Platform Availability',
                       Icons.public_rounded,
                       [
-                        _setting(
-                          'Maintenance Mode',
-                          'Temporarily place the platform in maintenance mode.',
-                          Icons.construction_rounded,
-                          _maintenance,
-                          (v) => setState(() => _maintenance = v),
-                          danger: true,
-                        ),
-                        _setting(
-                          'Accept New Orders',
-                          'Allow customers to submit new orders.',
-                          Icons.shopping_bag_rounded,
-                          _acceptOrders,
-                          (v) => setState(() => _acceptOrders = v),
-                        ),
+                        _setting('Maintenance Mode', 'Temporarily place the platform in maintenance mode.', Icons.construction_rounded, _maintenance, (v) => setState(() => _maintenance = v), danger: true),
+                        _setting('Accept New Orders', 'Allow customers to submit new orders.', Icons.shopping_bag_rounded, _acceptOrders, (v) => setState(() => _acceptOrders = v)),
                       ],
                     ),
                     const SizedBox(height: 14),
@@ -137,20 +105,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                       'Account & Submissions',
                       Icons.manage_accounts_rounded,
                       [
-                        _setting(
-                          'Customer Registration',
-                          'Allow new customers to create accounts.',
-                          Icons.person_add_alt_1_rounded,
-                          _customerRegistration,
-                          (v) => setState(() => _customerRegistration = v),
-                        ),
-                        _setting(
-                          'Owner Restaurant Submission',
-                          'Allow restaurant owners to submit restaurants for review.',
-                          Icons.storefront_rounded,
-                          _ownerSubmission,
-                          (v) => setState(() => _ownerSubmission = v),
-                        ),
+                        _setting('Customer Registration', 'Allow new customers to create accounts.', Icons.person_add_alt_1_rounded, _customerRegistration, (v) => setState(() => _customerRegistration = v)),
+                        _setting('Owner Restaurant Submission', 'Allow restaurant owners to submit restaurants for review.', Icons.storefront_rounded, _ownerSubmission, (v) => setState(() => _ownerSubmission = v)),
                       ],
                     ),
                     const SizedBox(height: 14),
@@ -158,19 +114,22 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                       'Notifications',
                       Icons.notifications_active_outlined,
                       [
-                        _setting(
-                          'Customer Notifications',
-                          'Enable customer-facing order and platform notifications.',
-                          Icons.notifications_outlined,
-                          _customerNotifications,
-                          (v) => setState(() => _customerNotifications = v),
-                        ),
-                        _setting(
-                          'Owner Notifications',
-                          'Enable restaurant-owner order and platform notifications.',
-                          Icons.notifications_none_rounded,
-                          _ownerNotifications,
-                          (v) => setState(() => _ownerNotifications = v),
+                        _setting('Customer Notifications', 'Enable customer-facing order and platform notifications.', Icons.notifications_outlined, _customerNotifications, (v) => setState(() => _customerNotifications = v)),
+                        _setting('Owner Notifications', 'Enable restaurant-owner order and platform notifications.', Icons.notifications_none_rounded, _ownerNotifications, (v) => setState(() => _ownerNotifications = v)),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    _section(
+                      'SaaS Settings',
+                      Icons.workspace_premium_rounded,
+                      [
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.payments_rounded, color: Colors.teal),
+                          title: const Text('Payment Methods', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+                          subtitle: const Text('Manage GCash, bank transfer, Maya and other SaaS payment accounts.', style: TextStyle(fontSize: 11, color: HalalFoodTheme.textSecondary)),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AdminSaasSettingsScreen())),
                         ),
                       ],
                     ),
@@ -179,9 +138,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                       height: 52,
                       child: ElevatedButton.icon(
                         onPressed: _saving ? null : _save,
-                        icon: _saving
-                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : const Icon(Icons.save_rounded),
+                        icon: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.save_rounded),
                         label: Text(_saving ? 'Saving...' : 'Save Settings'),
                       ),
                     ),
@@ -191,74 +148,48 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
   }
 
   Widget _introCard() => Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [HalalFoodTheme.primaryGreen, HalalFoodTheme.primaryGreen.withValues(alpha: .82)],
-          ),
-          borderRadius: BorderRadius.circular(22),
-        ),
-        child: const Row(
-          children: [
-            Icon(Icons.settings_rounded, color: Colors.white, size: 38),
-            SizedBox(width: 15),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('System Configuration', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
-                  SizedBox(height: 5),
-                  Text('Control important platform-wide behavior from one place.', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      gradient: LinearGradient(colors: [HalalFoodTheme.primaryGreen, HalalFoodTheme.primaryGreen.withValues(alpha: .82)]),
+      borderRadius: BorderRadius.circular(22),
+    ),
+    child: const Row(children: [
+      Icon(Icons.settings_rounded, color: Colors.white, size: 38), SizedBox(width: 15),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('System Configuration', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
+        SizedBox(height: 5),
+        Text('Control important platform-wide behavior from one place.', style: TextStyle(color: Colors.white70, fontSize: 12)),
+      ])),
+    ]),
+  );
 
   Widget _section(String title, IconData icon, List<Widget> children) => Card(
-        clipBehavior: Clip.antiAlias,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 15, 16, 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                Icon(icon, color: HalalFoodTheme.primaryGreen, size: 21),
-                const SizedBox(width: 9),
-                Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-              ]),
-              const SizedBox(height: 7),
-              ...children,
-            ],
-          ),
-        ),
-      );
+    clipBehavior: Clip.antiAlias,
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(16, 15, 16, 8),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [Icon(icon, color: HalalFoodTheme.primaryGreen, size: 21), const SizedBox(width: 9), Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800))]),
+        const SizedBox(height: 7), ...children,
+      ]),
+    ),
+  );
 
   Widget _setting(String title, String subtitle, IconData icon, bool value, ValueChanged<bool> onChanged, {bool danger = false}) => SwitchListTile.adaptive(
-        contentPadding: EdgeInsets.zero,
-        secondary: Icon(icon, color: danger && value ? Colors.redAccent : HalalFoodTheme.textSecondary),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-        subtitle: Text(subtitle, style: const TextStyle(fontSize: 11, color: HalalFoodTheme.textSecondary)),
-        value: value,
-        onChanged: _saving ? null : onChanged,
-      );
+    contentPadding: EdgeInsets.zero,
+    secondary: Icon(icon, color: danger && value ? Colors.redAccent : HalalFoodTheme.textSecondary),
+    title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+    subtitle: Text(subtitle, style: const TextStyle(fontSize: 11, color: HalalFoodTheme.textSecondary)),
+    value: value,
+    onChanged: _saving ? null : onChanged,
+  );
 
-  Widget _errorView() => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline_rounded, size: 54, color: Colors.redAccent),
-              const SizedBox(height: 12),
-              const Text('Unable to load platform settings', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 8),
-              Text(_error ?? '', textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              ElevatedButton(onPressed: _load, child: const Text('Try Again')),
-            ],
-          ),
-        ),
-      );
+  Widget _errorView() => Center(child: Padding(
+    padding: const EdgeInsets.all(24),
+    child: Column(mainAxisSize: MainAxisSize.min, children: [
+      const Icon(Icons.error_outline_rounded, size: 54, color: Colors.redAccent), const SizedBox(height: 12),
+      const Text('Unable to load platform settings', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)), const SizedBox(height: 8),
+      Text(_error ?? '', textAlign: TextAlign.center), const SizedBox(height: 16),
+      ElevatedButton(onPressed: _load, child: const Text('Try Again')),
+    ]),
+  ));
 }
