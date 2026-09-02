@@ -25,6 +25,8 @@ class _OwnerSubscriptionManagementScreenState
   String? _error;
   Map<String, dynamic>? _subscription;
   Map<String, dynamic>? _payment;
+  List<Map<String, dynamic>> _paymentHistory = [];
+  Map<String, Map<String, dynamic>> _subscriptionLookup = {};
 
   @override
   void initState() {
@@ -39,15 +41,26 @@ class _OwnerSubscriptionManagementScreenState
     });
 
     try {
-      final subscription = await _supabase
+      final subscriptions = await _supabase
           .from('restaurant_subscriptions')
           .select(
             '*, subscription_plans(id,name,monthly_price,annual_price)',
           )
           .eq('restaurant_id', widget.restaurantId)
-          .order('created_at', ascending: false)
-          .limit(1)
-          .maybeSingle();
+          .order('created_at', ascending: false);
+
+      final subscriptionRows = (subscriptions as List)
+          .map((row) => Map<String, dynamic>.from(row as Map))
+          .toList();
+
+      final lookup = <String, Map<String, dynamic>>{
+        for (final row in subscriptionRows)
+          row['id'].toString(): row,
+      };
+
+      final subscription = subscriptionRows.isEmpty
+          ? null
+          : subscriptionRows.first;
 
       Map<String, dynamic>? payment;
       if (subscription != null) {
@@ -62,10 +75,24 @@ class _OwnerSubscriptionManagementScreenState
             .maybeSingle();
       }
 
+      final payments = await _supabase
+          .from('subscription_payments')
+          .select(
+            'id,subscription_id,amount,currency,status,payment_method,transaction_reference,billing_period_start,billing_period_end,paid_at,created_at,updated_at,notes',
+          )
+          .eq('restaurant_id', widget.restaurantId)
+          .order('created_at', ascending: false);
+
+      final history = (payments as List)
+          .map((row) => Map<String, dynamic>.from(row as Map))
+          .toList();
+
       if (!mounted) return;
       setState(() {
         _subscription = subscription;
         _payment = payment;
+        _paymentHistory = history;
+        _subscriptionLookup = lookup;
         _loading = false;
       });
     } catch (e) {
@@ -114,6 +141,10 @@ class _OwnerSubscriptionManagementScreenState
         return 'Cancelled';
       case 'expired':
         return 'Expired';
+      case 'approved':
+        return 'Approved';
+      case 'rejected':
+        return 'Rejected';
       default:
         return 'No Active Plan';
     }
@@ -123,6 +154,7 @@ class _OwnerSubscriptionManagementScreenState
     switch (value.toLowerCase()) {
       case 'active':
       case 'trial':
+      case 'approved':
         return Colors.green;
       case 'pending':
       case 'past_due':
@@ -131,10 +163,28 @@ class _OwnerSubscriptionManagementScreenState
       case 'suspended':
       case 'cancelled':
       case 'expired':
+      case 'rejected':
         return Colors.red;
       default:
         return Colors.grey;
     }
+  }
+
+  String _planNameForPayment(Map<String, dynamic> payment) {
+    final subscription =
+        _subscriptionLookup[payment['subscription_id']?.toString()];
+    final planData = subscription?['subscription_plans'];
+    if (planData is Map) {
+      return planData['name']?.toString() ?? 'Subscription Plan';
+    }
+    return 'Subscription Plan';
+  }
+
+  String _amount(dynamic value, dynamic currency) {
+    if (value == null) return 'Amount not set';
+    final number = num.tryParse(value.toString());
+    if (number == null) return '$currency $value';
+    return '${currency ?? 'PHP'} ${number.toStringAsFixed(2)}';
   }
 
   @override
@@ -197,9 +247,18 @@ class _OwnerSubscriptionManagementScreenState
 
   Widget _buildContent() {
     final subscription = _subscription;
+
     if (subscription == null) {
-      return _noPlan(
-        'Your restaurant does not have a subscription yet.',
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+        children: [
+          _noPlanContent(
+            'Your restaurant does not have a subscription yet.',
+          ),
+          const SizedBox(height: 24),
+          _paymentHistorySection(),
+        ],
       );
     }
 
@@ -213,7 +272,8 @@ class _OwnerSubscriptionManagementScreenState
         : 'Monthly';
     final color = _statusColor(status);
     final lowerStatus = status.toLowerCase();
-    final canResubscribe = lowerStatus == 'cancelled' || lowerStatus == 'expired';
+    final canResubscribe =
+        lowerStatus == 'cancelled' || lowerStatus == 'expired';
     final pending = lowerStatus == 'pending';
 
     return ListView(
@@ -352,6 +412,8 @@ class _OwnerSubscriptionManagementScreenState
             style: TextStyle(color: HalalFoodTheme.textSecondary),
           ),
         ],
+        const SizedBox(height: 24),
+        _paymentHistorySection(),
         const SizedBox(height: 14),
         Card(
           child: Padding(
@@ -378,12 +440,10 @@ class _OwnerSubscriptionManagementScreenState
     );
   }
 
-  Widget _noPlan(String text) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(20),
+  Widget _noPlanContent(String text) {
+    return Column(
       children: [
-        const SizedBox(height: 55),
+        const SizedBox(height: 35),
         const Icon(
           Icons.workspace_premium_outlined,
           size: 72,
@@ -414,6 +474,144 @@ class _OwnerSubscriptionManagementScreenState
           ),
         ),
       ],
+    );
+  }
+
+  Widget _paymentHistorySection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.receipt_long_rounded, size: 22),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Payment History',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+              ),
+            ),
+            if (_paymentHistory.isNotEmpty)
+              Text(
+                '${_paymentHistory.length} payment${_paymentHistory.length == 1 ? '' : 's'}',
+                style: TextStyle(
+                  color: HalalFoodTheme.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (_paymentHistory.isEmpty)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.receipt_long_outlined,
+                    color: HalalFoodTheme.textSecondary,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'No subscription payments yet.',
+                      style: TextStyle(color: HalalFoodTheme.textSecondary),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          ..._paymentHistory.map(_paymentHistoryCard),
+      ],
+    );
+  }
+
+  Widget _paymentHistoryCard(Map<String, dynamic> payment) {
+    final status = payment['status']?.toString() ?? 'unknown';
+    final color = _statusColor(status);
+    final planName = _planNameForPayment(payment);
+    final billingStart = payment['billing_period_start'];
+    final billingEnd = payment['billing_period_end'];
+    final billingPeriod = billingStart != null || billingEnd != null
+        ? '${_date(billingStart)} – ${_date(billingEnd)}'
+        : 'Not set';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        planName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _date(payment['created_at']),
+                        style: TextStyle(
+                          color: HalalFoodTheme.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: .10),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(
+                    _statusLabel(status),
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            _row(
+              'Amount',
+              _amount(payment['amount'], payment['currency']),
+            ),
+            _row(
+              'Method',
+              payment['payment_method']?.toString() ?? 'Not specified',
+            ),
+            _row(
+              'Reference',
+              payment['transaction_reference']?.toString() ?? 'Not specified',
+            ),
+            _row('Billing Period', billingPeriod),
+            if (payment['paid_at'] != null)
+              _row('Paid/Approved', _date(payment['paid_at'])),
+            if ((payment['notes']?.toString() ?? '').trim().isNotEmpty)
+              _row('Notes', payment['notes'].toString()),
+          ],
+        ),
+      ),
     );
   }
 
