@@ -32,8 +32,7 @@ class _OwnerRestaurantProfileScreenState extends State<OwnerRestaurantProfileScr
   bool _isUploadingLogo = false;
   String? _error;
   String? _logoUrl;
-  String? _logoPath;
-  String _halalStatus = 'unverified';
+  String? _halalStatus = 'unverified';
   bool _hasPendingVerification = false;
 
   @override
@@ -87,6 +86,21 @@ class _OwnerRestaurantProfileScreenState extends State<OwnerRestaurantProfileScr
     }
   }
 
+  String? _storagePathFromPublicUrl(String? url, String bucket) {
+    if (url == null || url.trim().isEmpty) return null;
+    final marker = '/storage/v1/object/public/$bucket/';
+    final index = url.indexOf(marker);
+    if (index == -1) return null;
+    return Uri.decodeComponent(url.substring(index + marker.length));
+  }
+
+  Future<void> _deleteLogoFiles({String? oldUrl}) async {
+    final paths = <String>{'${widget.restaurantId}/logo.jpg'};
+    final oldPath = _storagePathFromPublicUrl(oldUrl, 'restaurant-images');
+    if (oldPath != null) paths.add(oldPath);
+    await _supabase.storage.from('restaurant-images').remove(paths.toList());
+  }
+
   Future<void> _pickLogo() async {
     if (_isUploadingLogo) return;
     try {
@@ -94,16 +108,16 @@ class _OwnerRestaurantProfileScreenState extends State<OwnerRestaurantProfileScr
       if (file == null) return;
       setState(() => _isUploadingLogo = true);
       final bytes = await file.readAsBytes();
-      final path = '${widget.restaurantId}/logo-${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final path = '${widget.restaurantId}/logo.jpg';
       await _supabase.storage.from('restaurant-images').uploadBinary(
         path,
         bytes,
-        fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: false),
+        fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true),
       );
       final url = _supabase.storage.from('restaurant-images').getPublicUrl(path);
-      await _supabase.from('restaurants').update({'logo_url': url}).eq('id', widget.restaurantId);
+      await _supabase.from('restaurants').update({'logo_url': '$url?v=${DateTime.now().millisecondsSinceEpoch}'}).eq('id', widget.restaurantId);
       if (!mounted) return;
-      setState(() { _logoUrl = url; _logoPath = path; _isUploadingLogo = false; });
+      setState(() { _logoUrl = '$url?v=${DateTime.now().millisecondsSinceEpoch}'; _isUploadingLogo = false; });
       _showMessage('Restaurant logo updated successfully.');
     } catch (e) {
       if (!mounted) return;
@@ -128,10 +142,10 @@ class _OwnerRestaurantProfileScreenState extends State<OwnerRestaurantProfileScr
     if (confirmed != true) return;
     try {
       setState(() => _isUploadingLogo = true);
-      if (_logoPath != null) await _supabase.storage.from('restaurant-images').remove([_logoPath!]);
+      await _deleteLogoFiles(oldUrl: _logoUrl);
       await _supabase.from('restaurants').update({'logo_url': null}).eq('id', widget.restaurantId);
       if (!mounted) return;
-      setState(() { _logoUrl = null; _logoPath = null; _isUploadingLogo = false; });
+      setState(() { _logoUrl = null; _isUploadingLogo = false; });
       _showMessage('Restaurant logo removed.');
     } catch (e) {
       if (!mounted) return;
@@ -302,7 +316,7 @@ class _OwnerRestaurantProfileScreenState extends State<OwnerRestaurantProfileScr
   }
 
   Widget _buildStatusCard() {
-    final statusColor = _hasPendingVerification ? Colors.orange : _halalColor(_halalStatus);
+    final statusColor = _hasPendingVerification ? Colors.orange : _halalColor(_halalStatus ?? 'unverified');
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -322,7 +336,7 @@ class _OwnerRestaurantProfileScreenState extends State<OwnerRestaurantProfileScr
                     width: 76,
                     height: 76,
                     child: _logoUrl != null && _logoUrl!.isNotEmpty
-                        ? Image.network(_logoUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _noPhoto())
+                        ? Image.network(_logoUrl!, fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => _noPhoto())
                         : _noPhoto(),
                   ),
                 ),
@@ -357,7 +371,7 @@ class _OwnerRestaurantProfileScreenState extends State<OwnerRestaurantProfileScr
                       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                       decoration: BoxDecoration(color: statusColor.withValues(alpha: .10), borderRadius: BorderRadius.circular(8)),
                       child: Text(
-                        _hasPendingVerification ? 'Verification Pending' : _halalLabel(_halalStatus),
+                        _hasPendingVerification ? 'Verification Pending' : _halalLabel(_halalStatus ?? 'unverified'),
                         style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: statusColor),
                       ),
                     ),
