@@ -228,7 +228,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       itemCount: groups.length,
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: wide ? 3 : 1,
-        mainAxisExtent: wide ? 136 : 112,
+        mainAxisExtent: wide ? 148 : 112,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
