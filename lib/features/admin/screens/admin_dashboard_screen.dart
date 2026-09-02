@@ -269,11 +269,11 @@ class _AdminGroupCard extends StatelessWidget {
         child: Row(children: [
           Container(width: 52, height: 52, decoration: BoxDecoration(color: group.color.withValues(alpha: .10), borderRadius: BorderRadius.circular(15)), child: Icon(group.icon, color: group.color, size: 27)),
           const SizedBox(width: 14),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
             Text(group.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4),
+            Text(group.subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, height: 1.2, color: HalalFoodTheme.textSecondary)),
             const SizedBox(height: 5),
-            Text(group.subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, height: 1.3, color: HalalFoodTheme.textSecondary)),
-            const SizedBox(height: 7),
             Text('${group.items.length} ${group.items.length == 1 ? 'section' : 'sections'}', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: group.color)),
           ])),
           Icon(Icons.arrow_forward_ios_rounded, size: 15, color: group.color),
