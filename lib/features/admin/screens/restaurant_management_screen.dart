@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme.dart';
+import '../../owner/screens/owner_restaurant_profile_screen.dart';
 import '../data/admin_repository.dart';
 import '../data/admin_restaurant_repository.dart';
 
@@ -155,6 +156,18 @@ class _RestaurantManagementScreenState
     }
   }
 
+  Future<void> _manageRestaurantPhotos(Map<String, dynamic> restaurant) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => OwnerRestaurantProfileScreen(
+          restaurantId: restaurant['id'].toString(),
+          restaurantName: restaurant['name']?.toString() ?? 'Restaurant',
+        ),
+      ),
+    );
+    if (mounted) await _load();
+  }
+
   Future<void> _assignOwner(Map<String, dynamic> restaurant) async {
     final selected = restaurant['owner_id']?.toString();
 
@@ -274,6 +287,17 @@ class _RestaurantManagementScreenState
               const SizedBox(height: 14),
               Row(
                 children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        _manageRestaurantPhotos(restaurant);
+                      },
+                      icon: const Icon(Icons.photo_library_outlined),
+                      label: const Text('Photos'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () {
