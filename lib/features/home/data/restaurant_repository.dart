@@ -13,8 +13,13 @@ class RestaurantRepository {
   }) async {
     var query = _supabase
         .from('restaurants')
-        .select()
-        .eq('is_active', true);
+        .select('*, restaurant_subscriptions!inner(status,current_period_end)')
+        .eq('is_active', true)
+        .eq('restaurant_subscriptions.status', 'active')
+        .gt(
+          'restaurant_subscriptions.current_period_end',
+          DateTime.now().toUtc().toIso8601String(),
+        );
 
     final trimmedSearch = search.trim();
 
