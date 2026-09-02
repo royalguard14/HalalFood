@@ -150,7 +150,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       _DashboardStat(Icons.receipt_long_rounded, "Today's Orders", '$_todayOrderCount', 'Orders today', Colors.blue),
       _DashboardStat(Icons.local_shipping_rounded, 'Pending Orders', '$_pendingOrderCount', 'Need attention', Colors.deepPurple),
     ];
-    if (wide) return Wrap(spacing: 12, runSpacing: 12, children: cards.map((x) => SizedBox(width: 220, child: x)).toList());
+    if (wide) return GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: cards.length, gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 5, mainAxisExtent: 92, crossAxisSpacing: 12, mainAxisSpacing: 12), itemBuilder: (_, i) => cards[i]);
     return Column(children: [Row(children: [Expanded(child: cards[0]), const SizedBox(width: 10), Expanded(child: cards[1])]), const SizedBox(height: 10), Row(children: [Expanded(child: cards[2]), const SizedBox(width: 10), Expanded(child: cards[3])]), const SizedBox(height: 10), cards[4]]);
   }
 
@@ -169,7 +169,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       _AdminTool(Icons.people_alt_rounded, 'Users & Roles', 'Manage platform accounts and assigned roles.', Colors.deepPurple, () => _open(const UserRoleManagementScreen())),
       _AdminTool(Icons.settings_rounded, 'My Settings', 'Platform settings and SaaS configuration, including payment methods.', Colors.blueGrey, () => _open(const AdminSettingsScreen())),
     ];
-    if (wide) return GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: tools.length, gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 460, mainAxisExtent: 118, crossAxisSpacing: 12, mainAxisSpacing: 12), itemBuilder: (_, i) => tools[i]);
+    if (wide) return GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: tools.length, gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, mainAxisExtent: 118, crossAxisSpacing: 12, mainAxisSpacing: 12), itemBuilder: (_, i) => tools[i]);
     return Column(children: [for (var i = 0; i < tools.length; i++) ...[tools[i], if (i != tools.length - 1) const SizedBox(height: 10)]]);
   }
 }
@@ -178,12 +178,12 @@ class _DashboardStat extends StatelessWidget {
   final IconData icon; final String title; final String value; final String caption; final Color color;
   const _DashboardStat(this.icon, this.title, this.value, this.caption, this.color);
   @override
-  Widget build(BuildContext context) => Card(child: Padding(padding: const EdgeInsets.all(16), child: Row(children: [Icon(icon, color: color, size: 28), const SizedBox(width: 12), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary)), const SizedBox(height: 2), Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)), Text(caption, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w700))]))])));
+  Widget build(BuildContext context) => Card(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12), child: Row(children: [Icon(icon, color: color, size: 25), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: HalalFoodTheme.textSecondary)), const SizedBox(height: 2), Text(value, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800)), Text(caption, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 9, color: color, fontWeight: FontWeight.w700))]))])));
 }
 
 class _AdminTool extends StatelessWidget {
   final IconData icon; final String title; final String subtitle; final Color color; final VoidCallback onTap;
   const _AdminTool(this.icon, this.title, this.subtitle, this.color, this.onTap);
   @override
-  Widget build(BuildContext context) => Card(clipBehavior: Clip.antiAlias, child: InkWell(onTap: onTap, child: Padding(padding: const EdgeInsets.all(16), child: Row(children: [Container(width: 50, height: 50, decoration: BoxDecoration(color: color.withValues(alpha: .10), borderRadius: BorderRadius.circular(15)), child: Icon(icon, color: color)), const SizedBox(width: 14), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)), const SizedBox(height: 4), Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, height: 1.3, color: HalalFoodTheme.textSecondary))])), Icon(Icons.arrow_forward_ios_rounded, size: 15, color: color)]))));
+  Widget build(BuildContext context) => Card(clipBehavior: Clip.antiAlias, child: InkWell(onTap: onTap, child: Padding(padding: const EdgeInsets.all(16), child: Row(children: [Container(width: 50, height: 50, decoration: BoxDecoration(color: color.withValues(alpha: .10), borderRadius: BorderRadius.circular(15)), child: Icon(icon, color: color)), const SizedBox(width: 14), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)), const SizedBox(height: 4), Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, height: 1.3, color: HalalFoodTheme.textSecondary))])), Icon(Icons.arrow_forward_ios_rounded, size: 15, color: color)]))));
 }
