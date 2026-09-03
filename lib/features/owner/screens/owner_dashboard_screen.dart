@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase.dart';
 
 import 'owner_menu_management_screen.dart';
 import 'owner_order_details_screen.dart';
@@ -26,73 +26,23 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   int _monthlyOrders = 0, _newOrders = 0, _preparingOrders = 0, _readyOrders = 0, _completedOrders = 0;
   List<Map<String,dynamic>> _recentOrders = [];
 
-  @override void initState() { super.initState(); _restaurantName = widget.restaurantName; _loadDashboard(); }
-
-  Future<void> _loadDashboard() async {
-    if (mounted) setState(() => _loading = true);
-    await Future.wait([_loadSubscription(), _loadBusinessStats(), _loadOrderStats(), _loadRestaurantName()]);
-    if (mounted) setState(() => _loading = false);
-  }
-  Future<void> _refreshSubscription() async => _loadSubscription();
-
-  Future<void> _loadSubscription() async {
-    try {
-      final subscription = await _supabase.from('restaurant_subscriptions').select('status,current_period_end,billing_cycle,subscription_plans(name)').eq('restaurant_id', widget.restaurantId).order('created_at', ascending:false).limit(1).maybeSingle();
-      if (!mounted) return;
-      final plan = subscription?['subscription_plans'];
-      setState(() { _subscriptionStatus=subscription?['status']?.toString(); _subscriptionPlan=plan is Map ? plan['name']?.toString() : null; _subscriptionExpiry=subscription?['current_period_end']?.toString(); });
-    } catch(e) { debugPrint('OWNER SUBSCRIPTION ERROR: $e'); }
-  }
-  Future<void> _loadRestaurantName() async {
-    try { final r=await _supabase.from('restaurants').select('name').eq('id',widget.restaurantId).maybeSingle(); if(mounted&&r!=null)setState(()=>_restaurantName=r['name']?.toString()??_restaurantName); } catch(e){debugPrint('OWNER RESTAURANT ERROR: $e');}
-  }
-  Future<void> _loadBusinessStats() async {
-    try {
-      final now=DateTime.now(), start=DateTime(now.year,now.month,1).toIso8601String();
-      final orders=await _supabase.from('orders').select('id,total_amount,created_at,status').eq('restaurant_id',widget.restaurantId).gte('created_at',start);
-      double sales=0; int delivered=0;
-      for(final row in orders as List){final s=row['status']?.toString(); if(s=='delivered'||s=='completed'){sales+=(row['total_amount'] as num?)?.toDouble()??0; delivered++;}}
-      if(mounted)setState(()=>{_monthlySales=sales,_monthlyOrders=delivered});
-    } catch(e){debugPrint('OWNER BUSINESS ERROR: $e');}
-  }
-  Future<void> _loadOrderStats() async {
-    try {
-      final rows=await _supabase.from('orders').select('id,total_amount,created_at,status').eq('restaurant_id',widget.restaurantId).order('created_at',ascending:false).limit(20);
-      int n=0,p=0,r=0,c=0; double todaySales=0; final today=DateTime.now();
-      for(final row in rows as List){final s=row['status']?.toString()??''; if(s=='pending'||s=='confirmed')n++; if(s=='preparing')p++; if(s=='ready')r++; if(s=='delivered'||s=='completed')c++; final d=DateTime.tryParse(row['created_at']?.toString()??''); if(d!=null&&d.year==today.year&&d.month==today.month&&d.day==today.day&&(s=='delivered'||s=='completed'))todaySales+=(row['total_amount'] as num?)?.toDouble()??0;}
-      if(mounted)setState(()=>{_newOrders=n,_preparingOrders=p,_readyOrders=r,_completedOrders=c,_todaySales=todaySales,_recentOrders=rows.cast<Map<String,dynamic>>().take(5).toList()});
-    } catch(e){debugPrint('OWNER ORDER ERROR: $e');}
-  }
+  @override void initState(){super.initState();_restaurantName=widget.restaurantName;_loadDashboard();}
+  Future<void> _loadDashboard() async {if(mounted)setState(()=>_loading=true);await Future.wait([_loadSubscription(),_loadBusinessStats(),_loadOrderStats(),_loadRestaurantName()]);if(mounted)setState(()=>_loading=false);}
+  Future<void> _refreshSubscription() async=>_loadSubscription();
+  Future<void> _loadSubscription() async{try{final s=await _supabase.from('restaurant_subscriptions').select('status,current_period_end,billing_cycle,subscription_plans(name)').eq('restaurant_id',widget.restaurantId).order('created_at',ascending:false).limit(1).maybeSingle();if(!mounted)return;final p=s?['subscription_plans'];setState((){_subscriptionStatus=s?['status']?.toString();_subscriptionPlan=p is Map?p['name']?.toString():null;_subscriptionExpiry=s?['current_period_end']?.toString();});}catch(e){debugPrint('OWNER SUBSCRIPTION ERROR: $e');}}
+  Future<void> _loadRestaurantName() async{try{final r=await _supabase.from('restaurants').select('name').eq('id',widget.restaurantId).maybeSingle();if(mounted&&r!=null)setState(()=>_restaurantName=r['name']?.toString()??_restaurantName);}catch(e){debugPrint('OWNER RESTAURANT ERROR: $e');}}
+  Future<void> _loadBusinessStats() async{try{final n=DateTime.now(),start=DateTime(n.year,n.month,1).toIso8601String();final rows=await _supabase.from('orders').select('id,total_amount,created_at,status').eq('restaurant_id',widget.restaurantId).gte('created_at',start);double sales=0;int delivered=0;for(final row in rows as List){final s=row['status']?.toString();if(s=='delivered'||s=='completed'){sales+=(row['total_amount'] as num?)?.toDouble()??0;delivered++;}}if(mounted)setState((){_monthlySales=sales;_monthlyOrders=delivered;});}catch(e){debugPrint('OWNER BUSINESS ERROR: $e');}}
+  Future<void> _loadOrderStats() async{try{final rows=await _supabase.from('orders').select('id,total_amount,created_at,status').eq('restaurant_id',widget.restaurantId).order('created_at',ascending:false).limit(20);int n=0,p=0,r=0,c=0;double sales=0;final today=DateTime.now();for(final row in rows as List){final s=row['status']?.toString()??'';if(s=='pending'||s=='confirmed')n++;if(s=='preparing')p++;if(s=='ready')r++;if(s=='delivered'||s=='completed')c++;final d=DateTime.tryParse(row['created_at']?.toString()??'');if(d!=null&&d.year==today.year&&d.month==today.month&&d.day==today.day&&(s=='delivered'||s=='completed'))sales+=(row['total_amount'] as num?)?.toDouble()??0;}if(mounted)setState((){_newOrders=n;_preparingOrders=p;_readyOrders=r;_completedOrders=c;_todaySales=sales;_recentOrders=rows.cast<Map<String,dynamic>>().take(5).toList();});}catch(e){debugPrint('OWNER ORDER ERROR: $e');}}
   String _formatDate(String? v){if(v==null)return 'Not set';final d=DateTime.tryParse(v);if(d==null)return 'Not set';return '${d.month}/${d.day}/${d.year}';}
   bool get _hasActivePlan=>_subscriptionStatus=='active'||_subscriptionStatus=='trial';
-  Future<void> _openSubscription() async {await Navigator.of(context).push(MaterialPageRoute(builder:(_)=>OwnerSubscriptionManagementScreen(restaurantId:widget.restaurantId,restaurantName:_restaurantName)));if(mounted)await _loadDashboard();}
-  Future<void> _logout() async {if(_loggingOut)return;setState(()=>_loggingOut=true);await _supabase.auth.signOut();if(!mounted)return;Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder:(_)=>const LoginScreen()),(_)=>false);}
-  Future<void> _switchRestaurant() async {await Navigator.of(context).push(MaterialPageRoute(builder:(_)=>const OwnerRestaurantSelectionScreen()));}
-  Future<void> _openPromos() async {await Navigator.of(context).push(MaterialPageRoute(builder:(_)=>OwnerPromoManagementScreen(restaurantId:widget.restaurantId,restaurantName:_restaurantName)));if(mounted)await _loadDashboard();}
+  Future<void> _openSubscription() async{await Navigator.of(context).push(MaterialPageRoute(builder:(_)=>OwnerSubscriptionManagementScreen(restaurantId:widget.restaurantId,restaurantName:_restaurantName)));if(mounted)await _loadDashboard();}
+  Future<void> _logout() async{if(_loggingOut)return;setState(()=>_loggingOut=true);await _supabase.auth.signOut();if(!mounted)return;Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder:(_)=>const LoginScreen()),(_)=>false);}
+  Future<void> _switchRestaurant() async{await Navigator.of(context).push(MaterialPageRoute(builder:(_)=>const OwnerRestaurantSelectionScreen()));}
+  Future<void> _openPromos() async{await Navigator.of(context).push(MaterialPageRoute(builder:(_)=>OwnerPromoManagementScreen(restaurantId:widget.restaurantId,restaurantName:_restaurantName)));if(mounted)await _loadDashboard();}
 
-  @override Widget build(BuildContext context)=>Scaffold(
-    appBar:AppBar(title:const Text('Owner Dashboard',style:TextStyle(fontWeight:FontWeight.w800)),actions:[IconButton(tooltip:'Refresh',onPressed:_loading?null:_loadDashboard,icon:const Icon(Icons.refresh_rounded)),IconButton(tooltip:'Switch Restaurant',onPressed:_loading?null:_switchRestaurant,icon:const Icon(Icons.swap_horiz_rounded)),IconButton(tooltip:'Logout',onPressed:_loggingOut?null:_logout,icon:_loggingOut?const SizedBox(width:20,height:20,child:CircularProgressIndicator(strokeWidth:2)):const Icon(Icons.logout_rounded))]),
-    body:RefreshIndicator(onRefresh:_loadDashboard,child:_loading?_buildLoading():_buildDashboard()));
+  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Owner Dashboard',style:TextStyle(fontWeight:FontWeight.w800)),actions:[IconButton(tooltip:'Refresh',onPressed:_loading?null:_loadDashboard,icon:const Icon(Icons.refresh_rounded)),IconButton(tooltip:'Switch Restaurant',onPressed:_loading?null:_switchRestaurant,icon:const Icon(Icons.swap_horiz_rounded)),IconButton(tooltip:'Logout',onPressed:_loggingOut?null:_logout,icon:_loggingOut?const SizedBox(width:20,height:20,child:CircularProgressIndicator(strokeWidth:2)):const Icon(Icons.logout_rounded))]),body:RefreshIndicator(onRefresh:_loadDashboard,child:_loading?_buildLoading():_buildDashboard()));
   Widget _buildLoading()=>ListView(physics:const AlwaysScrollableScrollPhysics(),children:const[SizedBox(height:280),Center(child:CircularProgressIndicator())]);
-
-  Widget _buildDashboard()=>ListView(physics:const AlwaysScrollableScrollPhysics(),padding:const EdgeInsets.fromLTRB(20,20,20,32),children:[
-    _buildWelcomeCard(),const SizedBox(height:16),_buildSubscriptionCard(),const SizedBox(height:16),
-    Row(children:[Expanded(child:_statCard(Icons.restaurant_menu_rounded,'Menu Items','—')),const SizedBox(width:12),Expanded(child:_statCard(Icons.receipt_long_rounded,'Open Orders','${_newOrders+_preparingOrders+_readyOrders}'))]),
-    const SizedBox(height:16),
-    SizedBox(width:double.infinity,child:ElevatedButton.icon(onPressed:()async{await Navigator.of(context).push(MaterialPageRoute(builder:(_)=>OwnerMenuManagementScreen(restaurantId:widget.restaurantId,restaurantName:_restaurantName)));if(mounted)await _loadDashboard();},icon:const Icon(Icons.restaurant_menu_rounded),label:const Text('Manage Menu',style:TextStyle(fontWeight:FontWeight.w800)))),
-    const SizedBox(height:10),
-    SizedBox(width:double.infinity,child:OutlinedButton.icon(onPressed:_openPromos,icon:const Icon(Icons.local_offer_rounded),label:const Text('Promos & Discounts',style:TextStyle(fontWeight:FontWeight.w800)))),
-    const SizedBox(height:10),
-    SizedBox(width:double.infinity,child:OutlinedButton.icon(onPressed:()async{await Navigator.of(context).push(MaterialPageRoute(builder:(_)=>OwnerRestaurantProfileScreen(restaurantId:widget.restaurantId,restaurantName:_restaurantName)));if(mounted)await _loadDashboard();},icon:const Icon(Icons.storefront_rounded),label:const Text('Restaurant Profile',style:TextStyle(fontWeight:FontWeight.w800)))),
-    const SizedBox(height:24),const Text('Business Overview',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800)),const SizedBox(height:12),
-    Row(children:[Expanded(child:_statCard(Icons.payments_outlined,'Sales This Month','₱${_monthlySales.toStringAsFixed(0)}')),const SizedBox(width:10),Expanded(child:_statCard(Icons.receipt_long_outlined,'Orders This Month','$_monthlyOrders'))]),
-    const SizedBox(height:24),const Text('Today',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800)),const SizedBox(height:12),_buildSalesCard(),
-    const SizedBox(height:24),const Text('Order Summary',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800)),const SizedBox(height:12),
-    Row(children:[Expanded(child:_statCard(Icons.notifications_active_outlined,'New','$_newOrders')),const SizedBox(width:10),Expanded(child:_statCard(Icons.restaurant_outlined,'Preparing','$_preparingOrders'))]),const SizedBox(height:10),
-    Row(children:[Expanded(child:_statCard(Icons.check_circle_outline_rounded,'Ready','$_readyOrders')),const SizedBox(width:10),Expanded(child:_statCard(Icons.done_all_rounded,'Delivered','$_completedOrders'))]),
-    const SizedBox(height:28),const Text('Best Sellers This Month',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800)),const SizedBox(height:12),_buildTopItems(),
-    const SizedBox(height:28),const Text('Recent Orders',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800)),const SizedBox(height:12),if(_recentOrders.isEmpty)_buildEmptyOrders()else..._recentOrders.map(_buildOrderCard)]);
-
+  Widget _buildDashboard()=>ListView(physics:const AlwaysScrollableScrollPhysics(),padding:const EdgeInsets.fromLTRB(20,20,20,32),children:[_buildWelcomeCard(),const SizedBox(height:16),_buildSubscriptionCard(),const SizedBox(height:16),Row(children:[Expanded(child:_statCard(Icons.restaurant_menu_rounded,'Menu Items','—')),const SizedBox(width:12),Expanded(child:_statCard(Icons.receipt_long_rounded,'Open Orders','${_newOrders+_preparingOrders+_readyOrders}'))]),const SizedBox(height:16),SizedBox(width:double.infinity,child:ElevatedButton.icon(onPressed:()async{await Navigator.of(context).push(MaterialPageRoute(builder:(_)=>OwnerMenuManagementScreen(restaurantId:widget.restaurantId,restaurantName:_restaurantName)));if(mounted)await _loadDashboard();},icon:const Icon(Icons.restaurant_menu_rounded),label:const Text('Manage Menu',style:TextStyle(fontWeight:FontWeight.w800)))),const SizedBox(height:10),SizedBox(width:double.infinity,child:OutlinedButton.icon(onPressed:_openPromos,icon:const Icon(Icons.local_offer_rounded),label:const Text('Promos & Discounts',style:TextStyle(fontWeight:FontWeight.w800)))),const SizedBox(height:10),SizedBox(width:double.infinity,child:OutlinedButton.icon(onPressed:()async{await Navigator.of(context).push(MaterialPageRoute(builder:(_)=>OwnerRestaurantProfileScreen(restaurantId:widget.restaurantId,restaurantName:_restaurantName)));if(mounted)await _loadDashboard();},icon:const Icon(Icons.storefront_rounded),label:const Text('Restaurant Profile',style:TextStyle(fontWeight:FontWeight.w800)))),const SizedBox(height:24),const Text('Business Overview',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800)),const SizedBox(height:12),Row(children:[Expanded(child:_statCard(Icons.payments_outlined,'Sales This Month','₱${_monthlySales.toStringAsFixed(0)}')),const SizedBox(width:10),Expanded(child:_statCard(Icons.receipt_long_outlined,'Orders This Month','$_monthlyOrders'))]),const SizedBox(height:24),const Text('Today',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800)),const SizedBox(height:12),_buildSalesCard(),const SizedBox(height:24),const Text('Order Summary',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800)),const SizedBox(height:12),Row(children:[Expanded(child:_statCard(Icons.notifications_active_outlined,'New','$_newOrders')),const SizedBox(width:10),Expanded(child:_statCard(Icons.restaurant_outlined,'Preparing','$_preparingOrders'))]),const SizedBox(height:10),Row(children:[Expanded(child:_statCard(Icons.check_circle_outline_rounded,'Ready','$_readyOrders')),const SizedBox(width:10),Expanded(child:_statCard(Icons.done_all_rounded,'Delivered','$_completedOrders'))]),const SizedBox(height:28),const Text('Best Sellers This Month',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800)),const SizedBox(height:12),_buildTopItems(),const SizedBox(height:28),const Text('Recent Orders',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800)),const SizedBox(height:12),if(_recentOrders.isEmpty)_buildEmptyOrders()else..._recentOrders.map(_buildOrderCard)]);
   Widget _buildWelcomeCard()=>Container(padding:const EdgeInsets.all(20),decoration:BoxDecoration(color:HalalFoodTheme.primaryGreen.withValues(alpha:.08),borderRadius:BorderRadius.circular(20)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('Welcome, Restaurant Owner',style:TextStyle(fontSize:22,fontWeight:FontWeight.w800)),const SizedBox(height:6),Text(_restaurantName,style:const TextStyle(fontSize:16,fontWeight:FontWeight.w700,color:HalalFoodTheme.primaryGreen)),const SizedBox(height:6),const Text('Track your restaurant performance, orders, sales, and customer feedback.',style:TextStyle(color:HalalFoodTheme.textSecondary))]));
   Widget _buildSubscriptionCard(){final active=_hasActivePlan,color=active?Colors.green:Colors.grey,status=_subscriptionStatus==null?'NO ACTIVE PLAN':_subscriptionStatus!.toUpperCase().replaceAll('_',' ');return Card(child:InkWell(onTap:_openSubscription,borderRadius:BorderRadius.circular(16),child:Padding(padding:const EdgeInsets.all(18),child:Row(children:[Container(width:50,height:50,decoration:BoxDecoration(color:color.withValues(alpha:.10),borderRadius:BorderRadius.circular(14)),child:Icon(Icons.workspace_premium_rounded,color:color)),const SizedBox(width:14),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('Subscription',style:TextStyle(fontWeight:FontWeight.w800)),const SizedBox(height:4),Text(status,style:TextStyle(fontWeight:FontWeight.w800,color:color)),if(_subscriptionPlan!=null)Text(_subscriptionPlan!),if(_subscriptionExpiry!=null)Text('Expires: ${_formatDate(_subscriptionExpiry)}'),if(!active)const Text('Tap to choose a plan',style:TextStyle(fontWeight:FontWeight.w600))])),const Icon(Icons.chevron_right_rounded)]))));}
   Widget _buildSalesCard()=>Card(child:Padding(padding:const EdgeInsets.all(20),child:Row(children:[Container(width:54,height:54,decoration:BoxDecoration(color:HalalFoodTheme.primaryGreen.withValues(alpha:.10),borderRadius:BorderRadius.circular(14)),child:const Icon(Icons.payments_outlined,size:28,color:HalalFoodTheme.primaryGreen)),const SizedBox(width:14),const Expanded(child:Text("Today's Sales",style:TextStyle(fontSize:13,color:HalalFoodTheme.textSecondary))),Text('₱${_todaySales.toStringAsFixed(2)}',style:const TextStyle(fontSize:21,fontWeight:FontWeight.w800,color:HalalFoodTheme.primaryGreen))])));
