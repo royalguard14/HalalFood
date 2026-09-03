@@ -237,13 +237,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         elevation: 0,
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
-        title: const Row(
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.admin_panel_settings_rounded),
-            SizedBox(width: 10),
-            Text(
-              'Admin Dashboard',
-              style: TextStyle(fontWeight: FontWeight.w800),
+            const Icon(Icons.admin_panel_settings_rounded),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                'Admin Dashboard',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
             ),
           ],
         ),
