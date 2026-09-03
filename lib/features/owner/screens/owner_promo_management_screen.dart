@@ -49,108 +49,22 @@ class _OwnerPromoManagementScreenState extends State<OwnerPromoManagementScreen>
   }
 
   Future<void> _save({Map<String, dynamic>? promo}) async {
-    final code = TextEditingController(text: promo?['code']?.toString() ?? '');
-    final title = TextEditingController(text: promo?['title']?.toString() ?? '');
-    final value = TextEditingController(text: promo?['discount_value']?.toString() ?? '');
-    final minimum = TextEditingController(text: promo?['minimum_order']?.toString() ?? '0');
-    String type = promo?['discount_type']?.toString() ?? 'percentage';
-    bool active = promo?['is_active'] != false;
-    final form = GlobalKey<FormState>();
-
-    final ok = await showDialog<bool>(
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocal) => AlertDialog(
-          title: Text(
-            promo == null ? 'Create Promo' : 'Edit Promo',
-            style: const TextStyle(fontWeight: FontWeight.w800),
-          ),
-          content: SizedBox(
-            width: 420,
-            child: Form(
-              key: form,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextFormField(
-                      controller: code,
-                      decoration: const InputDecoration(labelText: 'Promo Code'),
-                      validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
-                    ),
-                    TextFormField(
-                      controller: title,
-                      decoration: const InputDecoration(labelText: 'Promo Title'),
-                      validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
-                    ),
-                    DropdownButtonFormField<String>(
-                      initialValue: type,
-                      decoration: const InputDecoration(labelText: 'Discount Type'),
-                      items: const [
-                        DropdownMenuItem(value: 'percentage', child: Text('Percentage')),
-                        DropdownMenuItem(value: 'fixed', child: Text('Fixed Amount')),
-                      ],
-                      onChanged: (v) => setLocal(() => type = v ?? 'percentage'),
-                    ),
-                    TextFormField(
-                      controller: value,
-                      decoration: InputDecoration(
-                        labelText: type == 'percentage' ? 'Discount Percentage' : 'Discount Amount',
-                      ),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      validator: (v) => double.tryParse(v ?? '') == null ? 'Enter a valid amount' : null,
-                    ),
-                    TextFormField(
-                      controller: minimum,
-                      decoration: const InputDecoration(labelText: 'Minimum Order'),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    ),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Promo Active'),
-                      value: active,
-                      onChanged: (v) => setLocal(() => active = v),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () {
-                if (form.currentState!.validate()) Navigator.pop(ctx, true);
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      ),
+      builder: (_) => _PromoFormDialog(promo: promo),
     );
 
-    if (ok != true) {
-      code.dispose();
-      title.dispose();
-      value.dispose();
-      minimum.dispose();
-      return;
-    }
+    if (result == null) return;
 
     final data = {
       'restaurant_id': widget.restaurantId,
-      'code': code.text.trim().toUpperCase(),
-      'title': title.text.trim(),
-      'discount_type': type,
-      'discount_value': double.parse(value.text.trim()),
-      'minimum_order': double.tryParse(minimum.text.trim()) ?? 0,
-      'is_active': active,
+      'code': result['code'],
+      'title': result['title'],
+      'discount_type': result['discount_type'],
+      'discount_value': result['discount_value'],
+      'minimum_order': result['minimum_order'],
+      'is_active': result['is_active'],
     };
-
-    code.dispose();
-    title.dispose();
-    value.dispose();
-    minimum.dispose();
 
     try {
       if (promo == null) {
@@ -208,6 +122,7 @@ class _OwnerPromoManagementScreenState extends State<OwnerPromoManagementScreen>
   }
 
   void _msg(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
@@ -268,6 +183,146 @@ class _OwnerPromoManagementScreenState extends State<OwnerPromoManagementScreen>
                     },
                   ),
                 ),
+    );
+  }
+}
+
+class _PromoFormDialog extends StatefulWidget {
+  final Map<String, dynamic>? promo;
+
+  const _PromoFormDialog({this.promo});
+
+  @override
+  State<_PromoFormDialog> createState() => _PromoFormDialogState();
+}
+
+class _PromoFormDialogState extends State<_PromoFormDialog> {
+  late final TextEditingController _code;
+  late final TextEditingController _title;
+  late final TextEditingController _value;
+  late final TextEditingController _minimum;
+  late String _type;
+  late bool _active;
+  final _formKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    final promo = widget.promo;
+    _code = TextEditingController(text: promo?['code']?.toString() ?? '');
+    _title = TextEditingController(text: promo?['title']?.toString() ?? '');
+    _value = TextEditingController(text: promo?['discount_value']?.toString() ?? '');
+    _minimum = TextEditingController(text: promo?['minimum_order']?.toString() ?? '0');
+    _type = promo?['discount_type']?.toString() ?? 'percentage';
+    _active = promo?['is_active'] != false;
+  }
+
+  @override
+  void dispose() {
+    _code.dispose();
+    _title.dispose();
+    _value.dispose();
+    _minimum.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (!_formKey.currentState!.validate()) return;
+
+    final discount = double.tryParse(_value.text.trim());
+    final minimum = double.tryParse(_minimum.text.trim()) ?? 0;
+    if (discount == null || discount <= 0) return;
+
+    Navigator.of(context).pop({
+      'code': _code.text.trim().toUpperCase(),
+      'title': _title.text.trim(),
+      'discount_type': _type,
+      'discount_value': discount,
+      'minimum_order': minimum,
+      'is_active': _active,
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(
+        widget.promo == null ? 'Create Promo' : 'Edit Promo',
+        style: const TextStyle(fontWeight: FontWeight.w800),
+      ),
+      content: SizedBox(
+        width: 420,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _code,
+                  decoration: const InputDecoration(labelText: 'Promo Code'),
+                  textCapitalization: TextCapitalization.characters,
+                  validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                ),
+                TextFormField(
+                  controller: _title,
+                  decoration: const InputDecoration(labelText: 'Promo Title'),
+                  validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                ),
+                DropdownButtonFormField<String>(
+                  value: _type,
+                  decoration: const InputDecoration(labelText: 'Discount Type'),
+                  items: const [
+                    DropdownMenuItem(value: 'percentage', child: Text('Percentage')),
+                    DropdownMenuItem(value: 'fixed', child: Text('Fixed Amount')),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setState(() => _type = v);
+                  },
+                ),
+                TextFormField(
+                  controller: _value,
+                  decoration: InputDecoration(
+                    labelText: _type == 'percentage' ? 'Discount Percentage' : 'Discount Amount',
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  validator: (v) {
+                    final n = double.tryParse(v ?? '');
+                    if (n == null || n <= 0) return 'Enter a valid amount';
+                    if (_type == 'percentage' && n > 100) return 'Percentage cannot exceed 100';
+                    return null;
+                  },
+                ),
+                TextFormField(
+                  controller: _minimum,
+                  decoration: const InputDecoration(labelText: 'Minimum Order'),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  validator: (v) {
+                    final n = double.tryParse(v ?? '');
+                    return n == null || n < 0 ? 'Enter a valid amount' : null;
+                  },
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Promo Active'),
+                  value: _active,
+                  onChanged: (v) => setState(() => _active = v),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _submit,
+          child: const Text('Save'),
+        ),
+      ],
     );
   }
 }
