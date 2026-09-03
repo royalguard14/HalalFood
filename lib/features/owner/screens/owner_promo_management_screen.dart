@@ -4,7 +4,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class OwnerPromoManagementScreen extends StatefulWidget {
   final String restaurantId;
   final String restaurantName;
+
   const OwnerPromoManagementScreen({super.key, required this.restaurantId, required this.restaurantName});
+
   @override
   State<OwnerPromoManagementScreen> createState() => _OwnerPromoManagementScreenState();
 }
@@ -53,8 +55,7 @@ class _OwnerPromoManagementScreenState extends State<OwnerPromoManagementScreen>
 
   Future<void> _toggle(Map<String, dynamic> promo) async {
     try {
-      final next = promo['is_active'] != true;
-      await _db.from('promo_codes').update({'is_active': next}).eq('id', promo['id']).eq('restaurant_id', widget.restaurantId);
+      await _db.from('promo_codes').update({'is_active': promo['is_active'] != true}).eq('id', promo['id']).eq('restaurant_id', widget.restaurantId);
       await _load();
     } catch (e) { _msg('Unable to update promo: $e'); }
   }
@@ -79,7 +80,9 @@ class _OwnerPromoManagementScreenState extends State<OwnerPromoManagementScreen>
     } catch (e) { _msg('Unable to delete promo: $e'); }
   }
 
-  void _msg(String message) { if (mounted) ScaffoldMessenger.of(context)..hideCurrentSnackBar()..showSnackBar(SnackBar(content: Text(message))); }
+  void _msg(String message) {
+    if (mounted) ScaffoldMessenger.of(context)..hideCurrentSnackBar()..showSnackBar(SnackBar(content: Text(message)));
+  }
 
   String _money(dynamic value) {
     final n = value is num ? value.toDouble() : double.tryParse('$value') ?? 0;
@@ -96,7 +99,10 @@ class _OwnerPromoManagementScreenState extends State<OwnerPromoManagementScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Promos & Discounts', style: TextStyle(fontWeight: FontWeight.w800)), actions: [IconButton(onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh_rounded))]),
+      appBar: AppBar(
+        title: Text(widget.restaurantName.isEmpty ? 'Promos & Discounts' : widget.restaurantName, style: const TextStyle(fontWeight: FontWeight.w800)),
+        actions: [IconButton(onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh_rounded))],
+      ),
       floatingActionButton: FloatingActionButton.extended(onPressed: _loading ? null : () => _save(), icon: const Icon(Icons.add_rounded), label: const Text('Create Promo')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -195,27 +201,42 @@ class _PromoFormDialogState extends State<_PromoFormDialog> {
     final maximum = double.tryParse(_maximum.text.trim());
     final limitText = _usageLimit.text.trim();
     final limit = limitText.isEmpty ? null : int.tryParse(limitText);
-    if (value == null || value <= 0 || (_type == 'percentage' && value > 100) || (_type == 'percentage' && maximum != null && maximum <= 0) || (limitText.isNotEmpty && (limit == null || limit <= 0))) return;
-    Navigator.pop(context, {'code': _code.text.trim().toUpperCase(), 'title': _title.text.trim(), 'description': _description.text.trim().isEmpty ? null : _description.text.trim(), 'discount_type': _type, 'discount_value': value, 'minimum_order': minimum, 'maximum_discount': _type == 'percentage' ? maximum : null, 'usage_limit': limit, 'is_active': _active});
+    if (value == null || value <= 0 || (limitText.isNotEmpty && (limit == null || limit <= 0))) return;
+    Navigator.pop(context, {
+      'code': _code.text.trim().toUpperCase(),
+      'title': _title.text.trim(),
+      'description': _description.text.trim().isEmpty ? null : _description.text.trim(),
+      'discount_type': _type,
+      'discount_value': value,
+      'minimum_order': minimum,
+      'maximum_discount': _type == 'percentage' ? maximum : null,
+      'usage_limit': limit,
+      'is_active': _active,
+    });
   }
 
   Widget _field(TextEditingController c, String label, IconData icon, {bool required = false, TextInputType? keyboard, int lines = 1}) => Padding(padding: const EdgeInsets.only(bottom: 13), child: TextFormField(controller: c, maxLines: lines, keyboardType: keyboard, decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)), validator: required ? (v) => v == null || v.trim().isEmpty ? 'Required' : null : null));
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: Text(widget.promo == null ? 'Create Promo' : 'Edit Promo', style: const TextStyle(fontWeight: FontWeight.w800)),
-    content: SizedBox(width: 430, child: Form(key: _formKey, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-      _field(_code, 'Promo Code', Icons.confirmation_number_outlined, required: true),
-      _field(_title, 'Promo Name', Icons.title_rounded, required: true),
-      _field(_description, 'Promo Details', Icons.description_outlined, lines: 3),
-      DropdownButtonFormField<String>(initialValue: _type, decoration: const InputDecoration(labelText: 'Discount Type', prefixIcon: Icon(Icons.discount_rounded)), items: const [DropdownMenuItem(value: 'percentage', child: Text('Percentage')), DropdownMenuItem(value: 'fixed', child: Text('Fixed Amount'))], onChanged: (v) => setState(() => _type = v ?? 'percentage')),
-      const SizedBox(height: 13),
-      _field(_value, _type == 'percentage' ? 'Discount Percentage' : 'Discount Amount', Icons.savings_outlined, required: true, keyboard: const TextInputType.numberWithOptions(decimal: true)),
-      _field(_minimum, 'Minimum Order', Icons.shopping_bag_outlined, keyboard: const TextInputType.numberWithOptions(decimal: true)),
-      if (_type == 'percentage') _field(_maximum, 'Maximum Discount (optional)', Icons.money_off_csred_outlined, keyboard: const TextInputType.numberWithOptions(decimal: true)),
-      _field(_usageLimit, 'Usage Limit (optional)', Icons.people_outline_rounded, keyboard: TextInputType.number),
-      SwitchListTile.adaptive(contentPadding: EdgeInsets.zero, title: const Text('Promo Active', style: TextStyle(fontWeight: FontWeight.w700)), subtitle: const Text('Customers can use this promo while active.'), value: _active, onChanged: (v) => setState(() => _active = v)),
-    ]))),
-    actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')), ElevatedButton(onPressed: _submit, child: const Text('Save'))],
-  );
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.promo == null ? 'Create Promo' : 'Edit Promo', style: const TextStyle(fontWeight: FontWeight.w800)),
+      content: SizedBox(width: 430, child: Form(key: _formKey, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        _field(_code, 'Promo Code', Icons.confirmation_number_outlined, required: true),
+        _field(_title, 'Promo Name', Icons.title_rounded, required: true),
+        _field(_description, 'Promo Details', Icons.description_outlined, lines: 3),
+        DropdownButtonFormField<String>(initialValue: _type, decoration: const InputDecoration(labelText: 'Discount Type', prefixIcon: Icon(Icons.discount_rounded)), items: const [DropdownMenuItem(value: 'percentage', child: Text('Percentage')), DropdownMenuItem(value: 'fixed', child: Text('Fixed Amount'))], onChanged: (v) => setState(() => _type = v ?? 'percentage')),
+        const SizedBox(height: 13),
+        _field(_value, _type == 'percentage' ? 'Discount Percentage' : 'Discount Amount', Icons.savings_outlined, required: true, keyboard: const TextInputType.numberWithOptions(decimal: true)),
+        _field(_minimum, 'Minimum Order', Icons.shopping_bag_outlined, keyboard: const TextInputType.numberWithOptions(decimal: true)),
+        if (_type == 'percentage') _field(_maximum, 'Maximum Discount (optional)', Icons.money_off_csred_outlined, keyboard: const TextInputType.numberWithOptions(decimal: true)),
+        _field(_usageLimit, 'Usage Limit (optional)', Icons.people_outline_rounded, keyboard: TextInputType.number),
+        SwitchListTile.adaptive(contentPadding: EdgeInsets.zero, title: const Text('Promo Active', style: TextStyle(fontWeight: FontWeight.w700)), subtitle: const Text('Customers can use this promo while active.'), value: _active, onChanged: (v) => setState(() => _active = v)),
+      ]))),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        ElevatedButton(onPressed: _submit, child: const Text('Save')),
+      ],
+    );
+  }
 }
