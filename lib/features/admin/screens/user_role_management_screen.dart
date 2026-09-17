@@ -56,13 +56,15 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
     return result == true;
   }
 
+  // Developer is a real profile role now. Admin cannot assign it because
+  // developer accounts are protected by developer_access and hidden from Admin.
   List<String> get _allowedRoles => _isDeveloper
-      ? const ['customer', 'restaurant_owner', 'verifier', 'admin']
+      ? const ['customer', 'restaurant_owner', 'admin', 'developer', 'driver']
       : const ['customer', 'restaurant_owner'];
 
   List<String> get _filters => _isDeveloper
-      ? const ['all', 'customer', 'restaurant_owner', 'verifier', 'admin']
-      : const ['all', 'customer', 'restaurant_owner', 'admin'];
+      ? const ['all', 'customer', 'restaurant_owner', 'admin', 'developer', 'driver']
+      : const ['all', 'customer', 'restaurant_owner', 'admin', 'driver'];
 
   List<Map<String, dynamic>> get _filtered {
     final q = _search.toLowerCase();
@@ -78,28 +80,30 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
 
   String _roleLabel(String role) => switch (role) {
         'admin' => 'Admin',
-        'verifier' => 'Verifier',
+        'developer' => 'Developer',
+        'driver' => 'Driver',
         'restaurant_owner' => 'Restaurant Owner',
         _ => 'Customer',
       };
 
   Color _roleColor(String role) => switch (role) {
         'admin' => Colors.deepPurple,
-        'verifier' => Colors.indigo,
+        'developer' => Colors.indigo,
+        'driver' => Colors.orange,
         'restaurant_owner' => HalalFoodTheme.primaryGreen,
         _ => Colors.blue,
       };
 
   IconData _roleIcon(String role) => switch (role) {
         'admin' => Icons.admin_panel_settings_rounded,
-        'verifier' => Icons.verified_user_rounded,
+        'developer' => Icons.developer_mode_rounded,
+        'driver' => Icons.delivery_dining_rounded,
         'restaurant_owner' => Icons.storefront_rounded,
         _ => Icons.person_rounded,
       };
 
-  bool _canChangeRole(String role) => _isDeveloper ||
-      role == 'customer' ||
-      role == 'restaurant_owner';
+  bool _canChangeRole(String role) => _isDeveloper &&
+      const ['customer', 'restaurant_owner', 'admin', 'developer', 'driver'].contains(role);
 
   Future<void> _changeRole(Map<String, dynamic> user) async {
     final id = user['id']?.toString();
@@ -328,8 +332,9 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
   String _filterLabel(String role) => switch (role) {
         'all' => 'All',
         'restaurant_owner' => 'Restaurant Owners',
-        'verifier' => 'Verifiers',
         'admin' => 'Admins',
+        'developer' => 'Developers',
+        'driver' => 'Drivers',
         _ => 'Customers',
       };
 
@@ -401,7 +406,7 @@ class _PermissionBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final title = isDeveloper ? 'Developer role management' : 'Admin role management';
     final text = isDeveloper
-        ? 'You can assign Customer, Restaurant Owner, Verifier and Admin roles.'
+        ? 'You can assign Customer, Restaurant Owner, Admin, Developer and Driver roles.'
         : 'You can change only Customer and Restaurant Owner roles. Developer accounts remain hidden.';
     return Card(
       color: (isDeveloper ? Colors.indigo : HalalFoodTheme.primaryGreen).withValues(alpha: .08),
@@ -426,7 +431,8 @@ class _Summary extends StatelessWidget {
     final admins = users.where((u) => u['role'] == 'admin').length;
     final owners = users.where((u) => u['role'] == 'restaurant_owner').length;
     final customers = users.where((u) => u['role'] == 'customer').length;
-    final verifiers = users.where((u) => u['role'] == 'verifier').length;
+    final developers = users.where((u) => u['role'] == 'developer').length;
+    final drivers = users.where((u) => u['role'] == 'driver').length;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(15),
@@ -438,7 +444,8 @@ class _Summary extends StatelessWidget {
             _Metric('Admins', admins, Icons.admin_panel_settings_rounded, Colors.deepPurple),
             _Metric('Owners', owners, Icons.storefront_rounded, Colors.teal),
             _Metric('Customers', customers, Icons.person_rounded, Colors.blue),
-            if (verifiers > 0) _Metric('Verifiers', verifiers, Icons.verified_user_rounded, Colors.indigo),
+            if (developers > 0) _Metric('Developers', developers, Icons.developer_mode_rounded, Colors.indigo),
+            if (drivers > 0) _Metric('Drivers', drivers, Icons.delivery_dining_rounded, Colors.orange),
           ],
         ),
       ),
@@ -483,7 +490,9 @@ class _RoleDialogState extends State<_RoleDialog> {
   @override
   void initState() {
     super.initState();
-    _selected = widget.currentRole;
+    _selected = widget.allowedRoles.contains(widget.currentRole)
+        ? widget.currentRole
+        : widget.allowedRoles.first;
   }
 
   @override
@@ -500,7 +509,7 @@ class _RoleDialogState extends State<_RoleDialog> {
               const Padding(
                 padding: EdgeInsets.only(bottom: 10),
                 child: Text(
-                  'Developer access is managed separately from the profile role.',
+                  'Developer access is protected separately. The Developer profile role is available only to a Developer.',
                   style: TextStyle(fontSize: 11, color: HalalFoodTheme.textSecondary),
                 ),
               ),
@@ -525,7 +534,8 @@ class _RoleDialogState extends State<_RoleDialog> {
 
   String _roleLabelStatic(String role) => switch (role) {
         'admin' => 'Admin',
-        'verifier' => 'Verifier',
+        'developer' => 'Developer',
+        'driver' => 'Driver',
         'restaurant_owner' => 'Restaurant Owner',
         _ => 'Customer',
       };
