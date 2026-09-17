@@ -8,6 +8,8 @@ import '../auth/screens/login_screen.dart';
 import '../home/screens/home_screen.dart';
 import '../owner/screens/owner_restaurant_selection_screen.dart';
 import '../admin/screens/admin_dashboard_screen.dart';
+import '../developer/screens/developer_dashboard_screen.dart';
+import '../delivery/screens/driver_dashboard_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -21,14 +23,6 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
     _checkSession();
-  }
-
-  void _goToAdminDashboard() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => const AdminDashboardScreen(),
-      ),
-    );
   }
 
   Future<void> _checkSession() async {
@@ -45,6 +39,17 @@ class _SplashScreenState extends State<SplashScreen> {
     }
 
     try {
+      // Developer access is authoritative through developer_access / is_developer().
+      // Check this first because developer profiles can be hidden by RLS from
+      // normal profile queries.
+      final developerResult = await supabase.rpc('is_developer');
+
+      if (developerResult == true) {
+        if (!mounted) return;
+        _goToDeveloperDashboard();
+        return;
+      }
+
       final profile = await supabase
           .from('profiles')
           .select('role')
@@ -55,18 +60,27 @@ class _SplashScreenState extends State<SplashScreen> {
 
       final role = profile?['role']?.toString();
 
-      if (role == 'admin') {
-        _goToAdminDashboard();
-      } else if (role == 'restaurant_owner') {
-        _goToOwnerRestaurantSelection();
-      } else {
-        _goToHome();
+      switch (role) {
+        case 'admin':
+          _goToAdminDashboard();
+          break;
+        case 'restaurant_owner':
+          _goToOwnerRestaurantSelection();
+          break;
+        case 'driver':
+          _goToDriverDashboard();
+          break;
+        case 'customer':
+        default:
+          _goToHome();
+          break;
       }
     } catch (e) {
       debugPrint('Unable to load user role: $e');
 
       if (!mounted) return;
 
+      // Keep the app usable if the role lookup fails.
       _goToHome();
     }
   }
@@ -75,6 +89,22 @@ class _SplashScreenState extends State<SplashScreen> {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => const LoginScreen(),
+      ),
+    );
+  }
+
+  void _goToDeveloperDashboard() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => const DeveloperDashboardScreen(),
+      ),
+    );
+  }
+
+  void _goToAdminDashboard() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => const AdminDashboardScreen(),
       ),
     );
   }
@@ -91,6 +121,14 @@ class _SplashScreenState extends State<SplashScreen> {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => const OwnerRestaurantSelectionScreen(),
+      ),
+    );
+  }
+
+  void _goToDriverDashboard() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => const DriverDashboardScreen(),
       ),
     );
   }
