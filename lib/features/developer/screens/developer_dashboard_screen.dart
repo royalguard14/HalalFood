@@ -37,7 +37,7 @@ class DeveloperDashboardScreen extends StatelessWidget {
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(18),
-                color: HalalFoodTheme.primary.withValues(alpha: 0.08),
+                color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.08),
               ),
               child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
