@@ -27,7 +27,7 @@ class BrandConfig {
 
   factory BrandConfig.fromMap(Map<String, dynamic> map) {
     return BrandConfig(
-      brandKey: map['brand_key'] as String,
+      brandKey: map['brand_key'] as String? ?? BrandConfigRepository.globalBrandKey,
       appName: map['app_name'] as String? ?? 'HALAL Food',
       primaryColor: map['primary_color'] as String? ?? '#0B6B3A',
       secondaryColor: map['secondary_color'] as String? ?? '#064B2A',
@@ -58,32 +58,36 @@ class BrandConfigRepository {
   BrandConfigRepository({SupabaseClient? client})
       : _supabase = client ?? Supabase.instance.client;
 
+  static const globalBrandKey = 'halalfood';
+
   final SupabaseClient _supabase;
 
-  Future<BrandConfig> getBrand(String brandKey) async {
+  Future<BrandConfig> getGlobalBrand() async {
     final row = await _supabase
         .from('brand_configs')
         .select()
-        .eq('brand_key', brandKey)
+        .eq('brand_key', globalBrandKey)
         .maybeSingle();
 
     if (row == null) {
-      throw const PostgrestException(message: 'Brand configuration not found.');
+      throw const PostgrestException(message: 'Global app branding not found.');
     }
     return BrandConfig.fromMap(row);
   }
 
-  Future<List<BrandConfig>> getAllBrands() async {
-    final rows = await _supabase
-        .from('brand_configs')
-        .select()
-        .order('app_name');
-    return rows
-        .map((row) => BrandConfig.fromMap(row as Map<String, dynamic>))
-        .toList();
-  }
-
-  Future<void> saveBrand(BrandConfig config) async {
-    await _supabase.from('brand_configs').upsert(config.toMap());
+  Future<void> saveGlobalBrand(BrandConfig config) async {
+    final globalConfig = BrandConfig(
+      brandKey: globalBrandKey,
+      appName: config.appName,
+      primaryColor: config.primaryColor,
+      secondaryColor: config.secondaryColor,
+      accentColor: config.accentColor,
+      backgroundColor: config.backgroundColor,
+      surfaceColor: config.surfaceColor,
+      textPrimaryColor: config.textPrimaryColor,
+      textSecondaryColor: config.textSecondaryColor,
+      borderColor: config.borderColor,
+    );
+    await _supabase.from('brand_configs').upsert(globalConfig.toMap());
   }
 }
