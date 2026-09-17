@@ -473,6 +473,19 @@ When a batch is ready for testing, explicitly tell the user:
 
 > **Mandatory:** Add a new entry here for **every development change/action**. Never erase previous entries. Newest entries go at the top.
 
+### 2026-09-17 — Admin subscription payment hardening runtime test PASSED
+
+- **Action:** Recorded the user's runtime test result for the Admin subscription payment hardening batch.
+- **Files:** `chat-gpt.md` only for this documentation action.
+- **Why:** The user confirmed the updated Admin payment review workflow is working in the local app.
+- **Testing performed by user:** Tested the hardened Admin subscription payment review flow after pulling commit `dc4dfd13c893d3f71e85c39c60be07e88ad2ba51`.
+- **Test result:** **WORKING / PASSED** according to the user's report.
+- **Verified behavior reported:** Admin payment review hardening is functioning as expected. The exact individual test cases were not separately reported, so do not infer additional cases beyond the user's confirmation.
+- **Database/Supabase changes:** None during this documentation update.
+- **Commit:** This documentation update.
+- **Status:** Admin hardening batch is runtime-tested and confirmed working.
+- **Next:** Proceed to Owner duplicate-submission and failed-step/orphan-subscription hardening.
+
 ### 2026-09-17 — Hardened Admin subscription payment review
 
 - **Action:** Updated `admin_subscription_payment_review_screen.dart` to harden payment approval/rejection handling.
@@ -490,11 +503,11 @@ When a batch is ready for testing, explicitly tell the user:
   - Payment is restored to pending if subscription rejection fails.
   - Processing buttons are disabled and show progress.
 - **Database/Supabase changes:** No schema/migration changes.
-- **Testing:** Static repository change completed; runtime testing still pending on the user's local emulator.
-- **Test result:** Not yet runtime-tested after this commit.
+- **Testing:** User later confirmed the batch is working.
+- **Test result:** PASSED in user's local runtime test.
 - **Commit:** `dc4dfd13c893d3f71e85c39c60be07e88ad2ba51`
-- **Status:** Code change committed; awaiting user pull/test.
-- **Next:** Harden owner duplicate subscription submission and failed-step cleanup.
+- **Status:** Done and tested.
+- **Next:** Owner duplicate subscription submission and failed-step cleanup.
 
 ### 2026-09-17 — Created AI handoff document
 
@@ -516,23 +529,21 @@ When a batch is ready for testing, explicitly tell the user:
 - **Code changes:** None.
 - **Database changes:** None.
 - **Testing:** File update committed successfully.
-- **Commit:** This update.
+- **Commit:** `353bbd257abf51ae1b909009ffd3469715c1674a`
 - **Status:** Done.
-- **Next:** No application code changes yet. Next application task remains Admin + Owner subscription workflow hardening.
+- **Next:** Continue with application development and record every action.
 
 ---
 
 ## 19. CURRENT STOPPING POINT
 
-The first Admin subscription payment hardening batch is now committed.
+The first Admin subscription payment hardening batch has been **runtime-tested by the user and confirmed working**.
 
 The Admin review screen now focuses on pending payments and protects approve/reject operations against common stale/double-tap cases at the application level.
 
-Runtime testing of this new Admin batch has **not yet been performed by the user**.
-
 The next code change is Owner subscription submission hardening.
 
-**Current exact next step:** User pulls commit `dc4dfd13c893d3f71e85c39c60be07e88ad2ba51` and tests the Admin payment review flow. After that, continue with Owner duplicate-submission/failed-step hardening.
+**Current exact next step:** Inspect the current Owner subscription submission code/schema/policies, then implement duplicate active/pending protection and safe failed-step cleanup. Update this file, commit, tell the user to `git pull`, and test the Owner flow.
 
 ---
 
