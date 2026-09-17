@@ -56,8 +56,6 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
     return result == true;
   }
 
-  // Developer is a real profile role now. Admin cannot assign it because
-  // developer accounts are protected by developer_access and hidden from Admin.
   List<String> get _allowedRoles => _isDeveloper
       ? const ['customer', 'restaurant_owner', 'admin', 'developer', 'driver']
       : const ['customer', 'restaurant_owner'];
@@ -102,8 +100,12 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         _ => Icons.person_rounded,
       };
 
-  bool _canChangeRole(String role) => _isDeveloper &&
-      const ['customer', 'restaurant_owner', 'admin', 'developer', 'driver'].contains(role);
+  bool _canChangeRole(String role) {
+    if (_isDeveloper) {
+      return const ['customer', 'restaurant_owner', 'admin', 'developer', 'driver'].contains(role);
+    }
+    return const ['customer', 'restaurant_owner'].contains(role);
+  }
 
   Future<void> _changeRole(Map<String, dynamic> user) async {
     final id = user['id']?.toString();
