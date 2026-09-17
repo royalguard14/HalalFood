@@ -246,41 +246,40 @@ Pending subscription payment review is already integrated into the Admin Action 
 lib/features/admin/screens/admin_subscription_payment_review_screen.dart
 ```
 
-Current behavior:
+### Latest hardening completed
 
-- Loads subscription payment records with related restaurant, subscription, and plan data.
-- Displays plan, billing cycle, amount, payment method, reference, notes, and payment proof.
-- Payment proof uses the `subscription-payment-proofs` bucket.
+The admin payment review screen was hardened in this batch:
 
-### Approval flow currently implemented
+- The review query now loads **only `pending` subscription payments** instead of the full payment history.
+- Approve/reject actions now have an in-memory processing lock per payment ID to prevent rapid double taps/simultaneous actions in the same screen.
+- Approval now requires an explicit confirmation dialog.
+- Approval uses the actual `subscription_id` from the payment record, with the joined subscription ID as fallback.
+- Approval updates the payment only when it is still `pending` using a guarded update/select.
+- Subscription activation is also guarded by `status = pending`.
+- If subscription activation fails after payment was marked paid, the payment is returned to `pending` to avoid leaving the workflow falsely completed.
+- Rejection now requires a non-empty reason.
+- Rejection also uses a guarded `pending` payment update and the actual `subscription_id`.
+- If the subscription rejection update fails, the payment is returned to `pending`.
+- Loading/empty messaging now explicitly refers to pending payments.
+- Processing buttons show a spinner and are disabled while the selected payment is being processed.
 
-For a pending payment:
+### Approval/rejection behavior after hardening
 
-- payment → `paid`
-- payment dates/billing period updated
-- restaurant subscription → `active`
-- subscription start/current-period/next-billing dates updated
-- cancelled/suspended timestamps cleared as appropriate
+The intended flow remains:
 
-### Rejection flow currently implemented
+```text
+Pending payment
+   ↓
+Admin confirms action
+   ↓
+Guarded payment status update
+   ↓
+Guarded subscription status update
+   ↓
+Reload pending list
+```
 
-For a pending payment:
-
-- admin enters rejection reason
-- payment → `rejected`
-- reason stored in notes
-- subscription → `cancelled`
-- cancellation information/notes updated
-
-### Known hardening tasks — NOT YET COMPLETED
-
-1. Query only pending payments in the admin review screen.
-2. Protect against double taps/simultaneous approve-reject actions.
-3. Verify payment is still pending before processing.
-4. Add approval confirmation dialog.
-5. Make state transitions robust and consistent.
-6. Ensure actual `subscription_id` relationship is used correctly.
-7. Consider database-level transactional protection later if needed.
+This is still application-level consistency protection. A future database-level RPC/transaction can provide stronger atomicity if schema/RLS review supports it.
 
 ---
 
@@ -343,20 +342,17 @@ Current behavior:
 
 ## 13. IMMEDIATE NEXT TASK
 
-**Do not start editing random features yet.**
+The next application batch is now:
 
-The immediate next development batch is:
-
-### Admin + Owner subscription workflow hardening
+### Owner subscription submission hardening
 
 Priority:
 
-1. Harden Admin payment review.
-2. Prevent duplicate/stale approve/reject operations.
-3. Improve pending-state handling.
-4. Harden owner duplicate subscription submission.
-5. Review failed-upload/orphan-subscription behavior.
-6. Test complete Owner → Admin → Owner flow.
+1. Prevent a restaurant with an existing `active` or `pending` subscription from opening/submitting another subscription payment.
+2. Re-check `active`/`pending` state immediately before creating the new subscription, so stale UI cannot bypass the check.
+3. Add cleanup for failed proof upload/payment-record creation where safely possible.
+4. Preserve the existing cancelled/expired resubmission behavior.
+5. Test complete Owner → Admin → Owner flow after both sides are hardened.
 
 After this batch is stable, move toward the Customer/User side.
 
@@ -403,6 +399,14 @@ Verify payment history
 ```
 
 For rejection, verify that the rejection reason is retained and that the owner can resubmit according to intended state rules.
+
+Additional hardening tests for the latest admin change:
+
+- Open a pending payment and tap Approve repeatedly: only one processing action should run.
+- Open a pending payment and confirm Approve: payment should become paid and subscription active.
+- Open a pending payment and reject without a reason: rejection must not proceed.
+- Reject with a reason: payment becomes rejected and subscription becomes cancelled.
+- Refresh/reopen the review screen: processed records should no longer appear because the screen now queries only pending payments.
 
 ---
 
@@ -469,6 +473,29 @@ When a batch is ready for testing, explicitly tell the user:
 
 > **Mandatory:** Add a new entry here for **every development change/action**. Never erase previous entries. Newest entries go at the top.
 
+### 2026-09-17 — Hardened Admin subscription payment review
+
+- **Action:** Updated `admin_subscription_payment_review_screen.dart` to harden payment approval/rejection handling.
+- **Files:** `lib/features/admin/screens/admin_subscription_payment_review_screen.dart`
+- **Why:** Prevent stale/double processing and make the admin review list represent only actionable pending payments.
+- **Logic changes:**
+  - Query filtered to `status = pending`.
+  - Per-payment processing lock added.
+  - Approval confirmation dialog added.
+  - Guarded payment update using `status = pending`.
+  - Guarded subscription activation using `status = pending`.
+  - Actual payment `subscription_id` is used first.
+  - Payment is restored to pending if the following subscription update fails.
+  - Rejection requires a reason and is guarded against stale processing.
+  - Payment is restored to pending if subscription rejection fails.
+  - Processing buttons are disabled and show progress.
+- **Database/Supabase changes:** No schema/migration changes.
+- **Testing:** Static repository change completed; runtime testing still pending on the user's local emulator.
+- **Test result:** Not yet runtime-tested after this commit.
+- **Commit:** `dc4dfd13c893d3f71e85c39c60be07e88ad2ba51`
+- **Status:** Code change committed; awaiting user pull/test.
+- **Next:** Harden owner duplicate subscription submission and failed-step cleanup.
+
 ### 2026-09-17 — Created AI handoff document
 
 - **Action:** Created `chat-gpt.md`.
@@ -497,15 +524,15 @@ When a batch is ready for testing, explicitly tell the user:
 
 ## 19. CURRENT STOPPING POINT
 
-The temporary debug login functionality is confirmed working.
+The first Admin subscription payment hardening batch is now committed.
 
-The Admin/Owner subscription workflow was audited and found to be substantially implemented already.
+The Admin review screen now focuses on pending payments and protects approve/reject operations against common stale/double-tap cases at the application level.
 
-The next hardening batch has **NOT yet been applied**.
+Runtime testing of this new Admin batch has **not yet been performed by the user**.
 
-The user requested that `chat-gpt.md` be the permanent continuity document and specifically requires that **every project action/change be recorded in it**.
+The next code change is Owner subscription submission hardening.
 
-**Current exact next step:** Harden the Admin + Owner subscription workflow, then commit, update this log, tell the user to `git pull`, and have the user test.
+**Current exact next step:** User pulls commit `dc4dfd13c893d3f71e85c39c60be07e88ad2ba51` and tests the Admin payment review flow. After that, continue with Owner duplicate-submission/failed-step hardening.
 
 ---
 
