@@ -61,18 +61,7 @@ After each completed development action, also update:
 - `IMMEDIATE NEXT TASK`
 - relevant feature/status section when necessary
 
-This rule applies even when the change is small, such as:
-
-- UI adjustment
-- bug fix
-- query change
-- Supabase change
-- auth change
-- temporary debug change
-- dependency/config change
-- file/folder restructuring
-- test result
-- failed attempt that materially changes our understanding
+This rule applies even when the change is small, such as UI adjustment, bug fix, query change, Supabase change, auth change, temporary debug change, dependency/config change, file/folder restructuring, test result, or a failed attempt that materially changes our understanding.
 
 The purpose is **AI continuity**: a new ChatGPT must be able to read this file and know exactly what happened without relying on the old conversation.
 
@@ -125,15 +114,7 @@ Debug banner: disabled.
 
 ## 5. CONFIGURATION / ENVIRONMENT
 
-The project uses dotenv/environment configuration.
-
-A previous issue was:
-
-```text
-dotenv has not been initialized
-```
-
-This was already fixed.
+The project uses dotenv/environment configuration. A previous `dotenv has not been initialized` issue was already fixed.
 
 Keep environment-specific configuration out of source control where appropriate. Never put private Supabase service-role credentials or other private secrets into Dart source code or this handoff file.
 
@@ -143,15 +124,17 @@ Keep environment-specific configuration out of source control where appropriate.
 
 Supabase is already connected.
 
-Important areas/tables already encountered:
+Important areas/tables:
 
 - `restaurants`
 - `restaurant_subscriptions`
 - `subscription_plans`
 - `subscription_payments`
 - `halal_verifications`
+- `subscription_payment_methods`
+- `subscription_plan_payment_methods`
 
-Supabase Storage bucket used by the owner subscription flow:
+Storage bucket used by owner subscription flow:
 
 ```text
 subscription-payment-proofs
@@ -159,7 +142,7 @@ subscription-payment-proofs
 
 ### Security reminder
 
-Do not solve authentication/password problems by directly modifying `auth.users.encrypted_password` unless there is a very specific controlled migration reason. Prefer the Supabase Admin API/service-role workflow for administrative password changes.
+Do not solve authentication/password problems by directly modifying `auth.users.encrypted_password`. Prefer the Supabase Admin API/service-role workflow for administrative password changes.
 
 ---
 
@@ -169,13 +152,9 @@ A temporary quick-login/test-login feature was added to reduce repeated manual l
 
 - Protected by Flutter `kDebugMode`.
 - Must not appear in release/production builds.
-- Known commit:
+- Known commit: `f5dac92fe6d20941659634378a951307af0c6ea0`
 
-```text
-f5dac92fe6d20941659634378a951307af0c6ea0
-```
-
-Temporary credentials are intentionally **not** documented here.
+Temporary credentials are intentionally not documented here.
 
 ---
 
@@ -189,7 +168,7 @@ Includes CRUD work for subscription management and testing.
 
 ### Admin / Owner subscription workflow
 
-A large part is already implemented and working:
+Implemented workflow:
 
 ```text
 Owner selects subscription plan
@@ -209,8 +188,6 @@ Approve OR Reject
 Owner subscription/payment status updates
 ```
 
-This workflow is not a blank feature anymore. **Audit and hardening should happen before rebuilding it from scratch.**
-
 ### Current overall direction
 
 1. Harden Admin + Owner subscription/payment flow.
@@ -224,141 +201,104 @@ This workflow is not a blank feature anymore. **Audit and hardening should happe
 
 ### `lib/features/admin/screens/admin_action_center_screen.dart`
 
-Current behavior:
-
-- Loads pending `halal_verifications`.
-- Loads pending `subscription_payments`.
+- Loads pending `halal_verifications` and `subscription_payments`.
 - Joins restaurant information.
 - Displays action cards.
 - Opens halal verification or subscription payment review screens.
 - Uses realtime subscriptions for relevant tables.
 - Displays an all-caught-up state when no pending actions remain.
 
-Pending subscription payment review is already integrated into the Admin Action Center.
+### Admin subscription payment review
+
+`lib/features/admin/screens/admin_subscription_payment_review_screen.dart` was hardened in commit `dc4dfd13c893d3f71e85c39c60be07e88ad2ba51`:
+
+- Query loads only `pending` payments.
+- Per-payment processing lock prevents rapid double actions.
+- Approval requires confirmation.
+- Uses actual `subscription_id` from payment, with joined fallback.
+- Guarded payment update requires `pending`.
+- Guarded subscription activation requires `pending`.
+- If subscription activation fails, payment is restored to `pending`.
+- Rejection requires a reason.
+- Rejection is guarded and uses actual `subscription_id`.
+- If subscription rejection fails, payment is restored to `pending`.
+- Processing buttons are disabled and show a spinner.
+
+**Runtime test:** User confirmed this batch is working.
 
 ---
 
-## 10. ADMIN SUBSCRIPTION PAYMENT REVIEW
+## 10. OWNER SUBSCRIPTION SUBMISSION
 
 ### File
 
-```text
-lib/features/admin/screens/admin_subscription_payment_review_screen.dart
-```
+`lib/features/owner/screens/owner_subscribe_screen.dart`
 
-### Latest hardening completed
+### Before hardening
 
-The admin payment review screen was hardened in this batch:
+The screen loaded active plans/payment methods and created a pending subscription, uploaded proof, then created a pending payment. The main risks were duplicate active/pending submissions and orphan pending subscriptions if proof/payment creation failed.
 
-- The review query now loads **only `pending` subscription payments** instead of the full payment history.
-- Approve/reject actions now have an in-memory processing lock per payment ID to prevent rapid double taps/simultaneous actions in the same screen.
-- Approval now requires an explicit confirmation dialog.
-- Approval uses the actual `subscription_id` from the payment record, with the joined subscription ID as fallback.
-- Approval updates the payment only when it is still `pending` using a guarded update/select.
-- Subscription activation is also guarded by `status = pending`.
-- If subscription activation fails after payment was marked paid, the payment is returned to `pending` to avoid leaving the workflow falsely completed.
-- Rejection now requires a non-empty reason.
-- Rejection also uses a guarded `pending` payment update and the actual `subscription_id`.
-- If the subscription rejection update fails, the payment is returned to `pending`.
-- Loading/empty messaging now explicitly refers to pending payments.
-- Processing buttons show a spinner and are disabled while the selected payment is being processed.
+### Owner hardening completed in this batch
 
-### Approval/rejection behavior after hardening
+- Added a blocking-state query for `pending`, `trial`, `active`, `past_due`, and `grace_period` subscriptions.
+- The subscription screen now stops showing new plans/submission controls when a blocking subscription already exists.
+- Added a second blocking-state check when a plan button is pressed.
+- Added a **final immediate re-check before inserting** `restaurant_subscriptions`, protecting against stale UI/state.
+- Added handling for Postgres uniqueness error `23505` so a concurrent duplicate submission produces a clear user message instead of a raw error. Postgres documents `23505` as a uniqueness violation. citeturn0search0turn0search1
+- Added best-effort cleanup after a created subscription later fails: remove uploaded proof and delete the still-pending subscription row.
+- Existing cancelled/expired subscriptions are not part of the blocking-state query, so the existing resubmission behavior remains available.
 
-The intended flow remains:
+### Supabase hardening migration
 
-```text
-Pending payment
-   ↓
-Admin confirms action
-   ↓
-Guarded payment status update
-   ↓
-Guarded subscription status update
-   ↓
-Reload pending list
-```
+New file:
 
-This is still application-level consistency protection. A future database-level RPC/transaction can provide stronger atomicity if schema/RLS review supports it.
+`supabase/owner_subscription_submission_hardening.sql`
+
+It adds:
+
+1. Unique partial index preventing more than one `pending` subscription per restaurant.
+2. Owner delete policy limited to their own `pending` subscription rows, used only for rollback cleanup.
+3. Owner storage delete policy limited to their own restaurant folder in `subscription-payment-proofs`, used for rollback cleanup.
+
+**Important:** The new SQL migration must be run in the Supabase SQL Editor before relying on the database-level pending uniqueness and rollback deletion policies.
+
+No existing subscription/payment schema was otherwise changed.
 
 ---
 
-## 11. OWNER SUBSCRIPTION SUBMISSION
+## 11. OWNER SUBSCRIPTION MANAGEMENT
 
 ### File
 
-```text
-lib/features/owner/screens/owner_subscribe_screen.dart
-```
-
-Current behavior:
-
-- Loads active subscription plans.
-- Loads linked active payment methods.
-- Owner selects monthly/annual billing.
-- Owner selects payment method.
-- Owner enters transaction/reference information.
-- Owner uploads payment screenshot/proof.
-- Creates `restaurant_subscriptions` with `pending` status.
-- Uploads proof to `subscription-payment-proofs`.
-- Creates `subscription_payments` with `pending` status.
-- Shows that payment is pending admin verification.
-
-### Known hardening concern
-
-The current flow creates the subscription row before proof upload/payment record completion. If a later step fails, an orphan pending subscription can potentially remain.
-
-Possible future solutions:
-
-- cleanup/rollback logic, or
-- Supabase database RPC/transaction-based submission.
-
-Do not implement a complicated transaction/RPC blindly. Inspect current schema and policies first.
-
-### Another hardening task
-
-Prevent duplicate/invalid subscription submissions when a restaurant already has an active or pending subscription.
-
----
-
-## 12. OWNER SUBSCRIPTION MANAGEMENT
-
-### File
-
-```text
-lib/features/owner/screens/owner_subscription_management_screen.dart
-```
+`lib/features/owner/screens/owner_subscription_management_screen.dart`
 
 Current behavior:
 
 - Loads restaurant subscriptions newest first.
-- Displays current/latest subscription.
-- Displays payment history.
-- Handles statuses including Active, Trial, Pending Review, Past Due, Grace Period, Suspended, Cancelled, Expired, Approved, and Rejected.
+- Displays current/latest subscription and payment history.
+- Handles Active, Trial, Pending Review, Past Due, Grace Period, Suspended, Cancelled, Expired, Approved, and Rejected labels.
 - Pending subscriptions display payment-under-review information.
-- Resubmission is currently allowed for cancelled/expired subscriptions.
+- Resubmission remains allowed for cancelled/expired subscriptions.
 
 ---
 
-## 13. IMMEDIATE NEXT TASK
+## 12. IMMEDIATE NEXT TASK
 
-The next application batch is now:
+After the owner hardening code is pulled and the SQL migration is run:
 
-### Owner subscription submission hardening
-
-Priority:
-
-1. Prevent a restaurant with an existing `active` or `pending` subscription from opening/submitting another subscription payment.
-2. Re-check `active`/`pending` state immediately before creating the new subscription, so stale UI cannot bypass the check.
-3. Add cleanup for failed proof upload/payment-record creation where safely possible.
-4. Preserve the existing cancelled/expired resubmission behavior.
-5. Test complete Owner → Admin → Owner flow after both sides are hardened.
+1. Test Owner with an existing active subscription — new subscription controls must be blocked.
+2. Test Owner with an existing pending subscription — new subscription controls must be blocked.
+3. Test cancelled/expired subscription — resubmission remains possible.
+4. Test normal new submission — pending subscription + proof + pending payment are created.
+5. Test failed-step cleanup where possible.
+6. Complete Owner → Admin → Owner approval/rejection flow.
+7. Record the user's test result in this file.
 
 After this batch is stable, move toward the Customer/User side.
 
 ---
 
-## 14. EXPECTED TEST FLOW
+## 13. EXPECTED TEST FLOW
 
 ```text
 OWNER
@@ -400,17 +340,9 @@ Verify payment history
 
 For rejection, verify that the rejection reason is retained and that the owner can resubmit according to intended state rules.
 
-Additional hardening tests for the latest admin change:
-
-- Open a pending payment and tap Approve repeatedly: only one processing action should run.
-- Open a pending payment and confirm Approve: payment should become paid and subscription active.
-- Open a pending payment and reject without a reason: rejection must not proceed.
-- Reject with a reason: payment becomes rejected and subscription becomes cancelled.
-- Refresh/reopen the review screen: processed records should no longer appear because the screen now queries only pending payments.
-
 ---
 
-## 15. KNOWN PREVIOUS BUILD ISSUE
+## 14. KNOWN PREVIOUS BUILD ISSUE
 
 A Gradle/Kotlin incremental cache problem previously occurred around `shared_preferences_android`, with an error similar to a storage/cache entry being already registered.
 
@@ -418,7 +350,7 @@ If it returns, inspect/clean the relevant Gradle/Kotlin caches before changing a
 
 ---
 
-## 16. GIT WORKFLOW
+## 15. GIT WORKFLOW
 
 Preferred workflow:
 
@@ -445,23 +377,16 @@ Continue from that exact state
 
 **Never tell the user to pull before a new commit exists.**
 
-When a batch is ready for testing, explicitly tell the user:
-
-- what changed
-- commit/hash if useful
-- that they can now run `git pull`
-- exact test steps
-
 ---
 
-## 17. IMPORTANT CODE-CHANGE PRINCIPLES
+## 16. IMPORTANT CODE-CHANGE PRINCIPLES
 
 - Preserve existing working screens.
 - Prefer focused changes over rewrites.
 - Do not remove existing functionality without a reason.
 - Reuse existing Supabase tables/relationships unless schema changes are intentional.
 - Do not invent database columns.
-- Inspect existing queries/schema/migrations where possible before database-dependent changes.
+- Inspect existing queries/schema/migrations before database-dependent changes.
 - Handle loading, empty, error, and success states.
 - Prevent duplicate submissions from rapid button taps.
 - Keep production UI free of debug/test controls.
@@ -469,42 +394,54 @@ When a batch is ready for testing, explicitly tell the user:
 
 ---
 
-# 18. PROJECT CHANGE LOG
+# 17. PROJECT CHANGE LOG
 
 > **Mandatory:** Add a new entry here for **every development change/action**. Never erase previous entries. Newest entries go at the top.
+
+### 2026-09-17 — Owner subscription submission hardening implemented
+
+- **Action:** Hardened the Owner subscription submission flow against duplicate subscriptions and failed-step orphan records.
+- **Files changed:**
+  - `lib/features/owner/screens/owner_subscribe_screen.dart`
+  - `supabase/owner_subscription_submission_hardening.sql`
+  - `chat-gpt.md`
+- **Why:** Prevent a restaurant with an existing active/pending subscription from opening/submitting another subscription and reduce orphan pending subscriptions when later submission steps fail.
+- **Application logic:**
+  - Checks blocking statuses before loading the plan UI.
+  - Re-checks when a plan is selected.
+  - Re-checks immediately before subscription insert.
+  - Handles database uniqueness violation `23505` as a duplicate-subscription message.
+  - Best-effort cleanup removes proof storage and deletes the pending subscription after later submission failure.
+  - Cancelled/expired remain eligible for resubmission.
+- **Supabase changes:** Added a partial unique index for one pending subscription per restaurant, plus owner-only pending subscription delete and owner-only proof delete policies for rollback.
+- **Testing:** Code/schema audit completed. Runtime testing by user is **PENDING**.
+- **Commits:**
+  - Code: `5772d311f86e69175298d15c7abe0403f2bb5f4e`
+  - SQL migration: `fd2bd411e932701e767e32ac3075288a6c053d4c`
+  - Documentation: this commit
+- **Status:** Ready for user pull + Supabase migration + runtime test.
+- **Next:** Run the SQL migration, pull the latest commits, then test Owner duplicate blocking, normal submission, cancelled/expired resubmission, and the full Owner → Admin → Owner workflow.
 
 ### 2026-09-17 — Admin subscription payment hardening runtime test PASSED
 
 - **Action:** Recorded the user's runtime test result for the Admin subscription payment hardening batch.
 - **Files:** `chat-gpt.md` only for this documentation action.
-- **Why:** The user confirmed the updated Admin payment review workflow is working in the local app.
-- **Testing performed by user:** Tested the hardened Admin subscription payment review flow after pulling commit `dc4dfd13c893d3f71e85c39c60be07e88ad2ba51`.
+- **Why:** User confirmed the updated Admin payment review workflow is working in the local app.
+- **Testing performed by user:** Tested after pulling commit `dc4dfd13c893d3f71e85c39c60be07e88ad2ba51`.
 - **Test result:** **WORKING / PASSED** according to the user's report.
-- **Verified behavior reported:** Admin payment review hardening is functioning as expected. The exact individual test cases were not separately reported, so do not infer additional cases beyond the user's confirmation.
 - **Database/Supabase changes:** None during this documentation update.
-- **Commit:** This documentation update.
+- **Commit:** Documentation update.
 - **Status:** Admin hardening batch is runtime-tested and confirmed working.
-- **Next:** Proceed to Owner duplicate-submission and failed-step/orphan-subscription hardening.
+- **Next:** Owner duplicate subscription submission and failed-step/orphan-subscription hardening.
 
 ### 2026-09-17 — Hardened Admin subscription payment review
 
 - **Action:** Updated `admin_subscription_payment_review_screen.dart` to harden payment approval/rejection handling.
 - **Files:** `lib/features/admin/screens/admin_subscription_payment_review_screen.dart`
 - **Why:** Prevent stale/double processing and make the admin review list represent only actionable pending payments.
-- **Logic changes:**
-  - Query filtered to `status = pending`.
-  - Per-payment processing lock added.
-  - Approval confirmation dialog added.
-  - Guarded payment update using `status = pending`.
-  - Guarded subscription activation using `status = pending`.
-  - Actual payment `subscription_id` is used first.
-  - Payment is restored to pending if the following subscription update fails.
-  - Rejection requires a reason and is guarded against stale processing.
-  - Payment is restored to pending if subscription rejection fails.
-  - Processing buttons are disabled and show progress.
+- **Logic changes:** Query filtered to pending; per-payment processing lock; approval confirmation; guarded payment/subscription updates; rollback to pending if the second update fails; rejection reason required; processing buttons disabled with progress.
 - **Database/Supabase changes:** No schema/migration changes.
 - **Testing:** User later confirmed the batch is working.
-- **Test result:** PASSED in user's local runtime test.
 - **Commit:** `dc4dfd13c893d3f71e85c39c60be07e88ad2ba51`
 - **Status:** Done and tested.
 - **Next:** Owner duplicate subscription submission and failed-step cleanup.
@@ -519,7 +456,7 @@ When a batch is ready for testing, explicitly tell the user:
 - **Testing:** Not applicable.
 - **Commit:** `5bc6457feb926f08efcedcbdffe94d47f4576e3a`
 - **Status:** Done.
-- **Next:** Add the mandatory per-change logging rule and continue with subscription hardening.
+- **Next:** Add mandatory per-change logging and continue subscription hardening.
 
 ### 2026-09-17 — Added mandatory per-change logging rule
 
@@ -535,19 +472,19 @@ When a batch is ready for testing, explicitly tell the user:
 
 ---
 
-## 19. CURRENT STOPPING POINT
+## 18. CURRENT STOPPING POINT
 
-The first Admin subscription payment hardening batch has been **runtime-tested by the user and confirmed working**.
+Owner subscription submission hardening is now implemented and documented, but **not yet runtime-tested by the user**.
 
-The Admin review screen now focuses on pending payments and protects approve/reject operations against common stale/double-tap cases at the application level.
+The Admin subscription payment hardening is already runtime-tested and confirmed working.
 
-The next code change is Owner subscription submission hardening.
+The owner code now blocks existing active/pending subscriptions, performs a final stale-state check before insertion, and attempts cleanup if proof/payment creation fails. The accompanying Supabase migration adds database-level pending uniqueness and rollback delete policies.
 
-**Current exact next step:** Inspect the current Owner subscription submission code/schema/policies, then implement duplicate active/pending protection and safe failed-step cleanup. Update this file, commit, tell the user to `git pull`, and test the Owner flow.
+**Next exact action:** User runs `git pull`, runs the new SQL migration in Supabase SQL Editor, then tests the Owner flow. After the user reports the result, record that result here before moving on.
 
 ---
 
-## 20. FUTURE HANDOFF RULE
+## 19. FUTURE HANDOFF RULE
 
 Whenever any project action changes the development state, update this file.
 
@@ -555,7 +492,7 @@ At minimum, update:
 
 - `PROJECT CHANGE LOG`
 - `CURRENT STOPPING POINT`
-- `IMMEDIATE NEXT TASK`
+- `IMMEDIATE NEXT TASK` / next-step section
 - relevant feature/status section when applicable
 - known bugs/issues
 - important commit/hash when useful
