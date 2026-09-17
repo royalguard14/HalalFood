@@ -4,7 +4,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../app/theme.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../admin/screens/admin_action_center_screen.dart';
-import '../../admin/screens/admin_dashboard_screen.dart';
 import '../../admin/screens/admin_menu_management_screen.dart';
 import '../../admin/screens/admin_order_management_screen.dart';
 import '../../admin/screens/admin_profile_screen.dart';
@@ -14,8 +13,8 @@ import '../../admin/screens/delivery_pricing_screen.dart';
 import '../../admin/screens/food_category_management_screen.dart';
 import '../../admin/screens/halal_verification_screen.dart';
 import '../../admin/screens/promo_management_screen.dart';
-import '../../admin/screens/restaurant_management_screen.dart';
 import '../../admin/screens/user_role_management_screen.dart';
+import 'developer_restaurant_management_screen.dart';
 
 class DeveloperDashboardScreen extends StatelessWidget {
   const DeveloperDashboardScreen({super.key});
@@ -38,9 +37,8 @@ class DeveloperDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final modules = <_DeveloperModule>[
-      _DeveloperModule(Icons.dashboard_customize_rounded, 'Full Admin Console', 'Open the complete admin dashboard and live platform overview.', HalalFoodTheme.primaryGreen, const AdminDashboardScreen()),
-      _DeveloperModule(Icons.people_alt_rounded, 'Users & Roles', 'View users, edit profiles and manage customer/owner/admin roles.', Colors.blue, const UserRoleManagementScreen()),
-      _DeveloperModule(Icons.storefront_rounded, 'Restaurants', 'Manage restaurant records, status and owner assignments.', Colors.teal, const RestaurantManagementScreen()),
+      _DeveloperModule(Icons.people_alt_rounded, 'Users & Roles', 'View users, edit profiles and manage all supported roles.', Colors.blue, const UserRoleManagementScreen()),
+      _DeveloperModule(Icons.storefront_rounded, 'Restaurants', 'Developer restaurant control, including permanent deletion of related data.', Colors.teal, const DeveloperRestaurantManagementScreen()),
       _DeveloperModule(Icons.restaurant_menu_rounded, 'Menus', 'Manage menu items for every restaurant.', Colors.deepOrange, const AdminMenuManagementScreen()),
       _DeveloperModule(Icons.category_rounded, 'Food Categories', 'Create, edit, activate and remove global food categories.', Colors.indigo, const FoodCategoryManagementScreen()),
       _DeveloperModule(Icons.receipt_long_rounded, 'Orders', 'Monitor customer orders, statuses, totals and payment status.', Colors.blueGrey, const AdminOrderManagementScreen()),
@@ -81,7 +79,7 @@ class DeveloperDashboardScreen extends StatelessWidget {
               const SizedBox(height: 22),
               Row(
                 children: [
-                  const Expanded(child: Text('Platform Control', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800))),
+                  const Expanded(child: Text('Developer Control', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800))),
                   Text('${modules.length} tools', style: const TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary, fontWeight: FontWeight.w700)),
                 ],
               ),
@@ -125,7 +123,7 @@ class DeveloperDashboardScreen extends StatelessWidget {
               children: [
                 Text('Developer / Super Admin', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800)),
                 SizedBox(height: 6),
-                Text('Full platform control for HALAL Food backend and operational management.', style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.35)),
+                Text('Developer-level platform control. Operational Admin functions are kept separate.', style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.35)),
               ],
             ),
           ),
