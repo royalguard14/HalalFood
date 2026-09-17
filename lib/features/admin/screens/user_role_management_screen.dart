@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/theme.dart';
 import '../data/admin_user_repository.dart';
@@ -15,6 +16,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
   final _searchController = TextEditingController();
 
   bool _loading = true;
+  bool _isDeveloper = false;
   String? _error;
   String _search = '';
   String _filter = 'all';
@@ -35,14 +37,32 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
   Future<void> _load() async {
     if (mounted) setState(() { _loading = true; _error = null; });
     try {
+      final developer = await _checkDeveloper();
       final users = await _repository.getUsers();
       if (!mounted) return;
-      setState(() { _users = users; _loading = false; });
+      setState(() {
+        _isDeveloper = developer;
+        _users = users;
+        _loading = false;
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() { _loading = false; _error = e.toString(); });
     }
   }
+
+  Future<bool> _checkDeveloper() async {
+    final result = await Supabase.instance.client.rpc('is_developer');
+    return result == true;
+  }
+
+  List<String> get _allowedRoles => _isDeveloper
+      ? const ['customer', 'restaurant_owner', 'verifier', 'admin']
+      : const ['customer', 'restaurant_owner'];
+
+  List<String> get _filters => _isDeveloper
+      ? const ['all', 'customer', 'restaurant_owner', 'verifier', 'admin']
+      : const ['all', 'customer', 'restaurant_owner', 'admin'];
 
   List<Map<String, dynamic>> get _filtered {
     final q = _search.toLowerCase();
@@ -58,30 +78,41 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
 
   String _roleLabel(String role) => switch (role) {
         'admin' => 'Admin',
+        'verifier' => 'Verifier',
         'restaurant_owner' => 'Restaurant Owner',
         _ => 'Customer',
       };
 
   Color _roleColor(String role) => switch (role) {
         'admin' => Colors.deepPurple,
+        'verifier' => Colors.indigo,
         'restaurant_owner' => HalalFoodTheme.primaryGreen,
         _ => Colors.blue,
       };
 
   IconData _roleIcon(String role) => switch (role) {
         'admin' => Icons.admin_panel_settings_rounded,
+        'verifier' => Icons.verified_user_rounded,
         'restaurant_owner' => Icons.storefront_rounded,
         _ => Icons.person_rounded,
       };
 
+  bool _canChangeRole(String role) => _isDeveloper ||
+      role == 'customer' ||
+      role == 'restaurant_owner';
+
   Future<void> _changeRole(Map<String, dynamic> user) async {
     final id = user['id']?.toString();
     final current = user['role']?.toString() ?? 'customer';
-    if (id == null || id.isEmpty) return;
+    if (id == null || id.isEmpty || !_canChangeRole(current)) return;
 
     final selected = await showDialog<String>(
       context: context,
-      builder: (_) => _RoleDialog(currentRole: current),
+      builder: (_) => _RoleDialog(
+        currentRole: current,
+        allowedRoles: _allowedRoles,
+        isDeveloper: _isDeveloper,
+      ),
     );
     if (selected == null || selected == current || !mounted) return;
 
@@ -119,6 +150,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
 
   void _showDetails(Map<String, dynamic> user) {
     final role = user['role']?.toString() ?? 'customer';
+    final canChange = _canChangeRole(role);
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -137,21 +169,20 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
                 ),
                 const SizedBox(width: 14),
                 Expanded(child: Text(
-                  user['full_name']?.toString().trim().isNotEmpty == true ? user['full_name'].toString() : 'Unnamed User',
+                  user['full_name']?.toString().trim().isNotEmpty == true
+                      ? user['full_name'].toString()
+                      : 'Unnamed User',
                   style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800),
                 )),
-                IconButton(
-                  tooltip: 'Edit profile',
-                  onPressed: () {
-                    Navigator.pop(sheetContext);
-                    _editProfile(user);
-                  },
-                  icon: const Icon(Icons.edit_rounded),
-                ),
               ]),
               const SizedBox(height: 18),
               _DetailRow('Role', _roleLabel(role)),
-              _DetailRow('Phone', user['phone']?.toString().trim().isNotEmpty == true ? user['phone'].toString() : 'Not provided'),
+              _DetailRow(
+                'Phone',
+                user['phone']?.toString().trim().isNotEmpty == true
+                    ? user['phone'].toString()
+                    : 'Not provided',
+              ),
               _DetailRow('User ID', user['id']?.toString() ?? 'Unknown'),
               _DetailRow('Joined', _formatDate(user['created_at']?.toString())),
               const SizedBox(height: 16),
@@ -166,18 +197,27 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
                     label: const Text('Edit Profile'),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(sheetContext);
-                      _changeRole(user);
-                    },
-                    icon: const Icon(Icons.manage_accounts_rounded),
-                    label: const Text('Change Role'),
+                if (canChange) ...[
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        _changeRole(user);
+                      },
+                      icon: const Icon(Icons.manage_accounts_rounded),
+                      label: const Text('Change Role'),
+                    ),
                   ),
-                ),
+                ],
               ]),
+              if (!canChange && !_isDeveloper) ...[
+                const SizedBox(height: 10),
+                const Text(
+                  'Admin can change roles only for Customer and Restaurant Owner accounts.',
+                  style: TextStyle(fontSize: 11, color: HalalFoodTheme.textSecondary),
+                ),
+              ],
             ],
           ),
         ),
@@ -194,7 +234,9 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
 
   void _message(String text) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)..hideCurrentSnackBar()..showSnackBar(SnackBar(content: Text(text)));
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(text)));
   }
 
   @override
@@ -202,9 +244,16 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
     final users = _filtered;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Users & Roles', style: TextStyle(fontWeight: FontWeight.w800)),
+        title: Text(
+          _isDeveloper ? 'Users & Roles — Developer' : 'Users & Roles',
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
         actions: [
-          IconButton(onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh_rounded), tooltip: 'Refresh'),
+          IconButton(
+            onPressed: _loading ? null : _load,
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Refresh',
+          ),
         ],
       ),
       body: _loading
@@ -217,6 +266,8 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 30),
                     children: [
+                      _PermissionBanner(isDeveloper: _isDeveloper),
+                      const SizedBox(height: 14),
                       _Summary(users: _users),
                       const SizedBox(height: 14),
                       TextField(
@@ -225,7 +276,15 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
                         decoration: InputDecoration(
                           hintText: 'Search name, phone or role...',
                           prefixIcon: const Icon(Icons.search_rounded),
-                          suffixIcon: _search.isEmpty ? null : IconButton(onPressed: () { _searchController.clear(); setState(() => _search = ''); }, icon: const Icon(Icons.clear_rounded)),
+                          suffixIcon: _search.isEmpty
+                              ? null
+                              : IconButton(
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setState(() => _search = '');
+                                  },
+                                  icon: const Icon(Icons.clear_rounded),
+                                ),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -234,18 +293,30 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
                         child: ListView(
                           scrollDirection: Axis.horizontal,
                           children: [
-                            _FilterChip('All', 'all', _filter, (v) => setState(() => _filter = v)),
-                            _FilterChip('Admins', 'admin', _filter, (v) => setState(() => _filter = v)),
-                            _FilterChip('Restaurant Owners', 'restaurant_owner', _filter, (v) => setState(() => _filter = v)),
-                            _FilterChip('Customers', 'customer', _filter, (v) => setState(() => _filter = v)),
+                            for (final role in _filters)
+                              _FilterChip(
+                                _filterLabel(role),
+                                role,
+                                _filter,
+                                (v) => setState(() => _filter = v),
+                              ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 14),
-                      Text('${users.length} user${users.length == 1 ? '' : 's'}', style: const TextStyle(fontWeight: FontWeight.w700, color: HalalFoodTheme.textSecondary)),
+                      Text(
+                        '${users.length} user${users.length == 1 ? '' : 's'}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: HalalFoodTheme.textSecondary,
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       if (users.isEmpty)
-                        const Padding(padding: EdgeInsets.only(top: 80), child: Center(child: Text('No users found.')))
+                        const Padding(
+                          padding: EdgeInsets.only(top: 80),
+                          child: Center(child: Text('No users found.')),
+                        )
                       else
                         ...users.map(_userCard),
                     ],
@@ -254,12 +325,21 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
     );
   }
 
+  String _filterLabel(String role) => switch (role) {
+        'all' => 'All',
+        'restaurant_owner' => 'Restaurant Owners',
+        'verifier' => 'Verifiers',
+        'admin' => 'Admins',
+        _ => 'Customers',
+      };
+
   Widget _userCard(Map<String, dynamic> user) {
     final role = user['role']?.toString() ?? 'customer';
     final color = _roleColor(role);
     final name = user['full_name']?.toString().trim();
     final displayName = name == null || name.isEmpty ? 'Unnamed User' : name;
     final phone = user['phone']?.toString().trim();
+    final canChange = _canChangeRole(role);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -275,16 +355,63 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
               child: Icon(_roleIcon(role), color: color),
             ),
             const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(displayName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-              const SizedBox(height: 4),
-              Text(phone == null || phone.isEmpty ? 'No phone number' : phone, style: const TextStyle(fontSize: 11, color: HalalFoodTheme.textSecondary)),
-              const SizedBox(height: 7),
-              _Badge(_roleLabel(role), color),
-            ])),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    phone == null || phone.isEmpty ? 'No phone number' : phone,
+                    style: const TextStyle(fontSize: 11, color: HalalFoodTheme.textSecondary),
+                  ),
+                  const SizedBox(height: 7),
+                  Row(
+                    children: [
+                      _Badge(_roleLabel(role), color),
+                      if (!canChange && !_isDeveloper) ...[
+                        const SizedBox(width: 6),
+                        const Icon(Icons.lock_outline_rounded, size: 14, color: HalalFoodTheme.textSecondary),
+                        const SizedBox(width: 3),
+                        const Text('Role locked', style: TextStyle(fontSize: 9, color: HalalFoodTheme.textSecondary)),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
             Icon(Icons.chevron_right_rounded, color: color),
           ]),
         ),
+      ),
+    );
+  }
+}
+
+class _PermissionBanner extends StatelessWidget {
+  final bool isDeveloper;
+  const _PermissionBanner({required this.isDeveloper});
+
+  @override
+  Widget build(BuildContext context) {
+    final title = isDeveloper ? 'Developer role management' : 'Admin role management';
+    final text = isDeveloper
+        ? 'You can assign Customer, Restaurant Owner, Verifier and Admin roles.'
+        : 'You can change only Customer and Restaurant Owner roles. Developer accounts remain hidden.';
+    return Card(
+      color: (isDeveloper ? Colors.indigo : HalalFoodTheme.primaryGreen).withValues(alpha: .08),
+      child: ListTile(
+        leading: Icon(
+          isDeveloper ? Icons.developer_mode_rounded : Icons.admin_panel_settings_rounded,
+          color: isDeveloper ? Colors.indigo : HalalFoodTheme.primaryGreen,
+        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+        subtitle: Text(text),
       ),
     );
   }
@@ -299,55 +426,109 @@ class _Summary extends StatelessWidget {
     final admins = users.where((u) => u['role'] == 'admin').length;
     final owners = users.where((u) => u['role'] == 'restaurant_owner').length;
     final customers = users.where((u) => u['role'] == 'customer').length;
+    final verifiers = users.where((u) => u['role'] == 'verifier').length;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(15),
-        child: Row(children: [
-          Expanded(child: _Metric('Total', users.length, Icons.people_alt_rounded, HalalFoodTheme.primaryGreen)),
-          Expanded(child: _Metric('Admins', admins, Icons.admin_panel_settings_rounded, Colors.deepPurple)),
-          Expanded(child: _Metric('Owners', owners, Icons.storefront_rounded, Colors.teal)),
-          Expanded(child: _Metric('Customers', customers, Icons.person_rounded, Colors.blue)),
-        ]),
+        child: Wrap(
+          alignment: WrapAlignment.spaceAround,
+          runSpacing: 12,
+          children: [
+            _Metric('Total', users.length, Icons.people_alt_rounded, HalalFoodTheme.primaryGreen),
+            _Metric('Admins', admins, Icons.admin_panel_settings_rounded, Colors.deepPurple),
+            _Metric('Owners', owners, Icons.storefront_rounded, Colors.teal),
+            _Metric('Customers', customers, Icons.person_rounded, Colors.blue),
+            if (verifiers > 0) _Metric('Verifiers', verifiers, Icons.verified_user_rounded, Colors.indigo),
+          ],
+        ),
       ),
     );
   }
 }
 
 class _Metric extends StatelessWidget {
-  final String label; final int value; final IconData icon; final Color color;
+  final String label;
+  final int value;
+  final IconData icon;
+  final Color color;
   const _Metric(this.label, this.value, this.icon, this.color);
+
   @override
-  Widget build(BuildContext context) => Column(children: [Icon(icon, size: 20, color: color), const SizedBox(height: 4), Text('$value', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)), Text(label, style: const TextStyle(fontSize: 9, color: HalalFoodTheme.textSecondary))]);
+  Widget build(BuildContext context) => SizedBox(
+        width: 72,
+        child: Column(
+          children: [
+            Icon(icon, size: 20, color: color),
+            const SizedBox(height: 4),
+            Text('$value', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            Text(label, style: const TextStyle(fontSize: 9, color: HalalFoodTheme.textSecondary)),
+          ],
+        ),
+      );
 }
 
 class _RoleDialog extends StatefulWidget {
   final String currentRole;
-  const _RoleDialog({required this.currentRole});
-  @override State<_RoleDialog> createState() => _RoleDialogState();
+  final List<String> allowedRoles;
+  final bool isDeveloper;
+  const _RoleDialog({required this.currentRole, required this.allowedRoles, required this.isDeveloper});
+
+  @override
+  State<_RoleDialog> createState() => _RoleDialogState();
 }
 
 class _RoleDialogState extends State<_RoleDialog> {
   late String _selected;
-  @override void initState() { super.initState(); _selected = widget.currentRole; }
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = widget.currentRole;
+  }
+
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Change User Role', style: TextStyle(fontWeight: FontWeight.w800)),
-    content: DropdownButtonFormField<String>(
-      initialValue: _selected,
-      isExpanded: true,
-      decoration: const InputDecoration(labelText: 'Role'),
-      items: const [
-        DropdownMenuItem(value: 'customer', child: Text('Customer')),
-        DropdownMenuItem(value: 'restaurant_owner', child: Text('Restaurant Owner')),
-        DropdownMenuItem(value: 'admin', child: Text('Admin')),
-      ],
-      onChanged: (v) { if (v != null) setState(() => _selected = v); },
-    ),
-    actions: [
-      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-      ElevatedButton(onPressed: () => Navigator.pop(context, _selected), child: const Text('Save')),
-    ],
-  );
+        title: Text(
+          widget.isDeveloper ? 'Set User Role' : 'Change User Role',
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (widget.isDeveloper)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 10),
+                child: Text(
+                  'Developer access is managed separately from the profile role.',
+                  style: TextStyle(fontSize: 11, color: HalalFoodTheme.textSecondary),
+                ),
+              ),
+            DropdownButtonFormField<String>(
+              initialValue: _selected,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Role'),
+              items: widget.allowedRoles
+                  .map((role) => DropdownMenuItem(value: role, child: Text(_roleLabelStatic(role))))
+                  .toList(),
+              onChanged: (v) {
+                if (v != null) setState(() => _selected = v);
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.pop(context, _selected), child: const Text('Save')),
+        ],
+      );
+
+  String _roleLabelStatic(String role) => switch (role) {
+        'admin' => 'Admin',
+        'verifier' => 'Verifier',
+        'restaurant_owner' => 'Restaurant Owner',
+        _ => 'Customer',
+      };
 }
 
 class _ProfileEditResult {
@@ -385,60 +566,119 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Edit User Profile', style: TextStyle(fontWeight: FontWeight.w800)),
-    content: Form(
-      key: _formKey,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextFormField(
-            controller: _name,
-            textCapitalization: TextCapitalization.words,
-            decoration: const InputDecoration(labelText: 'Full Name', prefixIcon: Icon(Icons.person_outline_rounded)),
-            validator: (v) => v == null || v.trim().isEmpty ? 'Full Name is required.' : null,
+        title: const Text('Edit User Profile', style: TextStyle(fontWeight: FontWeight.w800)),
+        content: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: _name,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(labelText: 'Full Name', prefixIcon: Icon(Icons.person_outline_rounded)),
+                validator: (v) => v == null || v.trim().isEmpty ? 'Full Name is required.' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _phone,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(labelText: 'Phone', prefixIcon: Icon(Icons.phone_outlined)),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          TextFormField(
-            controller: _phone,
-            keyboardType: TextInputType.phone,
-            decoration: const InputDecoration(labelText: 'Phone', prefixIcon: Icon(Icons.phone_outlined)),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              if (!_formKey.currentState!.validate()) return;
+              Navigator.pop(context, _ProfileEditResult(_name.text.trim(), _phone.text.trim()));
+            },
+            child: const Text('Save Changes'),
           ),
         ],
-      ),
-    ),
-    actions: [
-      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-      ElevatedButton(
-        onPressed: () {
-          if (!_formKey.currentState!.validate()) return;
-          Navigator.pop(context, _ProfileEditResult(_name.text.trim(), _phone.text.trim()));
-        },
-        child: const Text('Save Changes'),
-      ),
-    ],
-  );
+      );
 }
 
 class _FilterChip extends StatelessWidget {
-  final String label, value, selected; final ValueChanged<String> onSelected;
+  final String label;
+  final String value;
+  final String selected;
+  final ValueChanged<String> onSelected;
   const _FilterChip(this.label, this.value, this.selected, this.onSelected);
-  @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.only(right: 8), child: FilterChip(label: Text(label), selected: selected == value, onSelected: (_) => onSelected(value)));
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: FilterChip(
+          label: Text(label),
+          selected: selected == value,
+          onSelected: (_) => onSelected(value),
+        ),
+      );
 }
 
 class _Badge extends StatelessWidget {
-  final String label; final Color color;
+  final String label;
+  final Color color;
   const _Badge(this.label, this.color);
-  @override Widget build(BuildContext context) => Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: color.withValues(alpha: .10), borderRadius: BorderRadius.circular(8)), child: Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color)));
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: .10),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color),
+        ),
+      );
 }
 
 class _DetailRow extends StatelessWidget {
-  final String label, value;
+  final String label;
+  final String value;
   const _DetailRow(this.label, this.value);
-  @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.symmetric(vertical: 5), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [SizedBox(width: 70, child: Text(label, style: const TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary))), Expanded(child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)))]));
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 70,
+              child: Text(label, style: const TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary)),
+            ),
+            Expanded(child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700))),
+          ],
+        ),
+      );
 }
 
 class _ErrorView extends StatelessWidget {
-  final String message; final VoidCallback onRetry;
+  final String message;
+  final VoidCallback onRetry;
   const _ErrorView({required this.message, required this.onRetry});
-  @override Widget build(BuildContext context) => Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.error_outline_rounded, size: 54, color: Colors.redAccent), const SizedBox(height: 12), const Text('Unable to load users', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800)), const SizedBox(height: 8), Text(message, textAlign: TextAlign.center, maxLines: 5, overflow: TextOverflow.ellipsis), const SizedBox(height: 16), ElevatedButton(onPressed: onRetry, child: const Text('Try Again'))])));
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline_rounded, size: 54, color: Colors.redAccent),
+              const SizedBox(height: 12),
+              const Text('Unable to load users', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 8),
+              Text(message, textAlign: TextAlign.center, maxLines: 5, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 16),
+              ElevatedButton(onPressed: onRetry, child: const Text('Try Again')),
+            ],
+          ),
+        ),
+      );
 }
