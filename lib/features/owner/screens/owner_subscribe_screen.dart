@@ -199,6 +199,7 @@ class _OwnerSubscribeScreenState extends State<OwnerSubscribeScreen> {
     if (_submitting) return;
 
     if (await _hasBlockingSubscription()) return;
+    if (!mounted) return;
 
     final planId = plan['id']?.toString();
     if (planId == null) return;
@@ -447,7 +448,7 @@ class _OwnerSubscribeScreenState extends State<OwnerSubscribeScreen> {
     } on PostgrestException catch (e) {
       if (subscriptionId != null) {
         await _cleanupFailedSubmission(
-          subscriptionId: subscriptionId!,
+          subscriptionId: subscriptionId,
           proofPath: proofPath,
         );
       }
@@ -464,7 +465,7 @@ class _OwnerSubscribeScreenState extends State<OwnerSubscribeScreen> {
     } catch (e) {
       if (subscriptionId != null) {
         await _cleanupFailedSubmission(
-          subscriptionId: subscriptionId!,
+          subscriptionId: subscriptionId,
           proofPath: proofPath,
         );
       }

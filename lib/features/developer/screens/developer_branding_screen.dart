@@ -264,7 +264,7 @@ class _DeveloperBrandingScreenState extends State<DeveloperBrandingScreen> {
                 hintText: '#0B6B3A',
                 prefixIcon: ValueListenableBuilder<TextEditingValue>(
                   valueListenable: controller,
-                  builder: (_, value, __) => Padding(
+                  builder: (_, value, _) => Padding(
                     padding: const EdgeInsets.all(11),
                     child: Container(
                       width: 24,
