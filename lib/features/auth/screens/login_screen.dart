@@ -33,56 +33,31 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
-
-    await _loginWithCredentials(
-      _emailController.text.trim(),
-      _passwordController.text,
-    );
+    await _loginWithCredentials(_emailController.text.trim(), _passwordController.text);
   }
 
-  Future<void> _quickLogin({
-    required String label,
-    required String email,
-    required String password,
-  }) async {
+  Future<void> _quickLogin({required String label, required String email, required String password}) async {
     if (email.isEmpty || password.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '$label quick login is not configured. Add its credentials to your local .env file.',
-          ),
-        ),
+        SnackBar(content: Text('$label quick login is not configured. Add its credentials to your local .env file.')),
       );
       return;
     }
-
     await _loginWithCredentials(email, password);
   }
 
   Future<void> _loginWithCredentials(String email, String password) async {
     if (_isLoading) return;
-
     setState(() => _isLoading = true);
-
     try {
       final supabase = Supabase.instance.client;
+      if (supabase.auth.currentSession != null) await supabase.auth.signOut();
 
-      // Make switching between test accounts easy.
-      if (supabase.auth.currentSession != null) {
-        await supabase.auth.signOut();
-      }
-
-      final response = await supabase.auth.signInWithPassword(
-        email: email,
-        password: password,
-      );
-
+      final response = await supabase.auth.signInWithPassword(email: email, password: password);
       final user = response.user;
       if (user == null) throw Exception('Unable to login.');
 
-      // Developer access is intentionally checked server-side through the
-      // protected SECURITY DEFINER function, not from editable user metadata.
       final developerResult = await supabase.rpc('is_developer');
       if (developerResult == true) {
         if (!mounted) return;
@@ -90,26 +65,15 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      final profile = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .maybeSingle();
-
+      final profile = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
       if (!mounted) return;
-      final role = profile?['role']?.toString() ?? 'customer';
-
-      _openHomeForRole(role);
+      _openHomeForRole(profile?['role']?.toString() ?? 'customer');
     } on AuthException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to login: $e')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unable to login: $e')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -117,27 +81,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _openHomeForRole(String role) {
     if (role == 'developer') {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const DeveloperDashboardScreen()),
-        (route) => false,
-      );
+      Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const DeveloperDashboardScreen()), (route) => false);
     } else if (role == 'admin') {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
-        (route) => false,
-      );
+      Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const AdminDashboardScreen()), (route) => false);
     } else if (role == 'restaurant_owner') {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => const OwnerRestaurantSelectionScreen(),
-        ),
-        (route) => false,
-      );
+      Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const OwnerRestaurantSelectionScreen()), (route) => false);
     } else {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-        (route) => false,
-      );
+      Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const HomeScreen()), (route) => false);
     }
   }
 
@@ -154,36 +104,18 @@ class _LoginScreenState extends State<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 20),
-                const Text(
-                  'Welcome back!',
-                  style: TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.w800,
-                    color: HalalFoodTheme.textPrimary,
-                  ),
-                ),
+                const Text('Welcome back!', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: HalalFoodTheme.textPrimary)),
                 const SizedBox(height: 8),
-                const Text(
-                  'Login to continue to HALAL Food.',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: HalalFoodTheme.textSecondary,
-                  ),
-                ),
+                const Text('Login to continue to HALAL Food.', style: TextStyle(fontSize: 16, color: HalalFoodTheme.textSecondary)),
                 const SizedBox(height: 36),
                 const Text('Email', style: TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    hintText: 'Enter your email',
-                    prefixIcon: Icon(Icons.email_outlined),
-                  ),
+                  decoration: const InputDecoration(hintText: 'Enter your email', prefixIcon: Icon(Icons.email_outlined)),
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter your email';
-                    }
+                    if (value == null || value.trim().isEmpty) return 'Please enter your email';
                     if (!value.contains('@')) return 'Please enter a valid email';
                     return null;
                   },
@@ -198,34 +130,18 @@ class _LoginScreenState extends State<LoginScreen> {
                     hintText: 'Enter your password',
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
-                      onPressed: () => setState(
-                        () => _obscurePassword = !_obscurePassword,
-                      ),
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                      ),
+                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
                     ),
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your password';
-                    }
-                    if (value.length < 6) {
-                      return 'Password must be at least 6 characters';
-                    }
+                    if (value == null || value.isEmpty) return 'Please enter your password';
+                    if (value.length < 6) return 'Password must be at least 6 characters';
                     return null;
                   },
                 ),
                 const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () {},
-                    child: const Text('Forgot password?'),
-                  ),
-                ),
+                Align(alignment: Alignment.centerRight, child: TextButton(onPressed: () {}, child: const Text('Forgot password?'))),
                 const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
@@ -233,18 +149,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _login,
                     child: _isLoading
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text(
-                            'Login',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
+                        ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Text('Login', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                   ),
                 ),
                 if (kDebugMode) ...[
@@ -255,17 +161,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Row(
                   children: [
                     const Expanded(child: Divider()),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        'OR',
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
+                    Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text('OR', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w600))),
                     const Expanded(child: Divider()),
                   ],
                 ),
@@ -276,20 +172,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: OutlinedButton.icon(
                     onPressed: () {},
                     icon: const Icon(Icons.g_mobiledata),
-                    label: const Text(
-                      'Continue with Google',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
+                    label: const Text('Continue with Google', style: TextStyle(fontWeight: FontWeight.w600)),
                   ),
                 ),
                 const SizedBox(height: 28),
                 Center(
                   child: TextButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const RegisterScreen()),
-                      );
-                    },
+                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RegisterScreen())),
                     child: const Text("Don't have an account? Register"),
                   ),
                 ),
@@ -302,12 +191,19 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildQuickLoginSection() {
+    final buttons = <Widget>[
+      _quickButton('Admin', Icons.admin_panel_settings_outlined, Env.devAdminEmail, Env.devAdminPassword),
+      _quickButton('Owner', Icons.storefront_outlined, Env.devOwnerEmail, Env.devOwnerPassword),
+      _quickButton('User', Icons.person_outline, Env.devUserEmail, Env.devUserPassword),
+      _quickButton('Developer', Icons.developer_mode_outlined, Env.devDeveloperEmail, Env.devDeveloperPassword),
+    ];
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.amber.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.amber.withValues(alpha: 0.35)),
       ),
       child: Column(
@@ -317,83 +213,34 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               Icon(Icons.developer_mode, size: 18, color: Colors.amber.shade800),
               const SizedBox(width: 8),
-              Text(
-                'TEMPORARY TEST LOGIN',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.amber.shade900,
-                  letterSpacing: 0.4,
-                ),
-              ),
+              Text('TEMPORARY TEST LOGIN', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.amber.shade900, letterSpacing: 0.4)),
             ],
           ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _isLoading
-                      ? null
-                      : () => _quickLogin(
-                            label: 'Admin',
-                            email: Env.devAdminEmail,
-                            password: Env.devAdminPassword,
-                          ),
-                  icon: const Icon(Icons.admin_panel_settings_outlined, size: 18),
-                  label: const Text('Admin'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _isLoading
-                      ? null
-                      : () => _quickLogin(
-                            label: 'Owner',
-                            email: Env.devOwnerEmail,
-                            password: Env.devOwnerPassword,
-                          ),
-                  icon: const Icon(Icons.storefront_outlined, size: 18),
-                  label: const Text('Owner'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _isLoading
-                      ? null
-                      : () => _quickLogin(
-                            label: 'User',
-                            email: Env.devUserEmail,
-                            password: Env.devUserPassword,
-                          ),
-                  icon: const Icon(Icons.person_outline, size: 18),
-                  label: const Text('User'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _isLoading
-                      ? null
-                      : () => _quickLogin(
-                            label: 'Developer',
-                            email: Env.devDeveloperEmail,
-                            password: Env.devDeveloperPassword,
-                          ),
-                  icon: const Icon(Icons.developer_mode_outlined, size: 18),
-                  label: const Text('Developer'),
-                ),
-              ),
-            ],
+          const SizedBox(height: 12),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+            childAspectRatio: 2.9,
+            children: buttons,
           ),
           const SizedBox(height: 8),
-          Text(
-            'For development/testing only. Credentials stay in your local .env file.',
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
-          ),
+          Text('For development/testing only. Credentials stay in your local .env file.', style: TextStyle(fontSize: 10.5, color: Colors.grey.shade700)),
         ],
+      ),
+    );
+  }
+
+  Widget _quickButton(String label, IconData icon, String email, String password) {
+    return OutlinedButton.icon(
+      onPressed: _isLoading ? null : () => _quickLogin(label: label, email: email, password: password),
+      icon: Icon(icon, size: 18),
+      label: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
