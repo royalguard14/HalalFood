@@ -1,0 +1,38 @@
+name: Temporary handoff update
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  update-handoff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Append analyzer cleanup entry
+        run: |
+          cat >> chat-gpt.md <<'EOF'
+
+## 2026-09-17 — Flutter Analyze Lint Cleanup
+
+- User ran `flutter analyze` after the accepted Developer Dashboard compact UI redesign.
+- Initial result: 6 lint issues, 0 errors.
+- Cleaned the following without changing application functionality or the accepted Developer Dashboard UI:
+  - `developer_branding_screen.dart`: replaced unnecessary `__` callback parameter with `_`.
+  - `owner_dashboard_screen.dart`: removed unused `_refreshSubscription()`.
+  - `owner_promo_management_screen.dart`: replaced unnecessary `__` separator callback parameter with `_`.
+  - `owner_subscribe_screen.dart`: added `mounted` guard after the async blocking-subscription check before using `context`.
+  - `owner_subscribe_screen.dart`: removed two unnecessary `subscriptionId!` assertions in failed-submission cleanup.
+- Cleanup commit: `45f45e07a175025528e2def0b653d0e37654c68c` (`chore: clean flutter analyzer lints`).
+- Temporary cleanup workflow was removed immediately after the automated edit.
+- IMPORTANT: User must pull commit `aa8787a36a647059188a040066332dd99d28e7d0` and run `flutter analyze` locally to verify the final analyzer result.
+- Current stopping point: waiting for user's clean `flutter analyze` output before proceeding to the next development task.
+EOF
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add chat-gpt.md
+          git commit -m "docs: record flutter analyzer cleanup"
+          git push
