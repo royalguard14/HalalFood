@@ -13,6 +13,8 @@ class AdminUserRepository {
         .select('id, full_name, phone, role, created_at')
         .order('created_at', ascending: false);
 
+    // PostgREST filters must be applied before the transform/order stage.
+    // The current SDK type does not expose neq() after order().
     if (currentUserId != null) {
       query = query.neq('id', currentUserId);
     }
@@ -38,9 +40,12 @@ class AdminUserRepository {
     required String fullName,
     required String phone,
   }) async {
-    await _supabase.from('profiles').update({
-      'full_name': fullName.trim(),
-      'phone': phone.trim(),
-    }).eq('id', userId);
+    await _supabase
+        .from('profiles')
+        .update({
+          'full_name': fullName,
+          'phone': phone,
+        })
+        .eq('id', userId);
   }
 }
