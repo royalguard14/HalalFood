@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -231,8 +232,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                   ),
                 ),
-                const SizedBox(height: 24),
-                _buildQuickLoginSection(),
+                if (kDebugMode) ...[
+                  const SizedBox(height: 24),
+                  _buildQuickLoginSection(),
+                ],
                 const SizedBox(height: 28),
                 Row(
                   children: [
