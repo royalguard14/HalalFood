@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../app/theme.dart';
 import '../../../core/config/env.dart';
 import '../../admin/screens/admin_dashboard_screen.dart';
+import '../../developer/screens/developer_dashboard_screen.dart';
 import '../../home/screens/home_screen.dart';
 import '../../owner/screens/owner_restaurant_selection_screen.dart';
 import 'register_screen.dart';
@@ -80,6 +81,15 @@ class _LoginScreenState extends State<LoginScreen> {
       final user = response.user;
       if (user == null) throw Exception('Unable to login.');
 
+      // Developer access is intentionally checked server-side through the
+      // protected SECURITY DEFINER function, not from editable user metadata.
+      final developerResult = await supabase.rpc('is_developer');
+      if (developerResult == true) {
+        if (!mounted) return;
+        _openHomeForRole('developer');
+        return;
+      }
+
       final profile = await supabase
           .from('profiles')
           .select('role')
@@ -106,7 +116,12 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _openHomeForRole(String role) {
-    if (role == 'admin') {
+    if (role == 'developer') {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const DeveloperDashboardScreen()),
+        (route) => false,
+      );
+    } else if (role == 'admin') {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
         (route) => false,
@@ -355,6 +370,20 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                   icon: const Icon(Icons.person_outline, size: 18),
                   label: const Text('User'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _isLoading
+                      ? null
+                      : () => _quickLogin(
+                            label: 'Developer',
+                            email: Env.devDeveloperEmail,
+                            password: Env.devDeveloperPassword,
+                          ),
+                  icon: const Icon(Icons.developer_mode_outlined, size: 18),
+                  label: const Text('Developer'),
                 ),
               ),
             ],
