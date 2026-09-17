@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../app/theme.dart';
 import '../data/brand_config_repository.dart';
 
 class BrandThemeProvider extends ChangeNotifier {
@@ -20,7 +21,6 @@ class BrandThemeProvider extends ChangeNotifier {
     _loading = true;
     _error = null;
     notifyListeners();
-
     try {
       _config = await _repository.getBrand(brandKey);
     } catch (e) {
