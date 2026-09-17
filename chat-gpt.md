@@ -80,6 +80,9 @@ lib/
       screens/
     owner/
       screens/
+    delivery/
+      screens/
+        driver_dashboard_screen.dart
     ...
   shared/
     widgets/
@@ -140,6 +143,32 @@ A temporary quick-login/test-login feature was added to reduce repeated manual l
 - Temporary credentials are intentionally not documented here.
 
 Developer account currently used for testing has Developer access through `developer_access`; credentials are intentionally not documented in this file.
+
+### Role-based startup routing
+
+The application now uses the same role model for both fresh login and app restart after the splash screen:
+
+```text
+No session
+  → Login
+
+Developer (`is_developer() == true`)
+  → Developer Dashboard
+
+Admin
+  → Admin Dashboard
+
+Restaurant Owner
+  → Owner Restaurant Selection
+
+Driver
+  → Driver Dashboard
+
+Customer / unknown normal role
+  → Customer Home
+```
+
+Developer access is checked through `is_developer()` **before** reading `profiles.role` because Developer profiles can be hidden by RLS from normal profile queries.
 
 ---
 
@@ -410,7 +439,33 @@ Next Developer modules should be added individually rather than creating another
 
 ---
 
-## 16. DELIVERY PRICING SECURITY FINDING
+## 16. DELIVERY / DRIVER
+
+### Driver role
+
+The Supabase role enum now includes `driver` alongside `customer`, `restaurant_owner`, `admin`, and `developer`.
+
+A basic placeholder Driver Dashboard has now been added:
+
+`lib/features/delivery/screens/driver_dashboard_screen.dart`
+
+Current UI is intentionally basic and future-editable. It includes:
+
+- Driver welcome/header card.
+- Online / Offline toggle (UI state only for now).
+- Today / Earnings / Completed placeholders.
+- Current Delivery empty state.
+- My Deliveries placeholder.
+- Earnings placeholder.
+- Delivery Map placeholder.
+- My Profile placeholder.
+- Logout.
+
+No delivery assignment, location tracking, earnings calculation, or online-status persistence has been implemented yet. Those will be added later when the Driver workflow is developed.
+
+---
+
+## 17. DELIVERY PRICING SECURITY FINDING
 
 `public.delivery_pricing_settings` previously had RLS disabled and needs a deliberate access design before production use.
 
@@ -418,7 +473,7 @@ Do not blindly enable RLS without verifying all existing app access patterns.
 
 ---
 
-## 17. SECURITY AUDIT ITEMS STILL OPEN
+## 18. SECURITY AUDIT ITEMS STILL OPEN
 
 Previously identified functions that should be reviewed/hardened:
 
@@ -442,7 +497,7 @@ Also review missing FK indexes, duplicate indexes, and Auth leaked-password prot
 
 ---
 
-## 18. TURNOVER / BASELINE MIGRATION DIRECTION
+## 19. TURNOVER / BASELINE MIGRATION DIRECTION
 
 Eventually create a clean baseline migration set capable of provisioning a fresh HALAL Food Supabase database with:
 
@@ -458,7 +513,7 @@ Never commit the Developer account password as plaintext.
 
 ---
 
-## 19. EXPECTED TEST FLOW
+## 20. EXPECTED TEST FLOW
 
 ```text
 DEVELOPER
@@ -485,6 +540,12 @@ OWNER
   ↓
 Restaurant/subscription workflows
 
+DRIVER
+  ↓
+Driver Dashboard
+  ↓
+Future: delivery requests / active delivery / map / earnings
+
 CUSTOMER
   ↓
 To be implemented after backend/control layer is stable
@@ -501,7 +562,7 @@ For destructive operations, verify:
 
 ---
 
-## 20. GIT WORKFLOW
+## 21. GIT WORKFLOW
 
 Preferred workflow:
 
@@ -530,7 +591,7 @@ Never tell the user to pull before a new commit exists.
 
 ---
 
-## 21. IMPORTANT CODE-CHANGE PRINCIPLES
+## 22. IMPORTANT CODE-CHANGE PRINCIPLES
 
 - Preserve existing working screens.
 - Prefer focused changes over rewrites.
@@ -547,9 +608,36 @@ Never tell the user to pull before a new commit exists.
 
 ---
 
-# 22. PROJECT CHANGE LOG
+# 23. PROJECT CHANGE LOG
 
 > **Mandatory:** Add a new entry here for **every development change/action**. Never erase previous entries. Newest entries go at the top.
+
+### 2026-09-17 — Fixed startup role routing and added Driver Dashboard
+
+- **User request:** Before continuing other edits, fix the flow after Splash Screen so a logged-in account always goes to the correct dashboard, and prepare a basic Driver screen for future editing.
+- **Inspected first:** Existing `splash_screen.dart` already handled Admin and Restaurant Owner but did not handle Developer through `is_developer()` and did not handle Driver.
+- **Files changed:**
+  - `lib/features/splash/splash_screen.dart`
+  - `lib/features/auth/screens/login_screen.dart`
+  - `lib/features/delivery/screens/driver_dashboard_screen.dart`
+- **Startup routing:**
+  - No session → Login
+  - Developer via `is_developer()` → Developer Dashboard
+  - `admin` → Admin Dashboard
+  - `restaurant_owner` → Owner Restaurant Selection
+  - `driver` → Driver Dashboard
+  - `customer` / unknown normal role → Customer Home
+- **Important:** Developer check is performed before the `profiles.role` query because Developer profile visibility is restricted by RLS.
+- **Login routing:** Added Driver routing to the existing login flow. Developer/Admin/Owner routing was preserved.
+- **Driver screen:** Added a basic, intentionally placeholder Driver Dashboard with Online/Offline UI, stats placeholders, Current Delivery empty state, future tool cards, and logout.
+- **Supabase DB changes:** None in this action. The repository already contains the `driver` role migration (`add_developer_driver_roles_remove_verifier.sql`).
+- **Git commits:**
+  - Driver screen: `fb1afe338cae0bf22692baec6cfc12878fb89950`
+  - Splash routing: `ee655029e7ceb447637cc71a4b03de3698178991`
+  - Login Driver routing: `e496d200f14c5d884093bc91ff31e984e7ecf9a0`
+- **Testing:** Repository changes completed. Local Flutter runtime/analyzer test is **PENDING** until the user pulls the commits.
+- **Status:** Implemented; awaiting local test.
+- **Next:** `git pull`, run `flutter analyze`, then test Developer/Admin/Owner/Driver/Customer startup routing.
 
 ### 2026-09-17 — Developer restaurant control separated from Admin console
 
@@ -635,36 +723,51 @@ Never tell the user to pull before a new commit exists.
 
 ---
 
-## 23. CURRENT STOPPING POINT
+## 24. CURRENT STOPPING POINT
 
-The Developer Dashboard has been separated from the monolithic Admin console.
+The startup authentication flow is now prepared for the complete current role model.
 
-The Developer now has a dedicated Restaurant control module with a server-authorized permanent deletion function.
+After the Splash Screen, an existing session is routed by role:
 
-The Supabase deletion function is applied and security-verified. It deletes database records directly tied to a restaurant while preserving owner/customer accounts and customer addresses.
+```text
+Developer  → Developer Dashboard
+Admin      → Admin Dashboard
+Owner      → Owner Restaurant Selection
+Driver     → Driver Dashboard
+Customer   → Customer Home
+No session → Login
+```
 
-**Important:** Storage image cleanup is not yet included and must be handled separately after inspecting the actual storage bucket/path conventions.
+Developer authorization is checked through `is_developer()` before the normal profile query so the Developer account is not accidentally sent to Customer Home because of profile RLS visibility.
+
+A basic Driver Dashboard exists and is intentionally placeholder-level for future development.
 
 ### Current exact test state
 
-**User has not yet pulled/tested the new Developer Restaurant module in Flutter.**
+**The new routing and Driver Dashboard have NOT yet been runtime-tested locally.**
+
+The user needs to pull the latest commits before testing.
 
 ---
 
-## 24. IMMEDIATE NEXT TASK
+## 25. IMMEDIATE NEXT TASK
 
-1. User runs `git pull`.
+1. User runs `git pull` from `D:\FlutterApps\HALAL\halalfood`.
 2. Run `flutter analyze`.
-3. Login as Developer.
-4. Open **Restaurants**.
-5. Verify restaurant list/search and the permanent-delete confirmation UI.
-6. Do **not** delete a real restaurant yet; use a disposable/test restaurant for the first destructive runtime test.
-7. After the runtime test passes, inspect restaurant Storage buckets/paths and add explicit Storage cleanup.
-8. Continue Developer development one module at a time.
+3. Run the app.
+4. Test Developer login → Developer Dashboard.
+5. Restart the app while logged in as Developer → Splash → Developer Dashboard.
+6. Test Admin → Admin Dashboard.
+7. Test Restaurant Owner → Owner Restaurant Selection.
+8. Test Driver → Driver Dashboard.
+9. Test Customer → Customer Home.
+10. Report the first runtime result/error before we continue editing another feature.
+
+Do not start unrelated UI edits until this routing flow is confirmed working.
 
 ---
 
-## 25. FUTURE HANDOFF RULE
+## 26. FUTURE HANDOFF RULE
 
 Whenever any project action changes the development state, update this file.
 
