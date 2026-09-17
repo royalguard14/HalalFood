@@ -6,6 +6,7 @@ import '../../../app/theme.dart';
 import '../../../core/config/env.dart';
 import '../../admin/screens/admin_dashboard_screen.dart';
 import '../../developer/screens/developer_dashboard_screen.dart';
+import '../../delivery/screens/driver_dashboard_screen.dart';
 import '../../home/screens/home_screen.dart';
 import '../../owner/screens/owner_restaurant_selection_screen.dart';
 import 'register_screen.dart';
@@ -86,6 +87,8 @@ class _LoginScreenState extends State<LoginScreen> {
       Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const AdminDashboardScreen()), (route) => false);
     } else if (role == 'restaurant_owner') {
       Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const OwnerRestaurantSelectionScreen()), (route) => false);
+    } else if (role == 'driver') {
+      Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const DriverDashboardScreen()), (route) => false);
     } else {
       Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const HomeScreen()), (route) => false);
     }
