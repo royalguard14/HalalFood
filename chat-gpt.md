@@ -37,33 +37,13 @@ The long-term product has three major sides:
 
 **EVERY SINGLE DEVELOPMENT ACTION/CHANGE MUST BE RECORDED IN THIS FILE.**
 
-Do not only document major milestones. Whenever we make a project change, record it here so a future ChatGPT session can reconstruct exactly what happened.
-
-For **every change**, add an entry to the `PROJECT CHANGE LOG` section containing, as applicable:
-
-- Date/time or date of the change
-- What we changed
-- File(s) changed
-- Why it was changed
-- Important behavior/logic added or removed
-- Database/Supabase changes, if any
-- Testing performed
-- Test result
-- Git commit/hash
-- Current status after the change
-- What the next step is
-
-If a change is later reverted or corrected, record that too. **Do not delete the previous history.** Add a new log entry explaining the correction.
+For every change, record the date/time, files, reason, behavior/logic, DB/Supabase changes, testing, result, commit/hash, current status, and next step as applicable. Never delete previous history; corrections are new entries.
 
 After each completed development action, also update:
 
 - `CURRENT STOPPING POINT`
 - `IMMEDIATE NEXT TASK`
 - relevant feature/status section when necessary
-
-This rule applies even when the change is small, such as UI adjustment, bug fix, query change, Supabase change, auth change, temporary debug change, dependency/config change, file/folder restructuring, test result, or a failed attempt that materially changes our understanding.
-
-The purpose is **AI continuity**: a new ChatGPT must be able to read this file and know exactly what happened without relying on the old conversation.
 
 ---
 
@@ -96,6 +76,8 @@ lib/
       splash_screen.dart
     admin/
       screens/
+    developer/
+      screens/
     owner/
       screens/
     ...
@@ -105,26 +87,21 @@ lib/
 
 `main.dart` starts the application through `HalalFoodApp`.
 
-`app/app.dart` contains the main `MaterialApp` configuration and currently starts from `SplashScreen`.
-
-Application title: **HALAL Food**  
-Debug banner: disabled.
-
 ---
 
 ## 5. CONFIGURATION / ENVIRONMENT
 
-The project uses dotenv/environment configuration. A previous `dotenv has not been initialized` issue was already fixed.
+The project uses dotenv/environment configuration. A previous `dotenv has not been initialized` issue was fixed.
 
-Keep environment-specific configuration out of source control where appropriate. Never put private Supabase service-role credentials or other private secrets into Dart source code or this handoff file.
+Keep environment-specific configuration out of source control where appropriate. Never put private Supabase service-role credentials or private passwords into Dart source code or this handoff file.
 
 ---
 
 ## 6. SUPABASE
 
-Supabase is already connected.
+Supabase project: `taltqnxhivpfwjqlvxnt`.
 
-Important areas/tables:
+Important tables/areas include:
 
 - `restaurants`
 - `restaurant_subscriptions`
@@ -139,6 +116,9 @@ Important areas/tables:
 - `user_addresses`
 - `delivery_pricing_settings`
 - `app_settings`
+- menu/category tables
+- `promo_codes`
+- `favorite_restaurants`
 
 Storage bucket used by owner subscription flow:
 
@@ -146,22 +126,7 @@ Storage bucket used by owner subscription flow:
 subscription-payment-proofs
 ```
 
-### Security reminder
-
-Do not solve authentication/password problems by directly modifying `auth.users.encrypted_password`. Prefer the Supabase Admin API/service-role workflow for administrative password changes.
-
-### Current database cleanup status
-
-Customer ordering has not yet been activated. Development/test transaction data was therefore removed while preserving the transaction tables and schema.
-
-After cleanup:
-
-- `orders`: 0
-- `order_items`: 0
-- `payments`: 0
-- `user_addresses`: 0
-
-The schema remains intact for the future Customer side.
+Never expose a Supabase service-role key in the Flutter application.
 
 ---
 
@@ -172,8 +137,9 @@ A temporary quick-login/test-login feature was added to reduce repeated manual l
 - Protected by Flutter `kDebugMode`.
 - Must not appear in release/production builds.
 - Known commit: `f5dac92fe6d20941659634378a951307af0c6ea0`
+- Temporary credentials are intentionally not documented here.
 
-Temporary credentials are intentionally not documented here.
+Developer account currently used for testing has Developer access through `developer_access`; credentials are intentionally not documented in this file.
 
 ---
 
@@ -186,8 +152,6 @@ Temporary credentials are intentionally not documented here.
 Includes CRUD work for subscription management and testing.
 
 ### Admin / Owner subscription workflow
-
-Implemented workflow:
 
 ```text
 Owner selects subscription plan
@@ -207,148 +171,280 @@ Approve OR Reject
 Owner subscription/payment status updates
 ```
 
-### Current overall direction
+### Current development order
 
-1. Finish/test Admin + Owner production behavior.
-2. Build the Developer/Super Admin control layer.
-3. Establish clean baseline migrations and secure backend configuration.
-4. Build the Customer/User side.
-5. Connect customer ordering with restaurant/owner/admin workflows.
+1. Build Developer controls one module at a time.
+2. Keep operational Admin functionality separate from Developer functionality.
+3. Secure destructive Developer operations server-side.
+4. Finish backend/security hardening.
+5. Build Customer/User ordering after the control layer is stable.
 
 ---
 
-## 9. ADMIN — CURRENT IMPLEMENTATION
+## 9. ROLE MODEL / ACCESS RULES
 
-### `lib/features/admin/screens/admin_action_center_screen.dart`
+Final application roles:
+
+1. `customer`
+2. `restaurant_owner`
+3. `admin`
+4. `developer`
+5. `driver`
+
+There is **no `verifier` role**.
+
+Developer access is also represented in `public.developer_access`; this remains authoritative for `is_developer()`.
+
+### Role-management rules
+
+- Current logged-in Admin/Developer must not appear in Users & Roles.
+- Users cannot change their own role.
+- Developer can manage all supported roles of other users.
+- Admin UI exposes Customer ↔ Restaurant Owner role changes only.
+- Developer accounts are hidden from normal Admin user management.
+- Database trigger `enforce_role_management_rules()` also blocks self-role changes and unauthorized role assignments.
+
+---
+
+## 10. ADMIN — CURRENT IMPLEMENTATION
+
+### Admin Action Center
+
+`lib/features/admin/screens/admin_action_center_screen.dart`
 
 - Loads pending `halal_verifications` and `subscription_payments`.
 - Joins restaurant information.
 - Displays action cards.
-- Opens halal verification or subscription payment review screens.
-- Uses realtime subscriptions for relevant tables.
-- Displays an all-caught-up state when no pending actions remain.
+- Opens review screens.
+- Uses realtime subscriptions.
 
 ### Admin subscription payment review
 
-`lib/features/admin/screens/admin_subscription_payment_review_screen.dart` was hardened in commit `dc4dfd13c893d3f71e85c39c60be07e88ad2ba51`:
+`lib/features/admin/screens/admin_subscription_payment_review_screen.dart` was hardened in commit `dc4dfd13c893d3f71e85c39c60be07e88ad2ba51`.
 
-- Query loads only `pending` payments.
-- Per-payment processing lock prevents rapid double actions.
-- Approval requires confirmation.
-- Uses actual `subscription_id` from payment, with joined fallback.
-- Guarded payment update requires `pending`.
-- Guarded subscription activation requires `pending`.
-- If subscription activation fails, payment is restored to `pending`.
-- Rejection requires a reason.
-- Rejection is guarded and uses actual `subscription_id`.
-- If subscription rejection fails, payment is restored to `pending`.
-- Processing buttons are disabled and show a spinner.
+Runtime test: **PASSED / working** according to the user.
 
-**Runtime test:** User confirmed this batch is working.
+### Admin Users & Roles
+
+`lib/features/admin/screens/user_role_management_screen.dart` now supports:
+
+- Developer: all five application roles.
+- Admin: Customer ↔ Restaurant Owner in the UI.
+- Current logged-in account excluded from the list.
+- Developer accounts hidden from Admin.
+- Self-role changes blocked by database trigger.
 
 ---
 
-## 10. OWNER SUBSCRIPTION SUBMISSION
+## 11. OWNER SUBSCRIPTION SUBMISSION
 
-### File
+`lib/features/owner/screens/owner_subscribe_screen.dart` was hardened against duplicate submissions and orphan pending subscriptions.
 
-`lib/features/owner/screens/owner_subscribe_screen.dart`
-
-### Before hardening
-
-The screen loaded active plans/payment methods and created a pending subscription, uploaded proof, then created a pending payment. The main risks were duplicate active/pending submissions and orphan pending subscriptions if proof/payment creation failed.
-
-### Owner hardening completed in this batch
-
-- Added a blocking-state query for `pending`, `trial`, `active`, `past_due`, and `grace_period` subscriptions.
-- The subscription screen now stops showing new plans/submission controls when a blocking subscription already exists.
-- Added a second blocking-state check when a plan button is pressed.
-- Added a **final immediate re-check before inserting** `restaurant_subscriptions`, protecting against stale UI/state.
-- Added handling for Postgres uniqueness error `23505` so a concurrent duplicate submission produces a clear user message instead of a raw error.
-- Added best-effort cleanup after a created subscription later fails: remove uploaded proof and delete the still-pending subscription row.
-- Existing cancelled/expired subscriptions are not part of the blocking-state query, so the existing resubmission behavior remains available.
-
-### Supabase hardening migration
-
-New file:
+Supabase migration:
 
 `supabase/owner_subscription_submission_hardening.sql`
 
-It adds:
+Adds a partial unique index for one pending subscription per restaurant and owner-only rollback delete policies.
 
-1. Unique partial index preventing more than one `pending` subscription per restaurant.
-2. Owner delete policy limited to their own `pending` subscription rows, used only for rollback cleanup.
-3. Owner storage delete policy limited to their own restaurant folder in `subscription-payment-proofs`, used for rollback cleanup.
-
-No existing subscription/payment schema was otherwise changed.
+Known follow-up: runtime test of the Owner duplicate/rollback hardening is still pending.
 
 ---
 
-## 11. OWNER SUBSCRIPTION MANAGEMENT
+## 12. DATABASE CLEANUP
 
-### File
+Because the Customer/User ordering side is not active yet, old development/test transaction data was removed while preserving schema.
 
-`lib/features/owner/screens/owner_subscription_management_screen.dart`
+After cleanup:
 
-Current behavior:
+- `orders`: 0
+- `order_items`: 0
+- `payments`: 0
+- `user_addresses`: 0
 
-- Loads restaurant subscriptions newest first.
-- Displays current/latest subscription and payment history.
-- Handles Active, Trial, Pending Review, Past Due, Grace Period, Suspended, Cancelled, Expired, Approved, and Rejected labels.
-- Pending subscriptions display payment-under-review information.
-- Resubmission remains allowed for cancelled/expired subscriptions.
-
----
-
-## 12. DATABASE CLEANUP / DEVELOPER ARCHITECTURE
-
-### Cleanup completed — 2026-09-17
-
-Because the Customer/User ordering side is not active yet, old development transaction data was removed from:
-
-- `orders`
-- `order_items`
-- `payments`
-- `user_addresses` when no longer referenced by an order
-
-The tables, relationships, enums, indexes, and RLS configuration were preserved.
-
-Repository migration:
+Migration:
 
 `supabase/cleanup_pre_customer_test_transactions.sql`
 
-This migration records the cleanup operation for reproducibility. It must **not** be used casually against a production database containing real customer transactions.
+Commit: `a7579adeb86ea28cd3f519fd90a5d83686b01721`.
 
-### Developer / Super Admin direction
+This cleanup migration must not be casually run against a production database containing real customer transactions.
 
-The next architecture will introduce a Developer-only control layer with access to platform configuration and maintenance functions, including:
+---
 
-- user/account management
-- roles and permissions
-- restaurant management
-- menu/category management
+## 13. DEVELOPER / SUPER ADMIN ARCHITECTURE
+
+The Developer role is being built **one module at a time**.
+
+Important design rule:
+
+> Developer is not simply another way to open the entire Admin dashboard.
+
+Operational Admin users may be numerous, so the Developer dashboard must not depend on one shared "Full Admin Console" screen. Developer gets its own system-level controls while Admin keeps its operational console.
+
+Developer controls will eventually include:
+
+- Users & Roles
+- Restaurant management / destructive maintenance
+- controlled menu/category management
 - subscriptions and subscription payments
 - halal verification
-- promo codes
 - delivery pricing
 - app settings
-- maintenance mode
-- branding/logo configuration
-- theme/color configuration
+- security/audit
 - feature flags
-- controlled database cleanup/maintenance tools
+- branding/theme
+- database health/maintenance
+- other controlled platform operations
 
-This should be implemented as a protected application role and backend policy model, **not** by exposing a Supabase service-role key inside the Flutter app.
+Destructive Developer operations must always use explicit confirmation and server-side authorization.
 
-The Developer panel may provide powerful CRUD/maintenance operations, but destructive actions should use explicit confirmations and server-side authorization.
+---
 
-### Important security finding to address
+## 14. DEVELOPER — RESTAURANT CONTROL
 
-`public.delivery_pricing_settings` currently has RLS disabled. Supabase identifies this as a critical exposure because client roles can otherwise access/modify its rows. We will not blindly enable RLS without first designing the correct Developer/Admin read/write policies so existing delivery functionality is not broken.
+### Developer Dashboard change
 
-### Turnover / one-click setup direction
+The Developer dashboard previously contained a **Full Admin Console** card. This was intentionally removed.
 
-We will create a clean baseline migration set that can provision a fresh HALAL Food Supabase database with:
+Reason: if the platform has multiple Admin accounts, Developer should not simply impersonate/use one monolithic Admin console. Developer controls should be explicit and separated.
+
+### New Developer screen
+
+File:
+
+`lib/features/developer/screens/developer_restaurant_management_screen.dart`
+
+The Developer Dashboard now has a dedicated **Restaurants** module instead of the Full Admin Console.
+
+Current Developer restaurant module:
+
+- Lists restaurants.
+- Search by restaurant name/city/province.
+- Shows basic status, halal status, rating and review count.
+- Provides a clearly destructive permanent-delete action.
+- Shows a warning before deletion.
+- Preserves the restaurant owner account and customer accounts.
+
+### Permanent restaurant deletion
+
+A Developer-only backend function was added:
+
+`public.developer_delete_restaurant(uuid)`
+
+Migration file:
+
+`supabase/developer_restaurant_cascade_delete.sql`
+
+Git commit containing migration file:
+
+`f2dcbdd9fec4f34e1fd37caa2b9eee568c8aab91`
+
+The migration was applied successfully to Supabase.
+
+The function:
+
+1. Verifies `public.is_developer()`.
+2. Verifies the restaurant exists.
+3. Collects the restaurant's order IDs.
+4. Deletes related order payments.
+5. Deletes related order items.
+6. Deletes the restaurant's orders.
+7. Deletes menu items.
+8. Deletes menu categories.
+9. Deletes favorite-restaurant rows.
+10. Deletes restaurant promo codes.
+11. Deletes subscription payments.
+12. Deletes restaurant subscriptions.
+13. Deletes halal verification records.
+14. Deletes restaurant-category mappings.
+15. Deletes restaurant hours.
+16. Deletes restaurant photos.
+17. Deletes the restaurant itself.
+
+The owner profile is **not** deleted because `restaurants.owner_id` is `ON DELETE SET NULL` and the requested behavior is to remove the restaurant/data, not the user account.
+
+Customer `user_addresses` are also **not** deleted because they belong to customers and may be used by other orders/restaurants.
+
+### Backend security verification
+
+The function is `SECURITY DEFINER` with a pinned `search_path = public`, explicitly checks `is_developer()`, and has execution revoked from `public` and `anon`.
+
+Supabase verification after migration:
+
+- `anon_execute = false`
+- `authenticated_execute = true`
+- function definition contains Developer authorization check
+
+The Flutter app does not use a service-role key.
+
+### Important remaining issue
+
+Database deletion does not automatically remove external Storage objects such as restaurant images if those files are stored separately from the database. Storage cleanup must be handled explicitly after we inspect the actual restaurant image bucket/path conventions.
+
+Do **not** claim restaurant deletion is 100% storage-clean until that part is implemented and tested.
+
+---
+
+## 15. DEVELOPER DASHBOARD — CURRENT MODULES
+
+The Developer Dashboard no longer has `Full Admin Console`.
+
+Current modules include:
+
+- Users & Roles
+- Restaurants
+- Menus
+- Food Categories
+- Orders
+- Subscriptions
+- Halal Verification
+- Delivery Pricing
+- Promos & Discounts
+- App Settings
+- Action Center
+- Developer Profile
+
+These existing operational modules are currently reused where appropriate, but the Developer-specific destructive Restaurant control is separate.
+
+Next Developer modules should be added individually rather than creating another monolithic Admin screen.
+
+---
+
+## 16. DELIVERY PRICING SECURITY FINDING
+
+`public.delivery_pricing_settings` previously had RLS disabled and needs a deliberate access design before production use.
+
+Do not blindly enable RLS without verifying all existing app access patterns.
+
+---
+
+## 17. SECURITY AUDIT ITEMS STILL OPEN
+
+Previously identified functions that should be reviewed/hardened:
+
+### SECURITY DEFINER functions
+
+- `calculate_delivery_fee`
+- `expire_restaurant_subscriptions`
+- `handle_new_user`
+- `is_admin`
+
+### Mutable search_path functions
+
+- `set_promo_codes_updated_at`
+- `update_updated_at`
+- `update_updated_at_column`
+- `set_app_settings_updated_at`
+- `set_payments_updated_at`
+- `set_subscription_updated_at`
+
+Also review missing FK indexes, duplicate indexes, and Auth leaked-password protection before production hardening.
+
+---
+
+## 18. TURNOVER / BASELINE MIGRATION DIRECTION
+
+Eventually create a clean baseline migration set capable of provisioning a fresh HALAL Food Supabase database with:
 
 - schema/tables
 - indexes and foreign keys
@@ -358,63 +454,54 @@ We will create a clean baseline migration set that can provision a fresh HALAL F
 - seed/reference data
 - Developer bootstrap configuration
 
-The Developer account password must **not** be committed as plaintext in GitHub. The final setup will use a secure bootstrap/password-setting mechanism instead.
+Never commit the Developer account password as plaintext.
 
 ---
 
-## 13. IMMEDIATE NEXT TASK
-
-1. Inspect the Flutter repository for all existing Developer/Admin configuration needs and current `delivery_pricing_settings` usage.
-2. Design the Developer role and protected backend functions/policies.
-3. Add Developer control screens for platform settings/branding/maintenance.
-4. Harden `delivery_pricing_settings` with policies after verifying app access patterns.
-5. Audit SECURITY DEFINER functions and mutable `search_path` functions.
-6. Establish the baseline Supabase migration set.
-7. Only then move into Customer/User ordering.
-
----
-
-## 14. EXPECTED TEST FLOW
-
-Developer/Admin work will be tested separately from the Customer flow:
+## 19. EXPECTED TEST FLOW
 
 ```text
 DEVELOPER
   ↓
 Sign in
   ↓
-Developer control panel
+Developer Control Panel
   ↓
-Manage platform configuration
+Open one Developer module
   ↓
-Change branding/theme/settings
+Perform controlled operation
   ↓
-Manage controlled backend data
+Server-side authorization
   ↓
-Test confirmations and authorization
+Confirm result
 
-OWNER / ADMIN
+ADMIN
   ↓
-Existing subscription and halal workflows remain working
+Operational Admin console
+  ↓
+Manage normal platform operations
+
+OWNER
+  ↓
+Restaurant/subscription workflows
 
 CUSTOMER
   ↓
 To be implemented after backend/control layer is stable
 ```
 
-For destructive maintenance operations, verify confirmation dialogs and ensure the action is rejected for non-Developer accounts.
+For destructive operations, verify:
+
+- confirmation UI
+- Developer-only backend authorization
+- non-Developer rejection
+- successful deletion of all intended related rows
+- preservation of unrelated users/data
+- Storage cleanup once implemented
 
 ---
 
-## 15. KNOWN PREVIOUS BUILD ISSUE
-
-A Gradle/Kotlin incremental cache problem previously occurred around `shared_preferences_android`, with an error similar to a storage/cache entry being already registered.
-
-If it returns, inspect/clean the relevant Gradle/Kotlin caches before changing application code.
-
----
-
-## 16. GIT WORKFLOW
+## 20. GIT WORKFLOW
 
 Preferred workflow:
 
@@ -439,11 +526,11 @@ ChatGPT records the test result in chat-gpt.md
 Continue from that exact state
 ```
 
-**Never tell the user to pull before a new commit exists.**
+Never tell the user to pull before a new commit exists.
 
 ---
 
-## 17. IMPORTANT CODE-CHANGE PRINCIPLES
+## 21. IMPORTANT CODE-CHANGE PRINCIPLES
 
 - Preserve existing working screens.
 - Prefer focused changes over rewrites.
@@ -460,113 +547,124 @@ Continue from that exact state
 
 ---
 
-# 18. PROJECT CHANGE LOG
+# 22. PROJECT CHANGE LOG
 
 > **Mandatory:** Add a new entry here for **every development change/action**. Never erase previous entries. Newest entries go at the top.
+
+### 2026-09-17 — Developer restaurant control separated from Admin console
+
+- **Action:** Removed the Developer Dashboard's `Full Admin Console` module and replaced it with a dedicated Developer Restaurants module.
+- **Files changed:**
+  - `lib/features/developer/screens/developer_dashboard_screen.dart`
+  - `lib/features/developer/screens/developer_restaurant_management_screen.dart`
+- **Why:** Developer must not simply depend on a monolithic Admin console, especially when the platform may have multiple Admin users. Developer controls are being built individually.
+- **Behavior:** Developer now has a dedicated restaurant-control screen with search and a destructive delete action.
+- **Git commits:**
+  - New screen: `80c7b4ad065d458b941970d4eb30e16ce44e7adf`
+  - Dashboard update: `c47aacc20e459b089c7ba840e38e7039c7448612`
+- **Testing:** Repository implementation completed. Local Flutter runtime test is **PENDING** until user pulls.
+- **Status:** Implemented; awaiting local runtime test.
+- **Next:** Test Developer → Restaurants and verify the delete confirmation/UI before using it on any real restaurant.
+
+### 2026-09-17 — Added Developer-only permanent restaurant cascade deletion
+
+- **Action:** Added `public.developer_delete_restaurant(uuid)` and applied the migration to Supabase.
+- **Migration:** `supabase/developer_restaurant_cascade_delete.sql`
+- **Supabase migration name:** `developer_restaurant_cascade_delete`
+- **Git commit:** `f2dcbdd9fec4f34e1fd37caa2b9eee568c8aab91`
+- **Why:** Developer must be able to permanently remove a restaurant and application data directly related to that restaurant, including orders, order items, payments, menus, subscriptions, subscription payments, halal verification, promos, favorites, hours, photos and category mappings.
+- **Security:** Function checks `public.is_developer()`, uses `SECURITY DEFINER` with pinned `search_path`, revokes execution from `public` and `anon`, and grants execution only to `authenticated`.
+- **Verification:** Supabase query confirmed `anon_execute = false`, `authenticated_execute = true`, and the Developer authorization check is present.
+- **Preserved:** Owner account, customer accounts, and customer addresses are not deleted.
+- **Storage:** Restaurant Storage objects are not yet automatically removed by this DB function; storage cleanup remains a separate task after bucket/path inspection.
+- **Status:** Backend function applied and security-checked.
+- **Next:** Runtime test with a disposable/test restaurant, then implement Storage cleanup.
+
+### 2026-09-17 — Restored Admin Customer/Restaurant Owner role editing
+
+- **Action:** Restored the Admin role-edit UI while preserving Developer full role management.
+- **File:** `lib/features/admin/screens/user_role_management_screen.dart`
+- **Behavior:** Admin can change Customer ↔ Restaurant Owner; Developer can manage all five supported roles. Developer accounts remain hidden from Admin.
+- **Commit:** `237ec2070dfe16acb9330581d952a59a0ba5dc20`
+- **Status:** User confirmed this is OK.
+
+### 2026-09-17 — Fixed user-role repository filtering query
+
+- **Action:** Fixed Supabase query chaining in `admin_user_repository.dart` so `.neq('id', currentUserId)` is applied before `.order(...)`.
+- **Why:** Flutter analyzer reported `The method 'neq' isn't defined for the type 'PostgrestTransformBuilder'` with the previous query order.
+- **Commit:** `e35dfe9716dc0c4aee39f6c1e5ba5579204b2963`
+- **Status:** Corrected; remaining analyzer issues were unrelated pre-existing owner warnings/info.
 
 ### 2026-09-17 — Cleaned pre-Customer test transaction data
 
 - **Action:** Removed development/test transaction data because the Customer/User ordering side is not active yet.
-- **Supabase project:** `halalfood` / `taltqnxhivpfwjqlvxnt`
-- **Tables affected:** `orders`, `order_items`, `payments`, `user_addresses`.
-- **Why:** Keep the current database clean before building the Customer side while preserving all transaction schema for future use.
-- **Data removed:** All current rows from `orders`, `order_items`, and `payments`; unreferenced `user_addresses` were also removed.
-- **Schema changes:** None. Tables, relationships, enums, indexes, and RLS were preserved.
-- **Verification:** `orders = 0`, `order_items = 0`, `payments = 0`, `user_addresses = 0` after cleanup.
-- **Supabase migration:** `cleanup_pre_customer_test_transactions` applied successfully.
-- **Repository file:** `supabase/cleanup_pre_customer_test_transactions.sql`.
-- **Git commit:** `a7579adeb86ea28cd3f519fd90a5d83686b01721` for the migration file.
-- **Documentation commit:** current `chat-gpt.md` update.
+- **Tables:** `orders`, `order_items`, `payments`, `user_addresses` when unreferenced.
+- **Verification:** `orders = 0`, `order_items = 0`, `payments = 0`, `user_addresses = 0`.
+- **Migration:** `cleanup_pre_customer_test_transactions`.
+- **Commit:** `a7579adeb86ea28cd3f519fd90a5d83686b01721`.
 - **Status:** Cleanup completed and verified.
-- **Next:** Build the Developer/Super Admin architecture and secure backend configuration.
 
 ### 2026-09-17 — Owner subscription submission hardening implemented
 
-- **Action:** Hardened the Owner subscription submission flow against duplicate subscriptions and failed-step orphan records.
-- **Files changed:**
-  - `lib/features/owner/screens/owner_subscribe_screen.dart`
-  - `supabase/owner_subscription_submission_hardening.sql`
-  - `chat-gpt.md`
-- **Why:** Prevent a restaurant with an existing active/pending subscription from opening/submitting another subscription and reduce orphan pending subscriptions when later submission steps fail.
-- **Application logic:**
-  - Checks blocking statuses before loading the plan UI.
-  - Re-checks when a plan is selected.
-  - Re-checks immediately before subscription insert.
-  - Handles database uniqueness violation `23505` as a duplicate-subscription message.
-  - Best-effort cleanup removes proof storage and deletes the pending subscription after later submission failure.
-  - Cancelled/expired remain eligible for resubmission.
-- **Supabase changes:** Added a partial unique index for one pending subscription per restaurant, plus owner-only pending subscription delete and owner-only proof delete policies for rollback.
-- **Testing:** Code/schema audit completed. Runtime testing by user is **PENDING**.
-- **Commits:**
-  - Code: `5772d311f86e69175298d15c7abe0403f2bb5f4e`
-  - SQL migration: `fd2bd411e932701e767e32ac3075288a6c053d4c`
-  - Documentation: this commit
-- **Status:** Ready for user pull + Supabase migration + runtime test.
-- **Next:** Run the SQL migration, pull the latest commits, then test Owner duplicate blocking, normal submission, cancelled/expired resubmission, and the full Owner → Admin → Owner workflow.
+- **Action:** Hardened Owner subscription submission against duplicate subscriptions and failed-step orphan records.
+- **Files:** `lib/features/owner/screens/owner_subscribe_screen.dart`, `supabase/owner_subscription_submission_hardening.sql`.
+- **Commits:** Code `5772d311f86e69175298d15c7abe0403f2bb5f4e`; SQL `fd2bd411e932701e767e32ac3075288a6c053d4c`.
+- **Status:** Implemented; runtime testing remains pending.
 
 ### 2026-09-17 — Admin subscription payment hardening runtime test PASSED
 
 - **Action:** Recorded the user's runtime test result for the Admin subscription payment hardening batch.
-- **Files:** `chat-gpt.md` only for this documentation action.
-- **Why:** User confirmed the updated Admin payment review workflow is working in the local app.
-- **Testing performed by user:** Tested after pulling commit `dc4dfd13c893d3f71e85c39c60be07e88ad2ba51`.
-- **Test result:** **WORKING / PASSED** according to the user's report.
-- **Database/Supabase changes:** None during this documentation update.
-- **Commit:** Documentation update.
-- **Status:** Admin hardening batch is runtime-tested and confirmed working.
-- **Next:** Owner duplicate subscription submission and failed-step/orphan-subscription hardening.
+- **Commit under test:** `dc4dfd13c893d3f71e85c39c60be07e88ad2ba51`.
+- **Result:** **WORKING / PASSED** according to the user's report.
 
 ### 2026-09-17 — Hardened Admin subscription payment review
 
-- **Action:** Updated `admin_subscription_payment_review_screen.dart` to harden payment approval/rejection handling.
-- **Files:** `lib/features/admin/screens/admin_subscription_payment_review_screen.dart`
-- **Why:** Prevent stale/double processing and make the admin review list represent only actionable pending payments.
-- **Logic changes:** Query filtered to pending; per-payment processing lock; approval confirmation; guarded payment/subscription updates; rollback to pending if the second update fails; rejection reason required; processing buttons disabled with progress.
-- **Database/Supabase changes:** No schema/migration changes.
-- **Testing:** User later confirmed the batch is working.
-- **Commit:** `dc4dfd13c893d3f71e85c39c60be07e88ad2ba51`
-- **Status:** Done and tested.
-- **Next:** Owner duplicate subscription submission and failed-step cleanup.
+- **Action:** Hardened pending-payment review, processing locks, confirmation, guarded updates and rollback behavior.
+- **Commit:** `dc4dfd13c893d3f71e85c39c60be07e88ad2ba51`.
+- **Status:** Done and runtime-tested.
 
 ### 2026-09-17 — Created AI handoff document
 
-- **Action:** Created `chat-gpt.md`.
-- **Purpose:** Preserve project context so a different ChatGPT session can continue development without relying on the old conversation.
-- **Files:** `chat-gpt.md`
-- **Code changes:** None.
-- **Database changes:** None.
-- **Testing:** Not applicable.
-- **Commit:** `5bc6457feb926f08efcedcbdffe94d47f4576e3a`
-- **Status:** Done.
-- **Next:** Add mandatory per-change logging and continue subscription hardening.
+- **Action:** Created `chat-gpt.md` for AI continuity.
+- **Commit:** `5bc6457feb926f08efcedcbdffe94d47f4576e3a`.
 
 ### 2026-09-17 — Added mandatory per-change logging rule
 
-- **Action:** Updated `chat-gpt.md` to require that **every project action/change** be documented here.
-- **Purpose:** Ensure complete AI continuity across ChatGPT sessions.
-- **Files:** `chat-gpt.md`
-- **Code changes:** None.
-- **Database changes:** None.
-- **Testing:** File update committed successfully.
-- **Commit:** `353bbd257abf51ae1b909009ffd3469715c1674a`
-- **Status:** Done.
-- **Next:** Continue with application development and record every action.
+- **Action:** Updated `chat-gpt.md` to require complete project-change logging.
+- **Commit:** `353bbd257abf51ae1b909009ffd3469715c1674a`.
 
 ---
 
-## 19. CURRENT STOPPING POINT
+## 23. CURRENT STOPPING POINT
 
-The Supabase development/test transaction data has been cleaned successfully. The transaction schema remains intact for the future Customer/User side.
+The Developer Dashboard has been separated from the monolithic Admin console.
 
-The project is now ready for the next architectural step: a protected Developer/Super Admin control layer that can manage platform configuration, branding, maintenance, and controlled backend CRUD without exposing service-role credentials to the Flutter client.
+The Developer now has a dedicated Restaurant control module with a server-authorized permanent deletion function.
 
-The existing Admin subscription payment hardening is runtime-tested and confirmed working. Owner subscription hardening is implemented but still needs user runtime testing.
+The Supabase deletion function is applied and security-verified. It deletes database records directly tied to a restaurant while preserving owner/customer accounts and customer addresses.
 
-**Next exact action:** Inspect the current Flutter repository for Developer/Admin configuration needs and all usage of `delivery_pricing_settings`, then implement the Developer role/control layer and backend authorization before continuing with Customer ordering.
+**Important:** Storage image cleanup is not yet included and must be handled separately after inspecting the actual storage bucket/path conventions.
+
+### Current exact test state
+
+**User has not yet pulled/tested the new Developer Restaurant module in Flutter.**
 
 ---
 
-## 20. FUTURE HANDOFF RULE
+## 24. IMMEDIATE NEXT TASK
+
+1. User runs `git pull`.
+2. Run `flutter analyze`.
+3. Login as Developer.
+4. Open **Restaurants**.
+5. Verify restaurant list/search and the permanent-delete confirmation UI.
+6. Do **not** delete a real restaurant yet; use a disposable/test restaurant for the first destructive runtime test.
+7. After the runtime test passes, inspect restaurant Storage buckets/paths and add explicit Storage cleanup.
+8. Continue Developer development one module at a time.
+
+---
+
+## 25. FUTURE HANDOFF RULE
 
 Whenever any project action changes the development state, update this file.
 
@@ -574,12 +672,12 @@ At minimum, update:
 
 - `PROJECT CHANGE LOG`
 - `CURRENT STOPPING POINT`
-- `IMMEDIATE NEXT TASK` / next-step section
-- relevant feature/status section when applicable
+- `IMMEDIATE NEXT TASK`
+- relevant feature/status section
 - known bugs/issues
-- important commit/hash when useful
+- important commit/hash
 - latest test result
 
-A new ChatGPT session should read this file **before asking the user to repeat project history**.
+A new ChatGPT session should read this file before asking the user to repeat project history.
 
 This file is the project's **AI continuity / handoff document**.
