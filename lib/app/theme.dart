@@ -9,7 +9,6 @@ class HalalFoodTheme {
   static const Color darkGreen = Color(0xFF064B2A);
   static const Color lightGreen = Color(0xFFEAF6EF);
   static const Color gold = Color(0xFFD4A72C);
-
   static const Color background = Color(0xFFF8F9F7);
   static const Color surface = Colors.white;
   static const Color textPrimary = Color(0xFF1A1A1A);
@@ -33,8 +32,20 @@ class HalalFoodTheme {
       brightness: Brightness.light,
     ).copyWith(
       primary: primary,
+      onPrimary: Colors.white,
+      primaryContainer: secondary,
+      onPrimaryContainer: Colors.white,
       secondary: accent,
+      onSecondary: Colors.white,
+      secondaryContainer: accent.withValues(alpha: 0.16),
+      onSecondaryContainer: primaryText,
       surface: surfaceColor,
+      surfaceContainerLowest: surfaceColor,
+      surfaceContainerLow: pageBackground,
+      outline: borderColor,
+      outlineVariant: borderColor,
+      onSurface: primaryText,
+      onSurfaceVariant: secondaryText,
     );
 
     return ThemeData(
@@ -42,11 +53,31 @@ class HalalFoodTheme {
       colorScheme: colorScheme,
       scaffoldBackgroundColor: pageBackground,
       fontFamily: 'Roboto',
+      cardTheme: CardThemeData(
+        color: surfaceColor,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: borderColor),
+        ),
+      ),
       appBarTheme: AppBarTheme(
         backgroundColor: surfaceColor,
         foregroundColor: primaryText,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: primary,
+          foregroundColor: Colors.white,
+          minimumSize: const Size(64, 52),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -75,6 +106,7 @@ class HalalFoodTheme {
           borderSide: BorderSide(color: primary, width: 2),
         ),
       ),
+      dividerTheme: DividerThemeData(color: borderColor),
       textTheme: ThemeData.light().textTheme.apply(
             bodyColor: primaryText,
             displayColor: primaryText,
