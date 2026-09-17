@@ -23,6 +23,7 @@ class _OwnerSubscribeScreenState extends State<OwnerSubscribeScreen> {
   bool _loading = true;
   bool _submitting = false;
   String? _error;
+  String? _blockingStatus;
   List<Map<String, dynamic>> _plans = [];
   Map<String, List<Map<String, dynamic>>> _methodsByPlan = {};
 
@@ -32,13 +33,60 @@ class _OwnerSubscribeScreenState extends State<OwnerSubscribeScreen> {
     _loadPlans();
   }
 
+  Future<String?> _loadBlockingSubscriptionStatus() async {
+    final row = await _supabase
+        .from('restaurant_subscriptions')
+        .select('id,status')
+        .eq('restaurant_id', widget.restaurantId)
+        .inFilter('status', [
+          'pending',
+          'trial',
+          'active',
+          'past_due',
+          'grace_period',
+        ])
+        .order('created_at', ascending: false)
+        .limit(1)
+        .maybeSingle();
+
+    return row?['status']?.toString();
+  }
+
+  String _blockingMessage(String status) {
+    switch (status) {
+      case 'pending':
+        return 'Your restaurant already has a subscription payment pending admin review.';
+      case 'trial':
+        return 'Your restaurant already has an active trial subscription.';
+      case 'active':
+        return 'Your restaurant already has an active subscription.';
+      case 'past_due':
+        return 'Your restaurant already has a past-due subscription. Please resolve it before starting another subscription.';
+      case 'grace_period':
+        return 'Your restaurant already has a subscription in its grace period.';
+      default:
+        return 'Your restaurant already has a subscription that must be resolved before starting another one.';
+    }
+  }
+
   Future<void> _loadPlans() async {
     setState(() {
       _loading = true;
       _error = null;
+      _blockingStatus = null;
     });
 
     try {
+      final blockingStatus = await _loadBlockingSubscriptionStatus();
+      if (blockingStatus != null) {
+        if (!mounted) return;
+        setState(() {
+          _blockingStatus = blockingStatus;
+          _loading = false;
+        });
+        return;
+      }
+
       final plansRaw = await _supabase
           .from('subscription_plans')
           .select(
@@ -109,8 +157,48 @@ class _OwnerSubscribeScreenState extends State<OwnerSubscribeScreen> {
     }
   }
 
+  Future<void> _cleanupFailedSubmission({
+    required String subscriptionId,
+    String? proofPath,
+  }) async {
+    if (proofPath != null) {
+      try {
+        await _supabase.storage
+            .from('subscription-payment-proofs')
+            .remove([proofPath]);
+      } catch (_) {
+        // Best-effort cleanup. The database row remains the authoritative state.
+      }
+    }
+
+    try {
+      await _supabase
+          .from('restaurant_subscriptions')
+          .delete()
+          .eq('id', subscriptionId)
+          .eq('restaurant_id', widget.restaurantId)
+          .eq('status', 'pending');
+    } catch (_) {
+      // Best-effort cleanup. If deletion is blocked, the pending row remains
+      // visible for the owner/admin to resolve rather than being silently lost.
+    }
+  }
+
+  Future<bool> _hasBlockingSubscription({bool showMessage = true}) async {
+    final status = await _loadBlockingSubscriptionStatus();
+    if (status == null) return false;
+
+    if (mounted) {
+      setState(() => _blockingStatus = status);
+      if (showMessage) _message(_blockingMessage(status));
+    }
+    return true;
+  }
+
   Future<void> _subscribe(Map<String, dynamic> plan, bool annual) async {
     if (_submitting) return;
+
+    if (await _hasBlockingSubscription()) return;
 
     final planId = plan['id']?.toString();
     if (planId == null) return;
@@ -295,7 +383,14 @@ class _OwnerSubscribeScreenState extends State<OwnerSubscribeScreen> {
 
     setState(() => _submitting = true);
 
+    String? subscriptionId;
+    String? proofPath;
+
     try {
+      // Re-check immediately before the insert so stale UI cannot submit a
+      // second subscription after another session has already created one.
+      if (await _hasBlockingSubscription()) return;
+
       final now = DateTime.now().toUtc();
       final periodEnd = annual
           ? DateTime.utc(now.year + 1, now.month, now.day)
@@ -315,15 +410,15 @@ class _OwnerSubscribeScreenState extends State<OwnerSubscribeScreen> {
           .select('id')
           .single();
 
-      final subscriptionId = sub['id'].toString();
+      subscriptionId = sub['id'].toString();
       final bytes = await proofFile.readAsBytes();
-      final path =
+      proofPath =
           '${widget.restaurantId}/$subscriptionId-${DateTime.now().millisecondsSinceEpoch}.jpg';
 
       await _supabase.storage
           .from('subscription-payment-proofs')
           .uploadBinary(
-            path,
+            proofPath,
             bytes,
             fileOptions: const FileOptions(
               contentType: 'image/jpeg',
@@ -339,7 +434,7 @@ class _OwnerSubscribeScreenState extends State<OwnerSubscribeScreen> {
         'status': 'pending',
         'payment_method': paymentMethod['name']?.toString(),
         'transaction_reference': referenceController.text.trim(),
-        'proof_path': path,
+        'proof_path': proofPath,
         'billing_period_start': now.toIso8601String(),
         'billing_period_end': periodEnd.toIso8601String(),
       });
@@ -349,7 +444,31 @@ class _OwnerSubscribeScreenState extends State<OwnerSubscribeScreen> {
         'Payment submitted. Your subscription is pending admin verification.',
       );
       Navigator.pop(context, true);
+    } on PostgrestException catch (e) {
+      if (subscriptionId != null) {
+        await _cleanupFailedSubmission(
+          subscriptionId: subscriptionId!,
+          proofPath: proofPath,
+        );
+      }
+
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      if (e.code == '23505') {
+        _message(
+          'A subscription is already active or pending for this restaurant. Please refresh and check the subscription status.',
+        );
+      } else {
+        _message('Unable to submit payment: ${e.message}');
+      }
     } catch (e) {
+      if (subscriptionId != null) {
+        await _cleanupFailedSubmission(
+          subscriptionId: subscriptionId!,
+          proofPath: proofPath,
+        );
+      }
+
       if (!mounted) return;
       setState(() => _submitting = false);
       _message('Unable to submit payment: $e');
@@ -408,6 +527,38 @@ class _OwnerSubscribeScreenState extends State<OwnerSubscribeScreen> {
           ElevatedButton(
             onPressed: _loadPlans,
             child: const Text('Try Again'),
+          ),
+        ],
+      );
+    }
+
+    if (_blockingStatus != null) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(24),
+        children: [
+          const SizedBox(height: 80),
+          Icon(
+            Icons.lock_clock_rounded,
+            size: 58,
+            color: HalalFoodTheme.primaryGreen,
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Subscription Already Exists',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            _blockingMessage(_blockingStatus!),
+            textAlign: TextAlign.center,
+            style: TextStyle(color: HalalFoodTheme.textSecondary),
+          ),
+          const SizedBox(height: 18),
+          OutlinedButton(
+            onPressed: _loadPlans,
+            child: const Text('Refresh Status'),
           ),
         ],
       );
