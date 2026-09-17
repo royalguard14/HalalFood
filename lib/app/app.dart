@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../core/config/env.dart';
 import '../features/cart/providers/cart_provider.dart';
+import '../features/developer/providers/brand_theme_provider.dart';
 import '../features/splash/splash_screen.dart';
 import 'theme.dart';
 
@@ -11,13 +12,22 @@ class HalalFoodApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => CartProvider(),
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: Env.appName,
-        theme: HalalFoodTheme.light,
-        home: const SplashScreen(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => CartProvider()),
+        ChangeNotifierProvider(
+          create: (_) => BrandThemeProvider()..load(Env.brandKey),
+        ),
+      ],
+      child: Consumer<BrandThemeProvider>(
+        builder: (context, brandTheme, _) {
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            title: brandTheme.config?.appName ?? Env.appName,
+            theme: brandTheme.theme,
+            home: const SplashScreen(),
+          );
+        },
       ),
     );
   }
