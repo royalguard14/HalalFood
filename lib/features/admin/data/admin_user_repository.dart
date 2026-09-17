@@ -8,18 +8,18 @@ class AdminUserRepository {
 
   Future<List<Map<String, dynamic>>> getUsers() async {
     final currentUserId = _supabase.auth.currentUser?.id;
-    var query = _supabase
-        .from('profiles')
-        .select('id, full_name, phone, role, created_at')
-        .order('created_at', ascending: false);
 
-    // PostgREST filters must be applied before the transform/order stage.
-    // The current SDK type does not expose neq() after order().
-    if (currentUserId != null) {
-      query = query.neq('id', currentUserId);
-    }
+    final response = currentUserId == null
+        ? await _supabase
+            .from('profiles')
+            .select('id, full_name, phone, role, created_at')
+            .order('created_at', ascending: false)
+        : await _supabase
+            .from('profiles')
+            .select('id, full_name, phone, role, created_at')
+            .neq('id', currentUserId)
+            .order('created_at', ascending: false);
 
-    final response = await query;
     return (response as List)
         .map((item) => Map<String, dynamic>.from(item))
         .toList();
