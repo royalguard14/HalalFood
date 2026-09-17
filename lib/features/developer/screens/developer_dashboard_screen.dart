@@ -36,63 +36,99 @@ class DeveloperDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final modules = <_DeveloperModule>[
-      _DeveloperModule(Icons.palette_rounded, 'Branding & Theme', 'Global app identity, colors and appearance.', Colors.purple, const DeveloperBrandingScreen()),
-      _DeveloperModule(Icons.people_alt_rounded, 'Users & Roles', 'Manage users and supported platform roles.', Colors.blue, const UserRoleManagementScreen()),
-      _DeveloperModule(Icons.storefront_rounded, 'Restaurants', 'Manage restaurants and developer maintenance actions.', Colors.teal, const DeveloperRestaurantManagementScreen()),
-      _DeveloperModule(Icons.restaurant_menu_rounded, 'Menus', 'Manage menu items across restaurants.', Colors.deepOrange, const AdminMenuManagementScreen()),
-      _DeveloperModule(Icons.category_rounded, 'Food Categories', 'Manage global food categories.', Colors.indigo, const FoodCategoryManagementScreen()),
-      _DeveloperModule(Icons.receipt_long_rounded, 'Orders', 'Monitor orders, status, totals and payments.', Colors.blueGrey, const AdminOrderManagementScreen()),
-      _DeveloperModule(Icons.workspace_premium_rounded, 'Subscriptions', 'Manage plans and subscription payments.', Colors.deepPurple, const AdminSaasSubscriptionHubScreen()),
-      _DeveloperModule(Icons.verified_rounded, 'Halal Verification', 'Review halal verification requests.', Colors.green, const HalalVerificationScreen()),
-      _DeveloperModule(Icons.local_shipping_rounded, 'Delivery Pricing', 'Configure platform delivery pricing.', Colors.orange, const DeliveryPricingScreen()),
-      _DeveloperModule(Icons.local_offer_rounded, 'Promos & Discounts', 'Manage promo codes and discounts.', Colors.pink, const PromoManagementScreen()),
-      _DeveloperModule(Icons.settings_rounded, 'App Settings', 'Control platform-wide application settings.', Colors.grey, const AdminSettingsScreen()),
-      _DeveloperModule(Icons.notifications_active_rounded, 'Action Center', 'Review pending platform actions.', Colors.redAccent, const AdminActionCenterScreen()),
-      _DeveloperModule(Icons.account_circle_rounded, 'Developer Profile', 'Manage the current developer profile.', Colors.cyan, const AdminProfileScreen()),
+      _DeveloperModule(Icons.palette_outlined, 'Branding & Theme', 'Global app identity and colors.', Colors.purple, const DeveloperBrandingScreen()),
+      _DeveloperModule(Icons.people_outline_rounded, 'Users & Roles', 'Manage platform users and roles.', Colors.blue, const UserRoleManagementScreen()),
+      _DeveloperModule(Icons.storefront_outlined, 'Restaurants', 'Restaurant maintenance and control.', Colors.teal, const DeveloperRestaurantManagementScreen()),
+      _DeveloperModule(Icons.restaurant_menu_outlined, 'Menus', 'Manage menu items across restaurants.', Colors.deepOrange, const AdminMenuManagementScreen()),
+      _DeveloperModule(Icons.category_outlined, 'Food Categories', 'Manage global food categories.', Colors.indigo, const FoodCategoryManagementScreen()),
+      _DeveloperModule(Icons.receipt_long_outlined, 'Orders', 'Monitor orders and payments.', Colors.blueGrey, const AdminOrderManagementScreen()),
+      _DeveloperModule(Icons.workspace_premium_outlined, 'Subscriptions', 'Plans and subscription payments.', Colors.deepPurple, const AdminSaasSubscriptionHubScreen()),
+      _DeveloperModule(Icons.verified_outlined, 'Halal Verification', 'Review halal verification requests.', Colors.green, const HalalVerificationScreen()),
+      _DeveloperModule(Icons.local_shipping_outlined, 'Delivery Pricing', 'Configure delivery pricing.', Colors.orange, const DeliveryPricingScreen()),
+      _DeveloperModule(Icons.local_offer_outlined, 'Promos & Discounts', 'Manage promo codes and discounts.', Colors.pink, const PromoManagementScreen()),
+      _DeveloperModule(Icons.settings_outlined, 'App Settings', 'Platform-wide application settings.', Colors.grey, const AdminSettingsScreen()),
+      _DeveloperModule(Icons.notifications_none_rounded, 'Action Center', 'Review pending platform actions.', Colors.redAccent, const AdminActionCenterScreen()),
+      _DeveloperModule(Icons.account_circle_outlined, 'Developer Profile', 'Manage the current developer profile.', Colors.cyan, const AdminProfileScreen()),
     ];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F7F5),
+      backgroundColor: const Color(0xFFF7F8F7),
       appBar: AppBar(
         elevation: 0,
+        scrolledUnderElevation: 0,
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
-        titleSpacing: 18,
-        title: const Row(
-          mainAxisSize: MainAxisSize.min,
+        titleSpacing: 20,
+        title: Row(
           children: [
-            Icon(Icons.developer_mode_rounded),
-            SizedBox(width: 9),
-            Flexible(child: Text('Developer Control Panel', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w800))),
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: HalalFoodTheme.primaryGreen.withValues(alpha: .10),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.developer_mode_rounded, size: 19, color: HalalFoodTheme.primaryGreen),
+            ),
+            const SizedBox(width: 10),
+            const Flexible(
+              child: Text(
+                'Developer Console',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+              ),
+            ),
           ],
         ),
         actions: [
-          IconButton(tooltip: 'Logout', onPressed: () => _logout(context), icon: const Icon(Icons.logout_rounded)),
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: HalalFoodTheme.primaryGreen.withValues(alpha: .08),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.lock_outline_rounded, size: 13, color: HalalFoodTheme.primaryGreen),
+                SizedBox(width: 5),
+                Text('Developer', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: HalalFoodTheme.primaryGreen)),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Logout',
+            onPressed: () => _logout(context),
+            icon: const Icon(Icons.logout_rounded, size: 20),
+          ),
           const SizedBox(width: 8),
         ],
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final wide = constraints.maxWidth >= 900;
-          final medium = constraints.maxWidth >= 620;
-          final columns = wide ? 3 : (medium ? 2 : 1);
+          final wide = constraints.maxWidth >= 1200;
+          final medium = constraints.maxWidth >= 760;
+          final columns = wide ? 4 : (medium ? 3 : 2);
+          final horizontalPadding = wide ? 42.0 : (medium ? 26.0 : 14.0);
 
           return ListView(
-            padding: EdgeInsets.fromLTRB(wide ? 34 : 18, 22, wide ? 34 : 18, 44),
+            padding: EdgeInsets.fromLTRB(horizontalPadding, 18, horizontalPadding, 36),
             children: [
-              _heroCard(),
-              const SizedBox(height: 24),
-              _sectionHeader('Platform Control', '${modules.length} modules'),
-              const SizedBox(height: 12),
+              _compactHeader(),
+              const SizedBox(height: 22),
+              _sectionHeader('Platform modules', '${modules.length} available'),
+              const SizedBox(height: 10),
               GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: modules.length,
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: columns,
-                  crossAxisSpacing: 14,
-                  mainAxisSpacing: 14,
-                  mainAxisExtent: 132,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  mainAxisExtent: 104,
                 ),
                 itemBuilder: (context, index) {
                   final module = modules[index];
@@ -109,63 +145,53 @@ class DeveloperDashboardScreen extends StatelessWidget {
   Widget _sectionHeader(String title, String count) {
     return Row(
       children: [
-        Expanded(child: Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: -.2))),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0xFFE2E8E4))),
-          child: Text(count, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: HalalFoodTheme.textSecondary)),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, letterSpacing: -.1),
+          ),
+        ),
+        Text(
+          count,
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: HalalFoodTheme.textSecondary),
         ),
       ],
     );
   }
 
-  Widget _heroCard() {
+  Widget _compactHeader() {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [HalalFoodTheme.primaryGreen, HalalFoodTheme.darkGreen]),
-        borderRadius: BorderRadius.circular(26),
-        boxShadow: [BoxShadow(color: HalalFoodTheme.primaryGreen.withValues(alpha: .18), blurRadius: 24, offset: const Offset(0, 10))],
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE3E7E4)),
       ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 520;
-          final content = Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 58,
-                height: 58,
-                decoration: BoxDecoration(color: Colors.white.withValues(alpha: .16), borderRadius: BorderRadius.circular(18)),
-                child: const Icon(Icons.shield_rounded, color: Colors.white, size: 32),
-              ),
-              const SizedBox(width: 16),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Developer Console', style: TextStyle(color: Colors.white, fontSize: 25, fontWeight: FontWeight.w900, letterSpacing: -.5)),
-                    SizedBox(height: 6),
-                    Text('Platform-wide configuration and maintenance', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-                    SizedBox(height: 5),
-                    Text('Manage the app foundation from one place. Operational Admin functions remain separate.', style: TextStyle(color: Colors.white70, fontSize: 11.5, height: 1.4)),
-                  ],
-                ),
-              ),
-            ],
-          );
-
-          return compact ? content : Row(children: [Expanded(child: content), const SizedBox(width: 24), _statusPill()]);
-        },
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: HalalFoodTheme.primaryGreen.withValues(alpha: .09),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.admin_panel_settings_outlined, color: HalalFoodTheme.primaryGreen, size: 23),
+          ),
+          const SizedBox(width: 13),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Platform Control', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                SizedBox(height: 3),
+                Text('Global configuration and maintenance tools', style: TextStyle(fontSize: 11.5, color: HalalFoodTheme.textSecondary)),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right_rounded, color: Color(0xFFB6BDB9), size: 20),
+        ],
       ),
-    );
-  }
-
-  Widget _statusPill() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(color: Colors.white.withValues(alpha: .12), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white24)),
-      child: const Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.lock_rounded, color: Colors.white, size: 15), SizedBox(width: 7), Text('Developer access', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800))]),
     );
   }
 }
@@ -186,29 +212,43 @@ class _ModuleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(19), side: const BorderSide(color: Color(0xFFE4E9E6))),
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(13),
       child: InkWell(
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 15, 13, 15),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        borderRadius: BorderRadius.circular(13),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(13),
+            border: Border.all(color: const Color(0xFFE3E7E4)),
+          ),
+          child: Row(
             children: [
-              Row(
-                children: [
-                  Container(width: 43, height: 43, decoration: BoxDecoration(color: module.color.withValues(alpha: .10), borderRadius: BorderRadius.circular(13)), child: Icon(module.icon, color: module.color, size: 22)),
-                  const Spacer(),
-                  Icon(Icons.arrow_outward_rounded, color: module.color, size: 17),
-                ],
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: module.color.withValues(alpha: .09),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(module.icon, color: module.color, size: 20),
               ),
-              const Spacer(),
-              Text(module.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900)),
-              const SizedBox(height: 4),
-              Text(module.subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10.5, height: 1.25, color: HalalFoodTheme.textSecondary)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(module.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 3),
+                    Text(module.subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9.5, height: 1.2, color: HalalFoodTheme.textSecondary)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 5),
+              const Icon(Icons.chevron_right_rounded, size: 17, color: Color(0xFFB8BFBB)),
             ],
           ),
         ),
