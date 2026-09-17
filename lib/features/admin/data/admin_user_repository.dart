@@ -7,11 +7,17 @@ class AdminUserRepository {
       : _supabase = supabase ?? Supabase.instance.client;
 
   Future<List<Map<String, dynamic>>> getUsers() async {
-    final response = await _supabase
+    final currentUserId = _supabase.auth.currentUser?.id;
+    var query = _supabase
         .from('profiles')
         .select('id, full_name, phone, role, created_at')
         .order('created_at', ascending: false);
 
+    if (currentUserId != null) {
+      query = query.neq('id', currentUserId);
+    }
+
+    final response = await query;
     return (response as List)
         .map((item) => Map<String, dynamic>.from(item))
         .toList();
