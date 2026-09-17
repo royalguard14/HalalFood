@@ -14,6 +14,7 @@ import '../../admin/screens/food_category_management_screen.dart';
 import '../../admin/screens/halal_verification_screen.dart';
 import '../../admin/screens/promo_management_screen.dart';
 import '../../admin/screens/user_role_management_screen.dart';
+import 'developer_branding_screen.dart';
 import 'developer_restaurant_management_screen.dart';
 
 class DeveloperDashboardScreen extends StatelessWidget {
@@ -22,21 +23,17 @@ class DeveloperDashboardScreen extends StatelessWidget {
   Future<void> _logout(BuildContext context) async {
     await Supabase.instance.client.auth.signOut();
     if (!context.mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (route) => false,
-    );
+    Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const LoginScreen()), (route) => false);
   }
 
   Future<void> _open(BuildContext context, Widget screen) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => screen),
-    );
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
   }
 
   @override
   Widget build(BuildContext context) {
     final modules = <_DeveloperModule>[
+      _DeveloperModule(Icons.palette_rounded, 'Branding & Theme', 'Create client brands and edit centralized app colors.', Colors.purple, const DeveloperBrandingScreen()),
       _DeveloperModule(Icons.people_alt_rounded, 'Users & Roles', 'View users, edit profiles and manage all supported roles.', Colors.blue, const UserRoleManagementScreen()),
       _DeveloperModule(Icons.storefront_rounded, 'Restaurants', 'Developer restaurant control, including permanent deletion of related data.', Colors.teal, const DeveloperRestaurantManagementScreen()),
       _DeveloperModule(Icons.restaurant_menu_rounded, 'Menus', 'Manage menu items for every restaurant.', Colors.deepOrange, const AdminMenuManagementScreen()),
@@ -57,17 +54,8 @@ class DeveloperDashboardScreen extends StatelessWidget {
         elevation: 0,
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
-        title: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.developer_mode_rounded),
-            SizedBox(width: 8),
-            Flexible(child: Text('Developer Control Panel', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w800))),
-          ],
-        ),
-        actions: [
-          IconButton(tooltip: 'Logout', onPressed: () => _logout(context), icon: const Icon(Icons.logout_rounded)),
-        ],
+        title: const Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.developer_mode_rounded), SizedBox(width: 8), Flexible(child: Text('Developer Control Panel', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w800)))]),
+        actions: [IconButton(tooltip: 'Logout', onPressed: () => _logout(context), icon: const Icon(Icons.logout_rounded))],
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -77,23 +65,13 @@ class DeveloperDashboardScreen extends StatelessWidget {
             children: [
               _headerCard(),
               const SizedBox(height: 22),
-              Row(
-                children: [
-                  const Expanded(child: Text('Developer Control', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800))),
-                  Text('${modules.length} tools', style: const TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary, fontWeight: FontWeight.w700)),
-                ],
-              ),
+              Row(children: [const Expanded(child: Text('Developer Control', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800))), Text('${modules.length} tools', style: const TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary, fontWeight: FontWeight.w700))]),
               const SizedBox(height: 12),
               GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: modules.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: wide ? 2 : 1,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  mainAxisExtent: 118,
-                ),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: wide ? 2 : 1, crossAxisSpacing: 12, mainAxisSpacing: 12, mainAxisExtent: 118),
                 itemBuilder: (context, index) {
                   final module = modules[index];
                   return _ModuleCard(module: module, onTap: () => _open(context, module.screen));
@@ -109,26 +87,8 @@ class DeveloperDashboardScreen extends StatelessWidget {
   Widget _headerCard() {
     return Container(
       padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [HalalFoodTheme.primaryGreen, HalalFoodTheme.darkGreen]),
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: const Row(
-        children: [
-          Icon(Icons.shield_rounded, color: Colors.white, size: 44),
-          SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Developer / Super Admin', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800)),
-                SizedBox(height: 6),
-                Text('Developer-level platform control. Operational Admin functions are kept separate.', style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.35)),
-              ],
-            ),
-          ),
-        ],
-      ),
+      decoration: const BoxDecoration(gradient: LinearGradient(colors: [HalalFoodTheme.primaryGreen, HalalFoodTheme.darkGreen]), borderRadius: BorderRadius.all(Radius.circular(24))),
+      child: const Row(children: [Icon(Icons.shield_rounded, color: Colors.white, size: 44), SizedBox(width: 16), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Developer / Super Admin', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800)), SizedBox(height: 6), Text('Developer-level platform control. Operational Admin functions are kept separate.', style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.35))]))]),
     );
   }
 }
@@ -157,29 +117,12 @@ class _ModuleCard extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(15),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(color: module.color.withValues(alpha: .10), borderRadius: BorderRadius.circular(14)),
-                child: Icon(module.icon, color: module.color, size: 25),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(module.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 4),
-                    Text(module.subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10.5, height: 1.25, color: HalalFoodTheme.textSecondary)),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right_rounded, color: module.color),
-            ],
-          ),
+          child: Row(children: [
+            Container(width: 48, height: 48, decoration: BoxDecoration(color: module.color.withValues(alpha: .10), borderRadius: BorderRadius.circular(14)), child: Icon(module.icon, color: module.color, size: 25)),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [Text(module.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)), const SizedBox(height: 4), Text(module.subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10.5, height: 1.25, color: HalalFoodTheme.textSecondary))])),
+            Icon(Icons.chevron_right_rounded, color: module.color),
+          ]),
         ),
       ),
     );
