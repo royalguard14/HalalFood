@@ -35,7 +35,18 @@ class _DeveloperBrandingScreenState extends State<DeveloperBrandingScreen> {
 
   @override
   void dispose() {
-    for (final c in [_key, _name, _primary, _secondary, _accent, _background, _surface, _textPrimary, _textSecondary, _border]) {
+    for (final c in [
+      _key,
+      _name,
+      _primary,
+      _secondary,
+      _accent,
+      _background,
+      _surface,
+      _textPrimary,
+      _textSecondary,
+      _border,
+    ]) {
       c.dispose();
     }
     super.dispose();
@@ -83,7 +94,16 @@ class _DeveloperBrandingScreenState extends State<DeveloperBrandingScreen> {
       _message('App Name is required.', error: true);
       return;
     }
-    final colors = [_primary, _secondary, _accent, _background, _surface, _textPrimary, _textSecondary, _border];
+    final colors = [
+      _primary,
+      _secondary,
+      _accent,
+      _background,
+      _surface,
+      _textPrimary,
+      _textSecondary,
+      _border,
+    ];
     if (colors.any((c) => !_isHex(c.text.trim()))) {
       _message('All colors must use HEX format, e.g. #0B6B3A.', error: true);
       return;
@@ -126,11 +146,35 @@ class _DeveloperBrandingScreenState extends State<DeveloperBrandingScreen> {
     return n == null ? fallback : Color(0xFF000000 | n);
   }
 
+  String _colorHex(Color color) {
+    final rgb = color.toARGB32() & 0xFFFFFF;
+    return '#${rgb.toRadixString(16).padLeft(6, '0').toUpperCase()}';
+  }
+
   void _message(String text, {bool error = false}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(text), backgroundColor: error ? Colors.red : null),
+      SnackBar(
+        content: Text(text),
+        backgroundColor: error ? Colors.red : null,
+      ),
     );
+  }
+
+  Future<void> _pickColor(TextEditingController controller, String label) async {
+    final initial = _hex(controller.text, Theme.of(context).colorScheme.primary);
+    final picked = await showDialog<Color>(
+      context: context,
+      builder: (context) => _ColorPickerDialog(
+        title: 'Pick $label',
+        initialColor: initial,
+      ),
+    );
+
+    if (picked != null) {
+      controller.text = _colorHex(picked);
+      setState(() {});
+    }
   }
 
   @override
@@ -138,10 +182,14 @@ class _DeveloperBrandingScreenState extends State<DeveloperBrandingScreen> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('App Branding & Theme', style: TextStyle(fontWeight: FontWeight.w800)),
+        title: const Text(
+          'App Branding & Theme',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
         actions: [
           IconButton(
             onPressed: _saving ? null : _load,
+            tooltip: 'Refresh',
             icon: const Icon(Icons.refresh_rounded),
           ),
         ],
@@ -155,13 +203,38 @@ class _DeveloperBrandingScreenState extends State<DeveloperBrandingScreen> {
                   child: Padding(
                     padding: const EdgeInsets.all(18),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.palette_rounded, color: theme.colorScheme.primary, size: 34),
+                        Container(
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Icon(
+                            Icons.palette_rounded,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
                         const SizedBox(width: 14),
                         const Expanded(
-                          child: Text(
-                            'Centralized white-label branding. Edit one configuration and all screens using the app theme can follow it. Each client can have a separate Brand Key.',
-                            style: TextStyle(height: 1.35),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'White-label Branding',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              SizedBox(height: 5),
+                              Text(
+                                'Manage the app identity and theme colors from one place. Each client can have its own Brand Key.',
+                                style: TextStyle(height: 1.35),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -170,35 +243,59 @@ class _DeveloperBrandingScreenState extends State<DeveloperBrandingScreen> {
                 ),
                 const SizedBox(height: 16),
                 if (_brands.isNotEmpty) ...[
-                  DropdownButtonFormField<String>(
-                    initialValue: _selected?.brandKey,
-                    decoration: const InputDecoration(labelText: 'Saved Client / Brand'),
-                    items: _brands
-                        .map((b) => DropdownMenuItem(
+                  _section('Saved Brands', [
+                    DropdownButtonFormField<String>(
+                      initialValue: _selected?.brandKey,
+                      decoration: const InputDecoration(
+                        labelText: 'Select Client / Brand',
+                        prefixIcon: Icon(Icons.business_rounded),
+                      ),
+                      items: _brands
+                          .map(
+                            (b) => DropdownMenuItem(
                               value: b.brandKey,
                               child: Text('${b.appName} (${b.brandKey})'),
-                            ))
-                        .toList(),
-                    onChanged: (v) {
-                      if (v != null) _select(_brands.firstWhere((b) => b.brandKey == v));
-                    },
-                  ),
-                  const SizedBox(height: 16),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) {
+                        if (v != null) {
+                          _select(_brands.firstWhere((b) => b.brandKey == v));
+                        }
+                      },
+                    ),
+                  ]),
+                  const SizedBox(height: 14),
                 ],
                 _section('Brand Identity', [
                   TextField(
                     controller: _key,
-                    decoration: const InputDecoration(labelText: 'Brand Key', hintText: 'client1'),
+                    enabled: !_saving,
+                    decoration: const InputDecoration(
+                      labelText: 'Brand Key',
+                      hintText: 'client1',
+                      prefixIcon: Icon(Icons.key_rounded),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: _name,
-                    decoration: const InputDecoration(labelText: 'App Name', hintText: 'Client 1 Food'),
+                    enabled: !_saving,
+                    decoration: const InputDecoration(
+                      labelText: 'App Name',
+                      hintText: 'Client 1 Food',
+                      prefixIcon: Icon(Icons.apps_rounded),
+                    ),
                     onChanged: (_) => setState(() {}),
                   ),
                 ]),
                 const SizedBox(height: 14),
                 _section('Theme Colors', [
+                  const Text(
+                    'Use HEX for exact colors or Pick Color to choose visually.',
+                    style: TextStyle(height: 1.35),
+                  ),
+                  const SizedBox(height: 14),
                   _colorField(_primary, 'Primary Color'),
                   _colorField(_secondary, 'Secondary Color'),
                   _colorField(_accent, 'Accent Color'),
@@ -237,7 +334,13 @@ class _DeveloperBrandingScreenState extends State<DeveloperBrandingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
             const SizedBox(height: 14),
             ...children,
           ],
@@ -248,37 +351,60 @@ class _DeveloperBrandingScreenState extends State<DeveloperBrandingScreen> {
 
   Widget _colorField(TextEditingController controller, String label) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: TextField(
-        controller: controller,
-        enabled: !_saving,
-        textCapitalization: TextCapitalization.characters,
-        decoration: InputDecoration(
-          labelText: label,
-          prefixIcon: ValueListenableBuilder<TextEditingValue>(
-            valueListenable: controller,
-            builder: (_, value, __) => Padding(
-              padding: const EdgeInsets.all(11),
-              child: Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  color: _hex(value.text, Colors.grey),
-                  shape: BoxShape.circle,
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: TextField(
+              controller: controller,
+              enabled: !_saving,
+              textCapitalization: TextCapitalization.characters,
+              decoration: InputDecoration(
+                labelText: label,
+                hintText: '#0B6B3A',
+                prefixIcon: ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: controller,
+                  builder: (_, value, __) => Padding(
+                    padding: const EdgeInsets.all(11),
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: _hex(value.text, Colors.grey),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.black12),
+                      ),
+                    ),
+                  ),
                 ),
               ),
+              onChanged: (_) => setState(() {}),
             ),
           ),
-        ),
-        onChanged: (_) => setState(() {}),
+          const SizedBox(width: 10),
+          SizedBox(
+            height: 56,
+            child: OutlinedButton.icon(
+              onPressed: _saving ? null : () => _pickColor(controller, label),
+              icon: const Icon(Icons.colorize_rounded, size: 19),
+              label: const Text('Pick Color'),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _preview(ThemeData theme) {
     final primary = _hex(_primary.text, theme.colorScheme.primary);
-    final secondary = _hex(_secondary.text, theme.colorScheme.primaryContainer);
+    final secondary = _hex(
+      _secondary.text,
+      theme.colorScheme.primaryContainer,
+    );
     final accent = _hex(_accent.text, theme.colorScheme.secondary);
+    final background = _hex(_background.text, theme.scaffoldBackgroundColor);
+    final surface = _hex(_surface.text, theme.colorScheme.surface);
 
     return Card(
       child: Padding(
@@ -286,45 +412,181 @@ class _DeveloperBrandingScreenState extends State<DeveloperBrandingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Live Preview', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+            const Row(
+              children: [
+                Icon(Icons.visibility_rounded, size: 20),
+                SizedBox(width: 8),
+                Text(
+                  'Live Preview',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                ),
+              ],
+            ),
             const SizedBox(height: 12),
             Container(
-              height: 105,
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [primary, secondary]),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Align(
-                alignment: Alignment.bottomLeft,
-                child: Text(
-                  _name.text.trim().isEmpty ? 'Your App' : _name.text.trim(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 21,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Container(
-              width: double.infinity,
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: accent,
-                borderRadius: BorderRadius.circular(14),
+                color: background,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: _hex(_border.text, Colors.black12)),
               ),
-              child: const Text(
-                'Accent / action color',
-                style: TextStyle(fontWeight: FontWeight.w800),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    height: 96,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(colors: [primary, secondary]),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Align(
+                      alignment: Alignment.bottomLeft,
+                      child: Text(
+                        _name.text.trim().isEmpty ? 'Your App' : _name.text.trim(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 21,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: surface,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: accent,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Text(
+                            'Accent / action color preview',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        FilledButton(
+                          onPressed: () {},
+                          child: const Text('Action'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 10),
-            const Text('The Flutter app reads these values through the centralized ThemeData.'),
           ],
         ),
       ),
     );
+  }
+}
+
+class _ColorPickerDialog extends StatefulWidget {
+  const _ColorPickerDialog({
+    required this.title,
+    required this.initialColor,
+  });
+
+  final String title;
+  final Color initialColor;
+
+  @override
+  State<_ColorPickerDialog> createState() => _ColorPickerDialogState();
+}
+
+class _ColorPickerDialogState extends State<_ColorPickerDialog> {
+  late HSVColor _hsv;
+
+  @override
+  void initState() {
+    super.initState();
+    _hsv = HSVColor.fromColor(widget.initialColor);
+  }
+
+  Color get _color => _hsv.toColor();
+
+  @override
+  Widget build(BuildContext context) {
+    final hex = _hexValue(_color);
+
+    return AlertDialog(
+      title: Text(widget.title),
+      content: SizedBox(
+        width: 360,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              height: 90,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: _color,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.black12),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Center(
+              child: Text(
+                hex,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text('Hue'),
+            Slider(
+              min: 0,
+              max: 360,
+              value: _hsv.hue,
+              onChanged: (v) => setState(() => _hsv = _hsv.withHue(v)),
+            ),
+            const Text('Saturation'),
+            Slider(
+              value: _hsv.saturation,
+              onChanged: (v) => setState(() => _hsv = _hsv.withSaturation(v)),
+            ),
+            const Text('Brightness'),
+            Slider(
+              value: _hsv.value,
+              onChanged: (v) => setState(() => _hsv = _hsv.withValue(v)),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton.icon(
+          onPressed: () => Navigator.pop(context, _color),
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('Use Color'),
+        ),
+      ],
+    );
+  }
+
+  String _hexValue(Color color) {
+    final rgb = color.toARGB32() & 0xFFFFFF;
+    return '#${rgb.toRadixString(16).padLeft(6, '0').toUpperCase()}';
   }
 }
