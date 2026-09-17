@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/config/env.dart';
+import '../../admin/screens/admin_dashboard_screen.dart';
 import '../../home/screens/home_screen.dart';
 import '../../owner/screens/owner_restaurant_selection_screen.dart';
 import 'register_screen.dart';
-import '../../admin/screens/admin_dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,6 +20,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -30,11 +32,48 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
+    await _loginWithCredentials(
+      _emailController.text.trim(),
+      _passwordController.text,
+    );
+  }
+
+  Future<void> _quickLogin({
+    required String label,
+    required String email,
+    required String password,
+  }) async {
+    if (email.isEmpty || password.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '$label quick login is not configured. Add its credentials to your local .env file.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    await _loginWithCredentials(email, password);
+  }
+
+  Future<void> _loginWithCredentials(String email, String password) async {
+    if (_isLoading) return;
+
+    setState(() => _isLoading = true);
+
     try {
       final supabase = Supabase.instance.client;
+
+      // Make switching between test accounts easy.
+      if (supabase.auth.currentSession != null) {
+        await supabase.auth.signOut();
+      }
+
       final response = await supabase.auth.signInWithPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
+        email: email,
+        password: password,
       );
 
       final user = response.user;
@@ -49,24 +88,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       final role = profile?['role']?.toString() ?? 'customer';
 
-      if (role == 'admin') {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
-          (route) => false,
-        );
-      } else if (role == 'restaurant_owner') {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (_) => const OwnerRestaurantSelectionScreen(),
-          ),
-          (route) => false,
-        );
-      } else {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-          (route) => false,
-        );
-      }
+      _openHomeForRole(role);
     } on AuthException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -76,6 +98,29 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Unable to login: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _openHomeForRole(String role) {
+    if (role == 'admin') {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
+        (route) => false,
+      );
+    } else if (role == 'restaurant_owner') {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => const OwnerRestaurantSelectionScreen(),
+        ),
+        (route) => false,
+      );
+    } else {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        (route) => false,
       );
     }
   }
@@ -170,13 +215,24 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: double.infinity,
                   height: 54,
                   child: ElevatedButton(
-                    onPressed: _login,
-                    child: const Text(
-                      'Login',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                    ),
+                    onPressed: _isLoading ? null : _login,
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text(
+                            'Login',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                   ),
                 ),
+                const SizedBox(height: 24),
+                _buildQuickLoginSection(),
                 const SizedBox(height: 28),
                 Row(
                   children: [
@@ -223,6 +279,89 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildQuickLoginSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.amber.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.amber.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.developer_mode, size: 18, color: Colors.amber.shade800),
+              const SizedBox(width: 8),
+              Text(
+                'TEMPORARY TEST LOGIN',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.amber.shade900,
+                  letterSpacing: 0.4,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _isLoading
+                      ? null
+                      : () => _quickLogin(
+                            label: 'Admin',
+                            email: Env.devAdminEmail,
+                            password: Env.devAdminPassword,
+                          ),
+                  icon: const Icon(Icons.admin_panel_settings_outlined, size: 18),
+                  label: const Text('Admin'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _isLoading
+                      ? null
+                      : () => _quickLogin(
+                            label: 'Owner',
+                            email: Env.devOwnerEmail,
+                            password: Env.devOwnerPassword,
+                          ),
+                  icon: const Icon(Icons.storefront_outlined, size: 18),
+                  label: const Text('Owner'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _isLoading
+                      ? null
+                      : () => _quickLogin(
+                            label: 'User',
+                            email: Env.devUserEmail,
+                            password: Env.devUserPassword,
+                          ),
+                  icon: const Icon(Icons.person_outline, size: 18),
+                  label: const Text('User'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'For development/testing only. Credentials stay in your local .env file.',
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+          ),
+        ],
       ),
     );
   }
