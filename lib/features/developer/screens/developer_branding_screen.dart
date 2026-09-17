@@ -128,34 +128,74 @@ class _DeveloperBrandingScreenState extends State<DeveloperBrandingScreen> {
 
   void _message(String text, {bool error = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text), backgroundColor: error ? Colors.red : null));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(text), backgroundColor: error ? Colors.red : null),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('App Branding & Theme', style: TextStyle(fontWeight: FontWeight.w800)), actions: [IconButton(onPressed: _saving ? null : _load, icon: const Icon(Icons.refresh_rounded))]),
+      appBar: AppBar(
+        title: const Text('App Branding & Theme', style: TextStyle(fontWeight: FontWeight.w800)),
+        actions: [
+          IconButton(
+            onPressed: _saving ? null : _load,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ],
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               padding: const EdgeInsets.fromLTRB(18, 18, 18, 100),
               children: [
-                Card(child: Padding(padding: const EdgeInsets.all(18), child: Row(children: [Icon(Icons.palette_rounded, color: theme.colorScheme.primary, size: 34), const SizedBox(width: 14), const Expanded(child: Text('Centralized white-label branding. Edit one configuration and all screens using the app theme can follow it. Each client can have a separate Brand Key.', style: TextStyle(height: 1.35)))]))),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: Row(
+                      children: [
+                        Icon(Icons.palette_rounded, color: theme.colorScheme.primary, size: 34),
+                        const SizedBox(width: 14),
+                        const Expanded(
+                          child: Text(
+                            'Centralized white-label branding. Edit one configuration and all screens using the app theme can follow it. Each client can have a separate Brand Key.',
+                            style: TextStyle(height: 1.35),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 16),
                 if (_brands.isNotEmpty) ...[
                   DropdownButtonFormField<String>(
-                    value: _selected?.brandKey,
+                    initialValue: _selected?.brandKey,
                     decoration: const InputDecoration(labelText: 'Saved Client / Brand'),
-                    items: _brands.map((b) => DropdownMenuItem(value: b.brandKey, child: Text('${b.appName} (${b.brandKey})'))).toList(),
-                    onChanged: (v) { if (v != null) _select(_brands.firstWhere((b) => b.brandKey == v)); },
+                    items: _brands
+                        .map((b) => DropdownMenuItem(
+                              value: b.brandKey,
+                              child: Text('${b.appName} (${b.brandKey})'),
+                            ))
+                        .toList(),
+                    onChanged: (v) {
+                      if (v != null) _select(_brands.firstWhere((b) => b.brandKey == v));
+                    },
                   ),
                   const SizedBox(height: 16),
                 ],
                 _section('Brand Identity', [
-                  TextField(controller: _key, decoration: const InputDecoration(labelText: 'Brand Key', hintText: 'client1')),
+                  TextField(
+                    controller: _key,
+                    decoration: const InputDecoration(labelText: 'Brand Key', hintText: 'client1'),
+                  ),
                   const SizedBox(height: 12),
-                  TextField(controller: _name, decoration: const InputDecoration(labelText: 'App Name', hintText: 'Client 1 Food'), onChanged: (_) => setState(() {})),
+                  TextField(
+                    controller: _name,
+                    decoration: const InputDecoration(labelText: 'App Name', hintText: 'Client 1 Food'),
+                    onChanged: (_) => setState(() {}),
+                  ),
                 ]),
                 const SizedBox(height: 14),
                 _section('Theme Colors', [
@@ -171,20 +211,120 @@ class _DeveloperBrandingScreenState extends State<DeveloperBrandingScreen> {
                 const SizedBox(height: 14),
                 _preview(theme),
                 const SizedBox(height: 18),
-                SizedBox(height: 52, child: FilledButton.icon(onPressed: _saving ? null : _save, icon: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.save_rounded), label: Text(_saving ? 'Saving...' : 'Save Branding'))),
+                SizedBox(
+                  height: 52,
+                  child: FilledButton.icon(
+                    onPressed: _saving ? null : _save,
+                    icon: _saving
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save_rounded),
+                    label: Text(_saving ? 'Saving...' : 'Save Branding'),
+                  ),
+                ),
               ],
             ),
     );
   }
 
-  Widget _section(String title, List<Widget> children) => Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)), const SizedBox(height: 14), ...children])));
+  Widget _section(String title, List<Widget> children) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 14),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
 
-  Widget _colorField(TextEditingController controller, String label) => Padding(padding: const EdgeInsets.only(bottom: 10), child: TextField(controller: controller, enabled: !_saving, textCapitalization: TextCapitalization.characters, decoration: InputDecoration(labelText: label, prefixIcon: ValueListenableBuilder<TextEditingValue>(valueListenable: controller, builder: (_, value, __) => Padding(padding: const EdgeInsets.all(11), child: Container(width: 24, height: 24, decoration: BoxDecoration(color: _hex(value.text, Colors.grey), shape: BoxShape.circle))))), onChanged: (_) => setState(() {})));
+  Widget _colorField(TextEditingController controller, String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: TextField(
+        controller: controller,
+        enabled: !_saving,
+        textCapitalization: TextCapitalization.characters,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: ValueListenableBuilder<TextEditingValue>(
+            valueListenable: controller,
+            builder: (_, value, __) => Padding(
+              padding: const EdgeInsets.all(11),
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: _hex(value.text, Colors.grey),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ),
+        ),
+        onChanged: (_) => setState(() {}),
+      ),
+    );
+  }
 
   Widget _preview(ThemeData theme) {
     final primary = _hex(_primary.text, theme.colorScheme.primary);
     final secondary = _hex(_secondary.text, theme.colorScheme.primaryContainer);
     final accent = _hex(_accent.text, theme.colorScheme.secondary);
-    return Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Live Preview', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)), const SizedBox(height: 12), Container(height: 105, padding: const EdgeInsets.all(18), decoration: BoxDecoration(gradient: LinearGradient(colors: [primary, secondary]), borderRadius: BorderRadius.circular(18)), child: Align(alignment: Alignment.bottomLeft, child: Text(_name.text.trim().isEmpty ? 'Your App' : _name.text.trim(), style: const TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w800)))), const SizedBox(height: 10), Container(width: double.infinity, padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: accent, borderRadius: BorderRadius.circular(14)), child: const Text('Accent / action color', style: TextStyle(fontWeight: FontWeight.w800))), const SizedBox(height: 10), const Text('The Flutter app reads these values through the centralized ThemeData.'))]));
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Live Preview', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 12),
+            Container(
+              height: 105,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [primary, secondary]),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Align(
+                alignment: Alignment.bottomLeft,
+                child: Text(
+                  _name.text.trim().isEmpty ? 'Your App' : _name.text.trim(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 21,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: accent,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Text(
+                'Accent / action color',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text('The Flutter app reads these values through the centralized ThemeData.'),
+          ],
+        ),
+      ),
+    );
   }
 }
