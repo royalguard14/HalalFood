@@ -17,12 +17,12 @@ class BrandThemeProvider extends ChangeNotifier {
   bool get loading => _loading;
   String? get error => _error;
 
-  Future<void> load(String brandKey) async {
+  Future<void> load() async {
     _loading = true;
     _error = null;
     notifyListeners();
     try {
-      _config = await _repository.getBrand(brandKey);
+      _config = await _repository.getGlobalBrand();
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -32,8 +32,19 @@ class BrandThemeProvider extends ChangeNotifier {
   }
 
   Future<void> save(BrandConfig config) async {
-    await _repository.saveBrand(config);
-    _config = config;
+    await _repository.saveGlobalBrand(config);
+    _config = BrandConfig(
+      brandKey: BrandConfigRepository.globalBrandKey,
+      appName: config.appName,
+      primaryColor: config.primaryColor,
+      secondaryColor: config.secondaryColor,
+      accentColor: config.accentColor,
+      backgroundColor: config.backgroundColor,
+      surfaceColor: config.surfaceColor,
+      textPrimaryColor: config.textPrimaryColor,
+      textSecondaryColor: config.textSecondaryColor,
+      borderColor: config.borderColor,
+    );
     notifyListeners();
   }
 
