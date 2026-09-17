@@ -424,6 +424,34 @@ Never tell the user to pull before a new commit exists.
 
 > **Mandatory:** Newest entries are at the top. Add an entry for every development action.
 
+### 2026-09-17 — Implemented global app branding/theme architecture
+
+- **User request:** Remove client-specific branding. There must be one general/global app branding configuration for each deployment/person. Changing a color in Developer Branding must affect the actual app theme, not only the preview.
+- **Files changed:**
+  - `lib/features/developer/data/brand_config_repository.dart`
+  - `lib/features/developer/providers/brand_theme_provider.dart`
+  - `lib/features/developer/screens/developer_branding_screen.dart`
+  - `lib/app/theme.dart`
+  - `lib/app/app.dart`
+- **Repository logic:** Removed `getAllBrands()` / client selection behavior. Branding now uses one fixed global database key: `halalfood`.
+- **Provider logic:** `BrandThemeProvider` loads the global config, saves the global config, and notifies `MaterialApp` so the live app theme rebuilds immediately.
+- **App startup:** `MaterialApp` now calls the provider's global `load()` instead of using `Env.brandKey` for client selection.
+- **Theme propagation:** Primary, secondary, accent, background, surface, text and border values are mapped into Material 3 `ColorScheme` and common Material components including cards, AppBar, FilledButton, ElevatedButton, inputs, dividers and outlines. Existing `HalalFoodBrandExtension` remains available for screens that need explicit brand colors.
+- **Developer UI:** Removed Saved Brands, Client/Brand selector and Brand Key editing. UI is now General App Branding → App Name → Theme Colors → Live Preview → Save Global Branding.
+- **Color editing:** Every color has HEX input and Pick Color HSV picker; both edit the same global value.
+- **Save behavior:** Save persists to Supabase and immediately updates the in-memory global theme through `BrandThemeProvider`.
+- **Supabase:** Queried the actual `brand_configs` schema before changing code. Verified all required columns already exist and verified one existing `halalfood` row. **No DB migration was required.**
+- **Dependencies:** No new package added.
+- **Testing:** Supabase schema/data verification completed. Local `flutter analyze` and runtime testing are **PENDING** until user pulls the new commits.
+- **Commits:**
+  - `11c6c7b7fe524f121a163380991a8e514ccd2d88` — global-only repository
+  - `597c345ced9a39d78f4b729b3e22fdda573ffe93` — global theme provider
+  - `76d26becc3c0480d680a8d65bee12beae854e957` — app startup global branding
+  - `988ad4c89be6cc6cd36e586771892af2dadbd8f0` — Material theme propagation
+  - `ed1738381e80690ccf4d56541f13c695d4aeb78c` — Developer Branding global UI
+- **Current stopping point:** Code is pushed to `main`; waiting for local pull/analyzer/runtime test.
+- **Immediate next:** `git pull` → `flutter analyze` → run app → Developer → Branding → change colors → Save → verify actual screens/widgets change globally.
+
 ### 2026-09-17 — Developer Branding UI redesigned with HEX + Pick Color
 
 - **User request:** Make Developer Branding easier to use because guessing HEX colors is difficult; provide two color-selection options: exact HEX input and visual Pick Color; improve the Developer UI and group related controls.
@@ -442,15 +470,13 @@ Never tell the user to pull before a new commit exists.
 - **Supabase DB changes:** None.
 - **Testing:** Repository code has been committed, but local `flutter analyze` and runtime UI testing are **PENDING** until the user pulls the commit.
 - **Commit:** `04d6295ff1ae584edc098d418d28e72fa6f81d94`
-- **Status:** Implemented on GitHub; awaiting local test.
-- **Next:** User runs `git pull`, then `flutter analyze`, then opens Developer → Branding and tests HEX input, Pick Color, preview and Save.
+- **Status:** Superseded by the global-only branding implementation above.
 
 ### 2026-09-17 — Fixed Developer Branding syntax/analyzer blocker
 
 - **File:** `lib/features/developer/screens/developer_branding_screen.dart`
 - **Action:** Fixed malformed `_preview()` syntax/bracket mismatch and updated deprecated dropdown API usage.
 - **Commit:** `9571215352d1021e521dfb8701708fe686cc3c2c`
-- **Status:** Implemented; local analyzer result after pull was still pending when the new Branding redesign was started.
 
 ### 2026-09-17 — Fixed startup role routing and added Driver Dashboard
 
@@ -526,31 +552,32 @@ Never tell the user to pull before a new commit exists.
 
 The current work is **Developer Branding / Theme controls**.
 
-The Developer Branding screen now has:
+The architecture is now explicitly **global-only**:
 
 ```text
-Saved Brands
-Brand Identity
-  - Brand Key
-  - App Name
-Theme Colors
-  - HEX input
-  - Pick Color button
-  - live swatch
-Live Preview
-Save Branding
+One deployment / one app
+        ↓
+One global brand_configs row (brand_key = halalfood)
+        ↓
+BrandConfigRepository
+        ↓
+BrandThemeProvider
+        ↓
+MaterialApp.theme
+        ↓
+Actual app-wide Material theme
 ```
 
-Every theme color can be entered exactly through HEX or selected visually through the built-in HSV picker. No new dependency was added.
-
-The latest GitHub commit is:
-`04d6295ff1ae584edc098d418d28e72fa6f81d94`
+There are no Client 1 / Client 2 branding configurations and no client selector.
 
 ### Exact test state
 
-**NOT YET LOCALLY TESTED AFTER THE LATEST BRANDING REDESIGN.**
+**NOT YET LOCALLY TESTED AFTER THE GLOBAL-THEME IMPLEMENTATION.**
 
-Do not claim it is runtime/analyzer-clean until the user pulls and reports the result.
+Do not claim runtime/analyzer-clean until the user pulls and reports the result.
+
+Latest implementation commit:
+`ed1738381e80690ccf4d56541f13c695d4aeb78c`
 
 ---
 
@@ -568,10 +595,11 @@ Do not claim it is runtime/analyzer-clean until the user pulls and reports the r
 5. Test every color field using both:
    - manual HEX
    - Pick Color
-6. Confirm live preview changes.
-7. Save branding and verify the saved values reload correctly.
-8. Report the first result/error before starting another unrelated feature.
-9. Record the test result in this file.
+6. Save branding.
+7. Verify the actual app screens/components change according to the global theme, not just the preview.
+8. Verify reload/restart loads the saved global colors from Supabase.
+9. Report the first result/error before starting another unrelated feature.
+10. Record the test result in this file.
 
 ---
 
