@@ -133,6 +133,12 @@ Important areas/tables:
 - `halal_verifications`
 - `subscription_payment_methods`
 - `subscription_plan_payment_methods`
+- `orders`
+- `order_items`
+- `payments`
+- `user_addresses`
+- `delivery_pricing_settings`
+- `app_settings`
 
 Storage bucket used by owner subscription flow:
 
@@ -143,6 +149,19 @@ subscription-payment-proofs
 ### Security reminder
 
 Do not solve authentication/password problems by directly modifying `auth.users.encrypted_password`. Prefer the Supabase Admin API/service-role workflow for administrative password changes.
+
+### Current database cleanup status
+
+Customer ordering has not yet been activated. Development/test transaction data was therefore removed while preserving the transaction tables and schema.
+
+After cleanup:
+
+- `orders`: 0
+- `order_items`: 0
+- `payments`: 0
+- `user_addresses`: 0
+
+The schema remains intact for the future Customer side.
 
 ---
 
@@ -190,10 +209,11 @@ Owner subscription/payment status updates
 
 ### Current overall direction
 
-1. Harden Admin + Owner subscription/payment flow.
-2. Finish/test Admin + Owner production behavior.
-3. Build the Customer/User side.
-4. Connect customer ordering with restaurant/owner and admin workflows.
+1. Finish/test Admin + Owner production behavior.
+2. Build the Developer/Super Admin control layer.
+3. Establish clean baseline migrations and secure backend configuration.
+4. Build the Customer/User side.
+5. Connect customer ordering with restaurant/owner/admin workflows.
 
 ---
 
@@ -244,7 +264,7 @@ The screen loaded active plans/payment methods and created a pending subscriptio
 - The subscription screen now stops showing new plans/submission controls when a blocking subscription already exists.
 - Added a second blocking-state check when a plan button is pressed.
 - Added a **final immediate re-check before inserting** `restaurant_subscriptions`, protecting against stale UI/state.
-- Added handling for Postgres uniqueness error `23505` so a concurrent duplicate submission produces a clear user message instead of a raw error. Postgres documents `23505` as a uniqueness violation. citeturn0search0turn0search1
+- Added handling for Postgres uniqueness error `23505` so a concurrent duplicate submission produces a clear user message instead of a raw error.
 - Added best-effort cleanup after a created subscription later fails: remove uploaded proof and delete the still-pending subscription row.
 - Existing cancelled/expired subscriptions are not part of the blocking-state query, so the existing resubmission behavior remains available.
 
@@ -259,8 +279,6 @@ It adds:
 1. Unique partial index preventing more than one `pending` subscription per restaurant.
 2. Owner delete policy limited to their own `pending` subscription rows, used only for rollback cleanup.
 3. Owner storage delete policy limited to their own restaurant folder in `subscription-payment-proofs`, used for rollback cleanup.
-
-**Important:** The new SQL migration must be run in the Supabase SQL Editor before relying on the database-level pending uniqueness and rollback deletion policies.
 
 No existing subscription/payment schema was otherwise changed.
 
@@ -282,67 +300,113 @@ Current behavior:
 
 ---
 
-## 12. IMMEDIATE NEXT TASK
+## 12. DATABASE CLEANUP / DEVELOPER ARCHITECTURE
 
-After the owner hardening code is pulled and the SQL migration is run:
+### Cleanup completed — 2026-09-17
 
-1. Test Owner with an existing active subscription — new subscription controls must be blocked.
-2. Test Owner with an existing pending subscription — new subscription controls must be blocked.
-3. Test cancelled/expired subscription — resubmission remains possible.
-4. Test normal new submission — pending subscription + proof + pending payment are created.
-5. Test failed-step cleanup where possible.
-6. Complete Owner → Admin → Owner approval/rejection flow.
-7. Record the user's test result in this file.
+Because the Customer/User ordering side is not active yet, old development transaction data was removed from:
 
-After this batch is stable, move toward the Customer/User side.
+- `orders`
+- `order_items`
+- `payments`
+- `user_addresses` when no longer referenced by an order
+
+The tables, relationships, enums, indexes, and RLS configuration were preserved.
+
+Repository migration:
+
+`supabase/cleanup_pre_customer_test_transactions.sql`
+
+This migration records the cleanup operation for reproducibility. It must **not** be used casually against a production database containing real customer transactions.
+
+### Developer / Super Admin direction
+
+The next architecture will introduce a Developer-only control layer with access to platform configuration and maintenance functions, including:
+
+- user/account management
+- roles and permissions
+- restaurant management
+- menu/category management
+- subscriptions and subscription payments
+- halal verification
+- promo codes
+- delivery pricing
+- app settings
+- maintenance mode
+- branding/logo configuration
+- theme/color configuration
+- feature flags
+- controlled database cleanup/maintenance tools
+
+This should be implemented as a protected application role and backend policy model, **not** by exposing a Supabase service-role key inside the Flutter app.
+
+The Developer panel may provide powerful CRUD/maintenance operations, but destructive actions should use explicit confirmations and server-side authorization.
+
+### Important security finding to address
+
+`public.delivery_pricing_settings` currently has RLS disabled. Supabase identifies this as a critical exposure because client roles can otherwise access/modify its rows. We will not blindly enable RLS without first designing the correct Developer/Admin read/write policies so existing delivery functionality is not broken.
+
+### Turnover / one-click setup direction
+
+We will create a clean baseline migration set that can provision a fresh HALAL Food Supabase database with:
+
+- schema/tables
+- indexes and foreign keys
+- enums/functions/triggers
+- RLS policies
+- storage policies/buckets as applicable
+- seed/reference data
+- Developer bootstrap configuration
+
+The Developer account password must **not** be committed as plaintext in GitHub. The final setup will use a secure bootstrap/password-setting mechanism instead.
 
 ---
 
-## 13. EXPECTED TEST FLOW
+## 13. IMMEDIATE NEXT TASK
+
+1. Inspect the Flutter repository for all existing Developer/Admin configuration needs and current `delivery_pricing_settings` usage.
+2. Design the Developer role and protected backend functions/policies.
+3. Add Developer control screens for platform settings/branding/maintenance.
+4. Harden `delivery_pricing_settings` with policies after verifying app access patterns.
+5. Audit SECURITY DEFINER functions and mutable `search_path` functions.
+6. Establish the baseline Supabase migration set.
+7. Only then move into Customer/User ordering.
+
+---
+
+## 14. EXPECTED TEST FLOW
+
+Developer/Admin work will be tested separately from the Customer flow:
 
 ```text
-OWNER
+DEVELOPER
   ↓
-Choose plan
+Sign in
   ↓
-Choose billing cycle
+Developer control panel
   ↓
-Choose payment method
+Manage platform configuration
   ↓
-Enter reference number
+Change branding/theme/settings
   ↓
-Upload payment proof
+Manage controlled backend data
   ↓
-Submit
-  ↓
-Verify Pending Review state
+Test confirmations and authorization
 
-ADMIN
+OWNER / ADMIN
   ↓
-Open Action Center
-  ↓
-See pending subscription payment
-  ↓
-Open review
-  ↓
-Verify payment details/proof
-  ↓
-Approve OR Reject
+Existing subscription and halal workflows remain working
 
-OWNER
+CUSTOMER
   ↓
-Refresh/reopen subscription management
-  ↓
-Verify resulting status
-  ↓
-Verify payment history
+To be implemented after backend/control layer is stable
 ```
 
-For rejection, verify that the rejection reason is retained and that the owner can resubmit according to intended state rules.
+For destructive maintenance operations, verify confirmation dialogs and ensure the action is rejected for non-Developer accounts.
 
 ---
 
-## 14. KNOWN PREVIOUS BUILD ISSUE
+## 15. KNOWN PREVIOUS BUILD ISSUE
 
 A Gradle/Kotlin incremental cache problem previously occurred around `shared_preferences_android`, with an error similar to a storage/cache entry being already registered.
 
@@ -350,7 +414,7 @@ If it returns, inspect/clean the relevant Gradle/Kotlin caches before changing a
 
 ---
 
-## 15. GIT WORKFLOW
+## 16. GIT WORKFLOW
 
 Preferred workflow:
 
@@ -379,7 +443,7 @@ Continue from that exact state
 
 ---
 
-## 16. IMPORTANT CODE-CHANGE PRINCIPLES
+## 17. IMPORTANT CODE-CHANGE PRINCIPLES
 
 - Preserve existing working screens.
 - Prefer focused changes over rewrites.
@@ -391,12 +455,30 @@ Continue from that exact state
 - Prevent duplicate submissions from rapid button taps.
 - Keep production UI free of debug/test controls.
 - Keep secrets out of Git.
+- Never ship a Supabase service-role key in the Flutter application.
+- Developer-only destructive actions must be server-authorized and explicitly confirmed.
 
 ---
 
-# 17. PROJECT CHANGE LOG
+# 18. PROJECT CHANGE LOG
 
 > **Mandatory:** Add a new entry here for **every development change/action**. Never erase previous entries. Newest entries go at the top.
+
+### 2026-09-17 — Cleaned pre-Customer test transaction data
+
+- **Action:** Removed development/test transaction data because the Customer/User ordering side is not active yet.
+- **Supabase project:** `halalfood` / `taltqnxhivpfwjqlvxnt`
+- **Tables affected:** `orders`, `order_items`, `payments`, `user_addresses`.
+- **Why:** Keep the current database clean before building the Customer side while preserving all transaction schema for future use.
+- **Data removed:** All current rows from `orders`, `order_items`, and `payments`; unreferenced `user_addresses` were also removed.
+- **Schema changes:** None. Tables, relationships, enums, indexes, and RLS were preserved.
+- **Verification:** `orders = 0`, `order_items = 0`, `payments = 0`, `user_addresses = 0` after cleanup.
+- **Supabase migration:** `cleanup_pre_customer_test_transactions` applied successfully.
+- **Repository file:** `supabase/cleanup_pre_customer_test_transactions.sql`.
+- **Git commit:** `a7579adeb86ea28cd3f519fd90a5d83686b01721` for the migration file.
+- **Documentation commit:** current `chat-gpt.md` update.
+- **Status:** Cleanup completed and verified.
+- **Next:** Build the Developer/Super Admin architecture and secure backend configuration.
 
 ### 2026-09-17 — Owner subscription submission hardening implemented
 
@@ -472,19 +554,19 @@ Continue from that exact state
 
 ---
 
-## 18. CURRENT STOPPING POINT
+## 19. CURRENT STOPPING POINT
 
-Owner subscription submission hardening is now implemented and documented, but **not yet runtime-tested by the user**.
+The Supabase development/test transaction data has been cleaned successfully. The transaction schema remains intact for the future Customer/User side.
 
-The Admin subscription payment hardening is already runtime-tested and confirmed working.
+The project is now ready for the next architectural step: a protected Developer/Super Admin control layer that can manage platform configuration, branding, maintenance, and controlled backend CRUD without exposing service-role credentials to the Flutter client.
 
-The owner code now blocks existing active/pending subscriptions, performs a final stale-state check before insertion, and attempts cleanup if proof/payment creation fails. The accompanying Supabase migration adds database-level pending uniqueness and rollback delete policies.
+The existing Admin subscription payment hardening is runtime-tested and confirmed working. Owner subscription hardening is implemented but still needs user runtime testing.
 
-**Next exact action:** User runs `git pull`, runs the new SQL migration in Supabase SQL Editor, then tests the Owner flow. After the user reports the result, record that result here before moving on.
+**Next exact action:** Inspect the current Flutter repository for Developer/Admin configuration needs and all usage of `delivery_pricing_settings`, then implement the Developer role/control layer and backend authorization before continuing with Customer ordering.
 
 ---
 
-## 19. FUTURE HANDOFF RULE
+## 20. FUTURE HANDOFF RULE
 
 Whenever any project action changes the development state, update this file.
 
