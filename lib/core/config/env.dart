@@ -40,4 +40,10 @@ class Env {
 
   static String get devUserPassword =>
       dotenv.env['DEV_USER_PASSWORD'] ?? '';
+
+  static String get devDeveloperEmail =>
+      dotenv.env['DEV_DEVELOPER_EMAIL'] ?? '';
+
+  static String get devDeveloperPassword =>
+      dotenv.env['DEV_DEVELOPER_PASSWORD'] ?? '';
 }
