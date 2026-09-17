@@ -25,6 +25,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
   bool _hideCurrent = true;
   bool _hideNew = true;
   bool _hideConfirm = true;
+  bool _isDeveloper = false;
   String? _error;
 
   User? get _user => _supabase.auth.currentUser;
@@ -51,7 +52,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
       if (mounted) {
         setState(() {
           _loading = false;
-          _error = 'No authenticated admin account found.';
+          _error = 'No authenticated admin or developer account found.';
         });
       }
       return;
@@ -66,14 +67,16 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
 
       if (!mounted) return;
 
-      if (row != null && row['role']?.toString() != 'admin') {
+      final role = row?['role']?.toString();
+      if (role != 'admin' && role != 'developer') {
         setState(() {
           _loading = false;
-          _error = 'This account is not an admin account.';
+          _error = 'This account does not have permission to open this profile.';
         });
         return;
       }
 
+      _isDeveloper = role == 'developer';
       _name.text = row?['full_name']?.toString() ??
           user.userMetadata?['full_name']?.toString() ??
           '';
@@ -143,7 +146,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
     final user = _user;
     final email = user?.email;
     if (user == null || email == null || email.isEmpty) {
-      _message('Unable to verify the admin account email.');
+      _message('Unable to verify the account email.');
       return;
     }
     if (_changingPassword) return;
@@ -197,11 +200,13 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final roleLabel = _isDeveloper ? 'Developer' : 'Admin';
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Admin Profile',
-          style: TextStyle(fontWeight: FontWeight.w800),
+        title: Text(
+          '$roleLabel Profile',
+          style: const TextStyle(fontWeight: FontWeight.w800),
         ),
       ),
       body: _loading
@@ -368,7 +373,13 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
   }
 
   Widget _header() {
-    final displayName = _name.text.trim().isEmpty ? 'Admin' : _name.text.trim();
+    final displayName = _name.text.trim().isEmpty
+        ? (_isDeveloper ? 'Developer' : 'Admin')
+        : _name.text.trim();
+    final roleLabel = _isDeveloper ? 'DEVELOPER' : 'ADMIN';
+    final icon = _isDeveloper
+        ? Icons.developer_mode_rounded
+        : Icons.admin_panel_settings_rounded;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -386,8 +397,8 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
           CircleAvatar(
             radius: 31,
             backgroundColor: Colors.white.withValues(alpha: .16),
-            child: const Icon(
-              Icons.admin_panel_settings_rounded,
+            child: Icon(
+              icon,
               color: Colors.white,
               size: 34,
             ),
@@ -407,7 +418,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _user?.email ?? 'Admin account',
+                  _user?.email ?? '$roleLabel account',
                   style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 12,
@@ -423,9 +434,9 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                     color: Colors.white.withValues(alpha: .14),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text(
-                    'ADMIN',
-                    style: TextStyle(
+                  child: Text(
+                    roleLabel,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
@@ -495,7 +506,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              _error ?? 'Unable to load admin profile.',
+              _error ?? 'Unable to load profile.',
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
