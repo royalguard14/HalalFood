@@ -429,7 +429,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 Card(
                   child: RadioGroup<String>(
                     groupValue: _fulfillmentType,
-                    onChanged: _isPlacingOrder ? null : _selectFulfillment,
+                    onChanged: (String? value) {
+                      if (!_isPlacingOrder) {
+                        _selectFulfillment(value);
+                      }
+                    },
                     child: const Column(
                       children: [
                         RadioListTile<String>(
