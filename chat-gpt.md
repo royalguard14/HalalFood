@@ -1,3 +1,14 @@
+### 2026-09-18 — Simplified My Cart footer and removed redundant delivery fee UI
+
+- **User request:** Remove the Delivery Fee tiles/cards from **My Cart** because fulfillment is now chosen later in Checkout. Replace the redundant lower summary/button layout with a simple two-column footer.
+- **File changed:** `lib/features/cart/screens/cart_screen.dart`
+- **UI result:** My Cart no longer calculates or displays delivery distance/delivery fee. The bottom area now has two columns: **Total** (all cart items' current subtotal) and **Proceed to Checkout**.
+- **Architecture:** Delivery fee remains a Checkout concern, where the customer explicitly chooses Delivery or Pick-up.
+- **Supabase changes:** None.
+- **Commit:** `acfdde7da5f01c151e1b30eea02ae609c3673929`
+- **Testing:** Code pushed directly to GitHub; runtime test pending.
+- **Next immediate test:** `git pull` → Customer → add food → My Cart. Confirm there is no Delivery Fee tile and the bottom has exactly two columns: Total + Proceed to Checkout. Then open Checkout and confirm the fulfillment selector still works.
+
 ### 2026-09-18 — Pickup summary cleanup + removed unused duplicate checkout screen
 
 - **User finding:** Customer Checkout is now visible and the Pick-up/Delivery selector works. User requested that when **Pick-up** is selected, the **Delivery Fee** row should no longer appear in the Order Summary.
