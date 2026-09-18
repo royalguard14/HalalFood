@@ -82,19 +82,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _openHomeForRole(String role) {
-    if (role == 'developer') {
-      Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const DeveloperDashboardScreen()), (route) => false);
-    } else if (role == 'admin') {
-      Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const AdminDashboardScreen()), (route) => false);
-    } else if (role == 'restaurant_owner') {
-      Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const OwnerRestaurantSelectionScreen()), (route) => false);
-    } else if (role == 'driver') {
-      Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const DriverDashboardScreen()), (route) => false);
-    } else {
-      Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const HomeScreen()), (route) => false);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
