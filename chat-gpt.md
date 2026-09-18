@@ -1,3 +1,17 @@
+### 2026-09-18 — Fixed Flutter analyzer errors before two-device testing
+
+- **User reported:** `flutter analyze` returned 8 issues after the Admin/Developer KYC preparation.
+- **Fixed:** Admin Action Center subscription query was missing `.from('subscription_payments')`; restored the correct Supabase table query.
+- **Fixed:** Admin Action Center string composition now uses interpolation.
+- **Fixed:** KYC image `errorBuilder` no longer uses unnecessary multiple underscores.
+- **Fixed:** Removed obsolete `_openHomeForRole` from Login because Login now routes through Splash.
+- **Fixed:** Removed obsolete Developer dashboard helper methods `_groupHeader` and `_moduleGrid` left from the previous navigation architecture.
+- **Fixed:** Identity verification `_idType` is now final because it is not mutated.
+- **Git commits:** Admin Action Center `104794adfb86634070baf8d978ecb78327bcd869`; KYC image lint `ebe95abe662b4b49de30bad990b959d9bc31e55d`; Login cleanup `37c6dc0d01923ed513e5d14df599d23ff80b2e6c`; Developer cleanup `fafe7a98aa693f4818de01900c705bf522a101fc`; Identity screen lint `c796d3e9b7f0784c0174edb145cf3be8c716cf15`.
+- **Testing:** Fixes were made directly in GitHub. User must rerun `flutter analyze` locally; assistant has not claimed a clean analyzer result.
+- **Stopping point:** Code is ready for analyzer re-check before APK installation/two-device testing.
+- **Next:** `git pull`, run `flutter analyze`, report the result. Do not install/test APK until analyzer is clean.
+ 
 # HALAL Food — ChatGPT Project Handoff
 
 > **Purpose:** Permanent handoff/context document for AI assistants working on this repository. Read before making project changes and update after every development action.
