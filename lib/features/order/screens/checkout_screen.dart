@@ -29,6 +29,8 @@ class _CheckoutScreenState
   List<Address> _addresses = [];
   Address? _selectedAddress;
 
+  String _fulfillmentType = 'delivery';
+
   bool _isLoadingAddresses = true;
   bool _isPlacingOrder = false;
 
@@ -92,11 +94,11 @@ class _CheckoutScreenState
   }
 
   Future<void> _placeOrder() async {
-    if (_selectedAddress == null) {
+    if (_fulfillmentType == 'delivery' && _selectedAddress == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Please select a delivery address.',
+            'Please select a delivery address for delivery.',
           ),
         ),
       );
@@ -137,7 +139,10 @@ class _CheckoutScreenState
           await _orderRepository.createOrder(
         restaurantId: restaurantId,
         deliveryAddressId:
-            _selectedAddress!.id,
+            _fulfillmentType == 'delivery'
+                ? _selectedAddress!.id
+                : null,
+        fulfillmentType: _fulfillmentType,
         items: widget.cart.items,
         subtotal: widget.cart.total,
         deliveryFee: _deliveryFee,
@@ -222,17 +227,32 @@ class _CheckoutScreenState
         ),
         children: [
           const Text(
-            'Delivery Address',
+            'How would you like to receive your order?',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w800,
             ),
           ),
 
-          const SizedBox(height: 6),
+          const SizedBox(height: 12),
 
-          const Text(
-            'Where should we deliver your order?',
+          _buildFulfillmentSection(),
+
+          if (_fulfillmentType == 'delivery') ...[
+            const SizedBox(height: 28),
+
+            const Text(
+              'Delivery Address',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+
+            const SizedBox(height: 6),
+
+            const Text(
+              'Where should we deliver your order?',
             style: TextStyle(
               fontSize: 13,
               color: HalalFoodTheme.textSecondary,
@@ -241,7 +261,10 @@ class _CheckoutScreenState
 
           const SizedBox(height: 16),
 
-          _buildAddressSection(),
+            const SizedBox(height: 16),
+
+            _buildAddressSection(),
+          ],
 
           const SizedBox(height: 28),
 
@@ -333,6 +356,44 @@ class _CheckoutScreenState
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFulfillmentSection() {
+    return Card(
+      child: RadioGroup<String>(
+        groupValue: _fulfillmentType,
+        onChanged: (value) {
+          if (_isPlacingOrder || value == null) return;
+          setState(() => _fulfillmentType = value);
+        },
+        child: Column(
+          children: [
+            RadioListTile<String>(
+              value: 'pickup',
+              title: const Text(
+                'Pick-up',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+              subtitle: const Text(
+                'Pick up your order directly from the restaurant.',
+              ),
+              secondary: const Icon(Icons.storefront_outlined),
+            ),
+            RadioListTile<String>(
+              value: 'delivery',
+              title: const Text(
+                'Delivery',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+              subtitle: const Text(
+                'Have your order delivered to your saved address.',
+              ),
+              secondary: const Icon(Icons.delivery_dining_outlined),
+            ),
+          ],
+        ),
       ),
     );
   }
