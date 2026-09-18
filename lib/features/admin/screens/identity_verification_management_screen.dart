@@ -129,6 +129,11 @@ class _IdentityVerificationManagementScreenState
       if (result == 'approve') {
         await _setDecision(row, 'approved', null);
       } else if (result == 'reject') {
+        // Let the review bottom sheet finish unmounting before opening
+        // the rejection dialog. This avoids a Flutter element-tree assertion
+        // during the route transition.
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        if (!mounted) return;
         await _rejectWithReason(row);
       } else if (result == 'delete') {
         await _deleteVerification(row);
@@ -315,9 +320,11 @@ class _IdentityVerificationManagementScreenState
         ],
       ),
     );
+    // Dispose after the dialog route has completely returned.
+    await Future<void>.delayed(Duration.zero);
     controller.dispose();
 
-    if (reason == null || reason.trim().isEmpty) return;
+    if (!mounted || reason == null || reason.trim().isEmpty) return;
     await _setDecision(row, 'rejected', reason.trim());
   }
 
