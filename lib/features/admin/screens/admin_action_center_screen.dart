@@ -137,6 +137,16 @@ class _AdminActionCenterScreenState extends State<AdminActionCenterScreen> {
         )
         .subscribe();
 
+    _identityVerificationChannel = _db
+        .channel('admin-action-center-identity-verifications')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'identity_verifications',
+          callback: (_) => _load(),
+        )
+        .subscribe();
+
     _paymentChannel = _db
         .channel('admin-action-center-payments')
         .onPostgresChanges(
