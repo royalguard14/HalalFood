@@ -1620,6 +1620,12 @@ class _OrderSummaryCard
                 deliveryFee,
               ),
 
+            if (promoDiscount > 0)
+              _row(
+                'Promo Discount',
+                -promoDiscount,
+              ),
+
             const Divider(
               height: 18,
             ),
