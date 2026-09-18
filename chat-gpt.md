@@ -1,3 +1,16 @@
+### 2026-09-18 — Pickup summary cleanup + removed unused duplicate checkout screen
+
+- **User finding:** Customer Checkout is now visible and the Pick-up/Delivery selector works. User requested that when **Pick-up** is selected, the **Delivery Fee** row should no longer appear in the Order Summary.
+- **File changed:** `lib/features/checkout/screens/checkout_screen.dart`
+- **Fix:** Order Summary now receives `showDeliveryFee` based on the selected fulfillment type. The Delivery Fee row is rendered only for **Delivery**. Pick-up still calculates a zero delivery fee internally for order persistence, but the UI no longer displays a Delivery Fee line.
+- **Unused-file cleanup:** Confirmed `lib/features/order/screens/checkout_screen.dart` was a duplicate checkout implementation and was not the Customer Cart checkout route. It has been deleted.
+- **Important:** `lib/features/order/data/order_repository.dart` was **not** deleted because the existing order screens still import/use it for order history/details. `lib/features/order/data/order_model.dart` is also retained for those screens.
+- **Supabase changes:** None.
+- **Commits:** Pickup summary fix `12c3871f40f33611ab27372317279c9aaf642405`; duplicate checkout deletion `5e4a32f6b8f395a6fb5a2d63fec72df465a2191a`.
+- **Testing:** Code pushed directly to GitHub. Runtime retest is pending.
+- **Current stopping point:** Actual Customer Checkout is the single checkout UI source; Pick-up should not show Delivery Fee.
+- **Next immediate test:** `git pull` → Customer → Restaurant → Add Food → Cart → Checkout → select **Pick-up**. Confirm the Order Summary has **Subtotal** and **Total**, but **no Delivery Fee**. Then select Delivery and confirm the Delivery Fee appears again.
+ 
 ### 2026-09-18 — Fixed actual Customer Checkout route for EDIT 1
 
 - **User finding:** Customer flow **Cart → Proceed to Checkout** still showed the old delivery-only checkout: **Delivery Address → Your Order → Delivery → Order Summary → Place Order**. The Pick-up/Delivery selector was not visible even after the latest pull.
