@@ -1,3 +1,48 @@
+### 2026-09-18 — Customer audit C0–C7 and C8.1–C8.4 PASSED; payment/fulfillment redesign queued
+
+- **Customer runtime results reported by user:** C0 KYC routing/one-time approval **GOODS**; C1 Profile & Account **GOODS**; C2 Addresses + GPS **GOODS**; C3 Restaurant Discovery/filter/menu **GOODS**; C4 Cart **GOODS**; C5 Checkout/place-order/computation and Owner receipt/processing **GOODS**; C6 Orders **GOODS**; C7 realtime Owner → Customer status updates **GOODS**.
+- **C8 edge-case results:** C8.1 Empty Cart **GOODS**; C8.2 No Address **GOODS** (checkout cannot proceed without a usable address/GPS needed for delivery-fee computation); C8.3 Restaurant Unavailable **GOODS** (inactive restaurant is not shown); C8.4 Expired Subscription **GOODS** (past due/grace/suspended restaurants do not appear; active restaurants appear).
+- **Not implemented yet:** C8.5 Invalid/Out-of-range Delivery Location and C8.6 Failed Order/Payment. Do not mark these as failed; they depend on the payment/fulfillment architecture below.
+- **Important clarification:** Menu search inside an individual restaurant is **not currently a feature**. Restaurant search works; restaurant/category filtering, restaurant opening, and menu/category display were tested successfully. Do not treat missing in-restaurant menu search as a bug unless this feature is intentionally added later.
+- **Current stopping point:** Customer normal browsing/order flow is working through realtime status. The next development work is to redesign Checkout around explicit **Pick-up vs Delivery** fulfillment and controlled payment states before continuing C8.5/C8.6.
+- **Next immediate build task:** Add a clear fulfillment selection to Checkout first, then implement payment-method/payment-state handling without falsely marking an order paid before a real payment confirmation exists.
+
+### 2026-09-18 — Payment + fulfillment architecture agreed before C8.5/C8.6
+
+- **User requirement/concern:** Customer should be asked how they will receive the order before payment. Delivery introduces restaurant risk if food leaves the restaurant before payment is secured.
+- **Agreed fulfillment choices:**
+  1. **Pick-up** — customer collects from the restaurant. Initial policy target: require a **minimum 50% prepayment** before the restaurant prepares the order; remaining balance can be settled at pickup according to the restaurant's configured policy.
+  2. **Delivery** — customer selects a valid address with GPS, delivery fee is calculated, and the initial recommended policy is **online payment before preparation/rider pickup**.
+- **COD policy:** Do **not** enable Cash on Delivery globally at this stage. If COD is introduced later, it should be explicitly enabled by the restaurant and protected by eligibility/order/area controls.
+- **Payment architecture principle:** Keep **payment status** separate from **order status**. Proposed payment states include `pending`, `processing`, `paid`, `failed`, `cancelled`, `refunded`, and `partially_paid`. Existing database already has separate `orders.payment_status` and `payments.status`; inspect and reuse these instead of inventing duplicate fields.
+- **Order flow target:**
+```text
+Customer → Cart
+  → Pick-up or Delivery
+  → Address/GPS only when Delivery
+  → Compute applicable delivery fee
+  → Select allowed payment method
+  → Payment confirmation / required prepayment
+  → Order confirmed
+  → Restaurant prepares
+  → Ready
+  → Pick-up OR Rider pickup → Customer
+```
+- **Delivery safety target:** Prefer platform-controlled online payment for Delivery. Do not rely on a rider to collect an uncertain restaurant payment.
+- **Restaurant payment-account concern:** Do not make the long-term architecture depend on customers manually paying each restaurant's personal GCash/Maya/bank account. That makes automatic payment confirmation, disputes, refunds and settlement difficult. Prefer a platform payment flow with recorded transaction/payment state, then restaurant settlement.
+- **Database observation:** Current `orders` already contains `fulfillment_type`, `payment_status`, `delivery_address_id`, `delivery_fee`, `delivery_distance_km`; current `payments` contains `order_id`, `customer_id`, `amount`, `payment_method`, `status`, and transaction reference. These existing fields should be reused where possible.
+- **Current implementation gap:** Existing Flutter `CheckoutScreen` still behaves as delivery-only, uses a hardcoded `_deliveryFee = 0.0`, does not ask Pick-up vs Delivery, and `OrderRepository.createOrder()` currently creates an order without an explicit fulfillment/payment choice. This must be redesigned before claiming payment/edge-case coverage.
+- **Important:** Do not claim online payment is implemented merely by adding a button. A real payment integration/confirmation mechanism is required before an order can safely transition to `paid`.
+- **Next implementation sequence:**
+  1. Checkout fulfillment selector and UI state.
+  2. Delivery-only address/GPS and delivery-fee calculation.
+  3. Pickup payment requirement/configuration model.
+  4. Payment method selection based on fulfillment.
+  5. Payment transaction/state persistence.
+  6. Backend enforcement so order creation/payment states cannot be bypassed by modified clients.
+  7. Then implement/test C8.5 invalid location and C8.6 failed payment/order paths.
+- **Supabase/database changes in this documentation step:** None.
+
 ### 2026-09-18 — Admin KYC verdict actions restricted to Pending only
 
 - **User finding/requirement:** Once an identity verification already has a verdict (**Approved** or **Rejected**), the Admin review screen must no longer show **Approve** or **Reject** actions. Those actions are only valid while the record is **Pending**.
