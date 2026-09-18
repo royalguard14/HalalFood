@@ -132,6 +132,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _restaurantsChannel?.unsubscribe();
     _ordersChannel?.unsubscribe();
     _verificationChannel?.unsubscribe();
+    _identityVerificationChannel?.unsubscribe();
     _paymentChannel?.unsubscribe();
 
     _restaurantsChannel = _supabase
@@ -715,11 +716,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               'Halal Verification',
               'Review verification requests and classifications',
               () => _open(const HalalVerificationScreen()),
-            ),            _AdminGroupItem(
-              Icons.verified_user_rounded,
-              'Identity Verification',
-              'Review Customer, Rider/Driver and Restaurant Owner KYC',
-              () => _open(const IdentityVerificationManagementScreen()),
             ),
           ],
         ),
