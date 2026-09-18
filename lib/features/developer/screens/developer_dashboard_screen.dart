@@ -299,8 +299,6 @@ class DeveloperDashboardScreen extends StatelessWidget {
     required Color border,
     required int moduleCount,
   }) {
-    final theme = Theme.of(context);
-
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
@@ -529,33 +527,6 @@ class DeveloperDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _moduleGrid(
-    BuildContext context,
-    List<_DeveloperModule> modules, {
-    required bool wide,
-    required bool medium,
-  }) {
-    final columns = wide ? 4 : (medium ? 3 : 2);
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: modules.length,
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: columns,
-        crossAxisSpacing: 11,
-        mainAxisSpacing: 11,
-        mainAxisExtent: 112,
-      ),
-      itemBuilder: (context, index) {
-        final module = modules[index];
-        return _ModuleCard(
-          module: module,
-          onTap: () => _open(context, module.screen),
-        );
-      },
-    );
-  }
 }
 
 class _DeveloperGroup {
