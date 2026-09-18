@@ -1,3 +1,166 @@
+### 2026-09-18 — End-of-session handoff updated for next ChatGPT session
+
+- **Purpose:** Updated this handoff so the next ChatGPT can continue the HALAL Food project without asking the user to repeat the project history.
+- **Latest completed development:** Customer Checkout Promo/Coupon UI was changed from multiple promo tiles to a scalable **dropdown**. Selecting a promo shows its description/details below; minimum-order-invalid promos are disabled.
+- **Promo behavior to preserve:** Customer sees active Admin/global promos plus promos belonging to the current restaurant. Each promo can be redeemed **once per customer**. After successful redemption it disappears from that customer's available list. Server-side RPC enforcement prevents reuse even if the client is manipulated. Promo redemption is only consumed after successful order creation/claim.
+- **Latest relevant code commit:** `492df41356468913c774a2f9316676d09f506f20`.
+- **Latest documentation commit before this handoff update:** `3735e958ab6692bd7582cdaa87b7b66102df12dc`.
+- **Testing status:** The dropdown change has **NOT yet been confirmed by the user's latest local `flutter analyze`/runtime test**. Do not mark it passed until the user reports the result.
+- **User workflow preference:** Make changes directly in GitHub when possible. After a code change, update this file, tell the user to `git pull`, give the exact next test, and wait for the user's result before moving on. Do not jump ahead.
+- **Important:** Do not edit the deleted duplicate `lib/features/order/screens/checkout_screen.dart` for Customer Checkout. The real Cart → Checkout route is `lib/features/checkout/screens/checkout_screen.dart`.
+
+## NEXT WORK ORDER — FOLLOW THIS SEQUENCE
+
+### STEP 0 — Finish current Promo/Coupon verification
+1. User runs:
+   `git pull`
+   `flutter analyze`
+2. Test Customer → Restaurant → Add Food → Cart → Checkout.
+3. Verify:
+   - Promo/Coupon is a dropdown, not many tiles.
+   - Available Admin/global + restaurant-specific promos appear.
+   - Invalid minimum-order promos are disabled.
+   - Selecting a promo shows its description/details below.
+   - Order Summary shows Promo Discount and reduced Total.
+4. Place an order and verify redemption.
+5. Re-open Checkout with the **same customer** and confirm the redeemed promo is no longer available. A server-side duplicate-use attempt must also be rejected.
+6. Only after user confirms success should this be marked PASSED.
+
+### STEP 1 — Checkout EDIT 2: Delivery validation + real delivery-fee computation
+Do this **after Step 0 passes**.
+- Preserve the existing Pick-up / Delivery selector.
+- Delivery must require a saved address with valid latitude/longitude.
+- Validate that the delivery location is within the restaurant's allowed maximum distance.
+- Keep the existing real delivery-fee calculation; do not replace it with hardcoded pricing.
+- Show a clear customer-facing validation message when the location is missing, invalid, or out of range.
+- Do not allow an invalid Delivery order to reach successful order creation.
+- Pick-up must not require a delivery address or delivery fee.
+- Re-test Pickup and Delivery after the change.
+
+### STEP 2 — Checkout EDIT 3: Payment method + payment-state rules
+- Customer chooses fulfillment before payment.
+- **Pick-up:** initial policy target is minimum **50% prepayment** before restaurant preparation; remaining balance can be settled at pickup according to restaurant configuration.
+- **Delivery:** initial policy target is online payment before preparation/rider pickup.
+- Do not globally enable COD yet.
+- If COD is added later, it must be explicitly enabled per restaurant and protected by eligibility/order/area controls.
+- Payment states to support: `pending`, `processing`, `paid`, `failed`, `cancelled`, `refunded`, `partially_paid`.
+- Never mark an order `paid` merely because the customer pressed a button.
+- Prefer platform-controlled payment/confirmation and settlement; do not build around customers manually paying restaurant personal GCash/Maya/bank accounts.
+- Backend must be authoritative for payment status.
+
+### STEP 3 — C8.5 / C8.6 edge-case testing
+After payment/fulfillment implementation:
+- **C8.5 Invalid Delivery Location:** test missing GPS, invalid coordinates, and out-of-range location. Order must be blocked.
+- **C8.6 Failed Order/Payment:** test failure/rollback. No false `paid` state, no orphaned order/payment, and promo redemption must not be consumed when the order/payment fails.
+- Re-test the normal Customer → Owner order flow after these changes.
+
+### STEP 4 — Remaining Admin audit
+- Continue the broader Admin audit after the immediate Checkout work, unless a blocking Admin issue appears first.
+- KYC Admin flow is already implemented: Pending/Approved/Rejected, signed image review, zoom/pan, Approve/Reject with reason, immediate list update and rejected-history cleanup.
+- Developer KYC is view-only; Developer must not approve/reject.
+- Do not mark Admin 100% complete until remaining Admin modules/checks are actually tested.
+
+### STEP 5 — Backend / Security Hardening
+Known remaining security-audit items:
+- SECURITY DEFINER functions needing review: `calculate_delivery_fee`, `expire_restaurant_subscriptions`, `handle_new_user`, `is_admin`.
+- Mutable search_path findings: `set_promo_codes_updated_at`, `update_updated_at`, `update_updated_at_column`, `set_app_settings_updated_at`, `set_payments_updated_at`, `set_subscription_updated_at`.
+- Missing FK indexes.
+- Duplicate/redundant indexes.
+- Auth leaked-password protection.
+- `delivery_pricing_settings` RLS is deliberate and should be reviewed, not changed blindly.
+- Developer restaurant deletion still has an open **external Storage cleanup** concern.
+- Do not mix unrelated security changes into a feature test unless necessary to unblock it.
+
+### STEP 6 — Driver / Delivery operational implementation
+Current Driver dashboard is still placeholder/UI-only:
+- online/offline toggle is UI-only
+- Today/Earnings/Completed are placeholders
+- Current Delivery/My Deliveries/Earnings/Delivery Map/My Profile are placeholders
+- no real assignment/location/earnings persistence yet
+This remains future work after the current Customer/Admin/payment sequence.
+
+## CURRENT STATE SNAPSHOT FOR NEXT GPT
+
+### Customer
+- C0 KYC routing/verification: previously PASSED.
+- C1 Profile & Account: PASSED.
+- C2 Addresses + GPS: PASSED.
+- C3 Restaurant Discovery/filter/menu: PASSED.
+- C4 Cart: PASSED.
+- C5 Checkout/place order: previously PASSED, but **must be revalidated after current Promo/Coupon + fulfillment/payment changes**.
+- C6 Orders: PASSED.
+- C7 Realtime: PASSED.
+- C8.1 Empty Cart: PASSED.
+- C8.2 No Address: PASSED.
+- C8.3 Restaurant Unavailable: PASSED.
+- C8.4 Expired Subscription: PASSED.
+- C8.5 Invalid Delivery Location: NOT IMPLEMENTED / NOT TESTED.
+- C8.6 Failed Order/Payment: NOT IMPLEMENTED / NOT TESTED.
+- In-restaurant menu search is NOT currently a feature; do not treat that as a bug unless intentionally added later.
+
+### Checkout
+- Real Customer Checkout file: `lib/features/checkout/screens/checkout_screen.dart`.
+- Fulfillment choice exists: Pick-up / Delivery; neither is preselected initially.
+- Delivery address section appears only for Delivery.
+- Pickup hides Delivery Fee in Order Summary.
+- Existing DistanceUtils delivery computation is preserved.
+- Promo/Coupon dropdown is the latest UI.
+- Order Summary supports Promo Discount and reduced Total.
+- OrderRepository claims the promo server-side after creating order/order_items and rolls back the new order if promo claim fails.
+
+### Promo/Coupon backend
+- `public.promo_codes` already existed.
+- `public.orders` has `promo_code_id` and `promo_discount`.
+- `public.promo_redemptions` enforces unique `(promo_code_id, customer_id)`.
+- `claim_promo_code(p_order_id, p_code)` is SECURITY DEFINER with pinned search_path and validates restaurant scope, active dates, minimum order, usage limit, one-use-per-customer, discount rules.
+- `sync_promo_usage_count()` keeps usage_count synchronized.
+- Customer available promos exclude already redeemed promo IDs.
+- Relevant migration docs: `supabase/customer_checkout_promo_codes.sql`.
+
+### KYC
+- Private bucket: `identity-verifications`.
+- Customer/Driver/Owner submit government ID + selfie with ID.
+- Admin approves/rejects; rejection requires reason.
+- Developer can view but not approve/reject.
+- Signed URLs are used for review; bucket remains private.
+- Rejected submissions are cleaned when resubmitted.
+- Older rejected history is cleaned after approval.
+- Developer can permanently delete verification row + files.
+- Real government IDs/selfies must never be committed to GitHub/public storage.
+
+### Owner
+- Core Tests 1–4 PASSED:
+  1. Owner subscription.
+  2. Admin receives/approves request.
+  3. Owner after approval.
+  4. Customer order received by Owner and lifecycle Pending → Preparing → Ready.
+
+### Roles / routing
+- Roles: customer, restaurant_owner, admin, developer, driver.
+- No verifier role.
+- Startup routing goes through Splash.
+- Developer → Developer Dashboard.
+- Admin → Admin Dashboard.
+- Owner → Owner Restaurant Selection.
+- Driver → Driver Dashboard.
+- Customer/unknown → Customer Home after KYC gate where applicable.
+- Login now routes through Splash so KYC gating is centralized.
+
+### Project / environment
+- GitHub: `royalguard14/HalalFood`
+- Local: `D:\FlutterApps\HALAL\halalfood`
+- Flutter stable: 3.47.0
+- Flutter binary: `D:\src\flutter\bin\flutter.bat`
+- Android emulator: Pixel_8 / `emulator-5554` / Android API 37
+- Supabase project: `taltqnxhivpfwjqlvxnt`
+- `.env` exists; never commit secrets/service-role keys.
+- User prefers direct code/repo edits and one-test-at-a-time progression.
+
+## STOPPING POINT
+The user is ending this session. **Do not start the next feature in this session.** The only remaining immediate action is to finish documenting the handoff in `chat-gpt.md`.
+
+**When the next ChatGPT session starts, first read `chat-gpt.md`, then continue from STEP 0. Do not ask the user to repeat the project history.**
+
 ### 2026-09-18 — Changed Checkout Promo/Coupon UI from tiles to dropdown
 
 - **User request:** The previous Promo/Coupon section used one large tile/card per promo. Since a restaurant may have many promos, the user requested a compact dropdown instead, with the selected promo's description shown below it.
