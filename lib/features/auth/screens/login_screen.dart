@@ -9,6 +9,7 @@ import '../../developer/screens/developer_dashboard_screen.dart';
 import '../../delivery/screens/driver_dashboard_screen.dart';
 import '../../home/screens/home_screen.dart';
 import '../../owner/screens/owner_restaurant_selection_screen.dart';
+import '../../splash/splash_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -64,16 +65,12 @@ class _LoginScreenState extends State<LoginScreen> {
       final user = response.user;
       if (user == null) throw Exception('Unable to login.');
 
-      final developerResult = await supabase.rpc('is_developer');
-      if (developerResult == true) {
-        if (!mounted) return;
-        _openHomeForRole('developer');
-        return;
-      }
-
-      final profile = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+      // After authentication, always pass through SplashScreen so the centralized startup routing runs. This includes the one-time identity-verification gate for Customer, Driver and Restaurant Owner.
       if (!mounted) return;
-      _openHomeForRole(profile?['role']?.toString() ?? 'customer');
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const SplashScreen()),
+        (route) => false,
+      );
     } on AuthException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
