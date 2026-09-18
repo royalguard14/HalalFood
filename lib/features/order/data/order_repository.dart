@@ -10,10 +10,11 @@ class OrderRepository {
 
   Future<String> createOrder({
     required String restaurantId,
-    required String deliveryAddressId,
+    String? deliveryAddressId,
     required List<CartItem> items,
     required double subtotal,
     required double deliveryFee,
+    String fulfillmentType = 'delivery',
     String? notes,
   }) async {
     final user = _supabase.auth.currentUser;
@@ -30,6 +31,14 @@ class OrderRepository {
       );
     }
 
+    if (fulfillmentType != 'delivery' && fulfillmentType != 'pickup') {
+      throw Exception('Invalid fulfillment type.');
+    }
+
+    if (fulfillmentType == 'delivery' && deliveryAddressId == null) {
+      throw Exception('A delivery address is required for delivery orders.');
+    }
+
     final totalAmount =
         subtotal + deliveryFee;
 
@@ -43,6 +52,7 @@ class OrderRepository {
           'subtotal': subtotal,
           'delivery_fee': deliveryFee,
           'total_amount': totalAmount,
+          'fulfillment_type': fulfillmentType,
           'notes': notes,
         })
         .select('id')
