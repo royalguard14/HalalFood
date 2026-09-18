@@ -575,6 +575,26 @@ Never tell the user to pull before a new commit exists.
 
 # 26. PROJECT CHANGE LOG
 
+### 2026-09-18 — Implemented Identity Verification / KYC foundation
+
+- **User requirement:** Customer, Rider/Driver and Restaurant Owner accounts must submit a valid government ID plus a selfie holding the same ID before using the protected app. Admin reviews the submission and can approve/reject it. Rejected users can resubmit after correcting the requirements.
+- **Existing implementation inspected:** The existing `halal_verifications` table is for restaurant halal classification/certification and is separate from personal identity verification. No existing personal KYC/identity-verification implementation was found in the Flutter repository.
+- **New database:** Added `public.identity_verifications` with role, ID type, private Storage paths, status (pending/approved/rejected), rejection reason, reviewer, review timestamp and submission/update timestamps. Added indexes and one-pending-submission-per-user protection.
+- **Backend authorization:** Added `public.is_identity_verified()` as a security-definer helper with pinned `search_path`. It treats Admin/Developer as internally trusted and requires an approved verification matching the user's current role for Customer, Driver and Restaurant Owner.
+- **Backend enforcement:** Customer order creation and Restaurant Owner restaurant creation/update now require `is_identity_verified()`; client-side routing is not the only protection.
+- **Private storage:** Added private Supabase Storage bucket `identity-verifications`. Users can upload/view/delete only inside their own user folder; Admin can view verification files. Documents are not public URLs. Admin uses short-lived signed URLs for review.
+- **New Customer/Owner/Driver screen:** `lib/features/identity/screens/identity_verification_screen.dart`. It collects a government ID photo and a camera selfie with the same ID, uploads both privately, submits a pending record, shows pending/approved/rejected state and allows resubmission after rejection.
+- **New Admin screen:** `lib/features/admin/screens/identity_verification_management_screen.dart`. Admin can filter Pending/Approved/Rejected, review account/role/ID type, view the ID and selfie through temporary signed URLs, then Approve or Reject with a reason.
+- **Admin navigation:** Added Identity Verification under Admin → Users & Accounts.
+- **Startup routing:** `lib/features/splash/splash_screen.dart` now checks identity verification after role resolution and routes unverified Customer/Driver/Restaurant Owner accounts to the verification screen. Admin/Developer routing remains unchanged.
+- **Important privacy rule:** Real government IDs/selfies must not be placed in GitHub or public storage. Development tests should use test documents/accounts only.
+- **Supabase changes:** Migration applied directly to project `taltqnxhivpfwjqlvxnt` using migration name `identity_verification_kyc_foundation`.
+- **Testing:** Database migration succeeded. GitHub code changes were committed. Flutter runtime verification is still pending; do not mark the KYC flow as fully tested until the user runs it.
+- **GitHub commits:** identity screen + admin screen created; startup routing commit `2904a47b1a4b0d82395e6b37d87e5d2bbd24acce`; Admin navigation commit `4a57646b08fed06a911c0e39819d184cc6eaf909`.
+- **Current stopping point:** KYC foundation is implemented in Supabase and GitHub, but runtime testing has not yet been performed.
+- **Next task:** User should `git pull`, run the app, and test the identity-verification route using a test Customer account first. Then test Admin review. After that, test Driver and Restaurant Owner flows.
+
+
 ### 2026-09-18 — Updated handoff guide for remaining Admin + Customer work
 
 - **User clarification:** Owner core testing is already working, but there are still items to do on the **Admin side** and **Customer side**. The Customer test sequence must therefore remain documented for the next session/work block.
