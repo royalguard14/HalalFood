@@ -422,6 +422,32 @@ Never tell the user to pull before a new commit exists.
 
 # 23. PROJECT CHANGE LOG
 
+### 2026-09-18 — Updated handoff after branding palette work and test completion
+
+- **User result:** User confirmed the latest Developer Branding/palette work is **OK / working** after the previously pending test step.
+- **Feature now considered complete for this milestone:** Developer Branding supports manual HEX editing, visual Pick Color, Generate from Primary, Generate Entire Palette, live preview and Save Global Branding.
+- **No Supabase schema change** was required for the palette generator.
+- **Current branding architecture:** Global-only branding using the `halalfood` brand key, `BrandConfigRepository`, `BrandThemeProvider` and `MaterialApp.theme`.
+- **Important documentation correction:** The previous CURRENT STOPPING POINT still referenced the older branding commit `ed173838...`; this has now been reconciled with the newer local palette generator commit `be1a5ca29452995570040b0310bd22331e89f4a5`.
+- **Next milestone:** Move from UI/branding work into **Backend & Security Hardening**, beginning with the open Supabase security audit items listed in Section 18.
+- **Immediate next task:** Inspect the four listed `SECURITY DEFINER` functions and their authorization/search_path behavior before making any SQL changes. Then address the mutable `search_path` trigger functions, indexes, and remaining Auth/security findings one controlled item at a time.
+- **Testing note:** User confirmed the current branding work is OK. Do not claim a fresh analyzer output or a specific test command result unless the user reports it explicitly.
+
+### 2026-09-18 — Added local automatic brand color palette generation
+
+- **User request:** Add a button to generate a good color combination for Primary, Secondary, Accent, Background, Surface, Text and Border colors. Keep HEX editing and visual color picking, but use a local/offline generator rather than an external API.
+- **File changed:** `lib/features/developer/screens/developer_branding_screen.dart`
+- **New controls:** Added **Generate from Primary** and **Generate Entire Palette** buttons above the Theme Colors fields.
+- **Behavior:** Generate from Primary derives a balanced secondary, accent and border color from the selected primary using Flutter's built-in HSL color model. Neutral background, surface and text colors are also populated.
+- **Entire Palette:** One tap selects a curated brand seed color and generates the complete palette locally. This avoids network/API dependencies and does not require an API key.
+- **Existing controls preserved:** Manual HEX editing and the existing Pick Color HSV picker remain available.
+- **Supabase/database changes:** None.
+- **Dependencies:** None added.
+- **Testing:** User subsequently confirmed the current branding work is **OK / working**.
+- **Commit:** `be1a5ca29452995570040b0310bd22331e89f4a5`
+- **Current stopping point:** Developer Branding milestone is complete; next milestone is Backend & Security Hardening.
+- **Next:** Start with inspection of the open Supabase `SECURITY DEFINER` functions before applying any security migration.
+
 ### 2026-09-18 — Changed Developer Dashboard navigation to Admin-style group hubs
 
 - **Clarification from user:** Developer Dashboard must work like the Admin Dashboard: clicking a base category such as **Overview & Access** should open a separate next screen containing its sub-modules (Users & Roles, Action Center, Developer Profile), rather than displaying the modules directly on the main dashboard.
@@ -435,11 +461,9 @@ Never tell the user to pull before a new commit exists.
 - Tapping a sub-module then opens the existing destination screen.
 - This now mirrors the Admin Dashboard's parent-category → management-sections navigation pattern.
 - **Supabase/database changes:** None.
-- **Testing:** Local `flutter analyze` and runtime testing are **PENDING** until the user pulls the latest commits.
+- **Testing:** User later confirmed the current branding milestone is OK; separate detailed analyzer output for this dashboard refactor is not recorded here.
 - **Commits:** `a56f3469c2a866d672326441be367f8d88d7e4f9`, `eeb2f3d6d551241cbe363c2308ac416f8fe43e1e`
 - **Current stopping point:** Admin-style Developer group navigation is implemented and pushed to `main`.
-- **Next:** `git pull` → `flutter analyze` → run app → tap each Developer base group and verify its sub-module hub/navigation.
-
 
 ### 2026-09-18 — Fixed Developer Dashboard analyzer errors
 
@@ -448,13 +472,9 @@ Never tell the user to pull before a new commit exists.
 - **File changed:** `lib/features/developer/screens/developer_dashboard_screen.dart`
 - **Fix:** Removed the duplicate legacy `_moduleGrid` implementation and removed the unused `theme` variable. The grouped `_moduleGrid` remains the only implementation and passes `group.color` into `_ModuleCard`.
 - **Supabase/database changes:** None.
-- **Testing:** The user has reported the analyzer errors; **post-fix local `flutter analyze` is PENDING** until the user pulls the new commit.
+- **Testing:** The user has reported the analyzer errors; **post-fix local `flutter analyze` is not separately recorded**.
 - **Commit:** `e507144bb81860dbd3ff5802404da0207bd8c374`
-- **Current stopping point:** Analyzer blocker fixed in GitHub; waiting for user to pull and rerun `flutter analyze`.
-- **Next:** `git pull` → `flutter analyze`; if clean, run the app and inspect the Developer Dashboard grouping/navigation.
-
-
-> **Mandatory:** Newest entries are at the top. Add an entry for every development action.
+- **Current stopping point:** Analyzer blocker fixed in GitHub.
 
 ### 2026-09-18 — Reorganized Developer Dashboard into base groups with sub-modules
 
@@ -462,11 +482,9 @@ Never tell the user to pull before a new commit exists.
 - **File changed:** `lib/features/developer/screens/developer_dashboard_screen.dart`
 - **New base groups:** Overview & Access; Platform Operations; Catalog & Growth; System.
 - Each base group now has its own icon, description and color identity, with the existing Developer modules displayed inside that group.
-- The dashboard keeps the existing responsive card layout, but modules are now visually grouped under clear parent categories instead of one flat platform-module list.
 - **Functionality:** Existing module destinations and logout behavior preserved. No Supabase/database changes.
-- **Testing:** Local Flutter analyzer/runtime testing is **PENDING** until the user pulls the latest commit.
+- **Testing:** Local Flutter analyzer/runtime testing was pending at the time of implementation.
 - **Commit:** `39bd67aea140874a18eceec2b78ea25eda8297fd`
-- **Current stopping point:** Grouped Developer Dashboard is pushed to `main`; waiting for user pull/test.
 
 ### 2026-09-18 — Redesigned Developer Dashboard UI
 
@@ -479,11 +497,10 @@ Never tell the user to pull before a new commit exists.
 - Branding & Theme is visually highlighted as the global theme control.
 - Dashboard colors now derive from the active `HalalFoodBrandExtension` where appropriate instead of relying on a fixed per-module color palette, so the Developer Console better follows global branding.
 - **Functionality:** Existing module navigation and logout behavior preserved. No database/schema changes.
-- **Testing:** Local Flutter analyzer/runtime testing is **PENDING** until the user pulls the latest commits.
+- **Testing:** Local Flutter analyzer/runtime testing was pending at the time of implementation.
 - **Commits:**
   - `9d6c4b24725b35a2dc7ffa321b5630e03e5625ba` — initial dashboard redesign
   - `ca9a7d436599fe13a25386a6c797668325bc98d7` — context usage fix
-- **Current stopping point:** Developer Dashboard redesign is pushed to `main`; waiting for local pull/analyzer/runtime test.
 
 ### 2026-09-17 — Implemented global app branding/theme architecture
 
@@ -503,35 +520,23 @@ Never tell the user to pull before a new commit exists.
 - **Save behavior:** Save persists to Supabase and immediately updates the in-memory global theme through `BrandThemeProvider`.
 - **Supabase:** Queried the actual `brand_configs` schema before changing code. Verified all required columns already exist and verified one existing `halalfood` row. **No DB migration was required.**
 - **Dependencies:** No new package added.
-- **Testing:** Supabase schema/data verification completed. Local `flutter analyze` and runtime testing are **PENDING** until user pulls the new commits.
+- **Testing:** Supabase schema/data verification completed. Local Flutter analyzer/runtime testing was pending until user pull/test.
 - **Commits:**
   - `11c6c7b7fe524f121a163380991a8e514ccd2d88` — global-only repository
   - `597c345ced9a39d78f4b729b3e22fdda573ffe93` — global theme provider
   - `76d26becc3c0480d680a8d65bee12beae854e957` — app startup global branding
   - `988ad4c89be6cc6cd36e586771892af2dadbd8f0` — Material theme propagation
   - `ed1738381e80690ccf4d56541f13c695d4aeb78c` — Developer Branding global UI
-- **Current stopping point:** Code is pushed to `main`; waiting for local pull/analyzer/runtime test.
-- **Immediate next:** `git pull` → `flutter analyze` → run app → Developer → Branding → change colors → Save → verify actual screens/widgets change globally.
 
 ### 2026-09-17 — Developer Branding UI redesigned with HEX + Pick Color
 
 - **User request:** Make Developer Branding easier to use because guessing HEX colors is difficult; provide two color-selection options: exact HEX input and visual Pick Color; improve the Developer UI and group related controls.
 - **File changed:** `lib/features/developer/screens/developer_branding_screen.dart`
-- **UI changes:**
-  - Grouped content into Saved Brands, Brand Identity, Theme Colors and Live Preview cards.
-  - Added clear HEX color inputs with color swatch previews.
-  - Added **Pick Color** button beside every theme color.
-  - Added an in-app HSV color picker dialog with Hue, Saturation and Brightness controls.
-  - Picked color automatically converts back to uppercase `#RRGGBB` HEX and fills the field.
-  - Existing manual HEX validation remains enforced on save.
-  - Improved branding header, icons, spacing and live preview.
-  - Live preview now demonstrates background, surface, gradient branding and accent/action color.
-- **HEX format:** six-digit RGB only, e.g. `#0B6B3A`.
-- **Dependencies:** No new Flutter package added; picker is implemented with Flutter Material/HSV APIs.
+- **UI changes:** Grouped content into Saved Brands, Brand Identity, Theme Colors and Live Preview cards; added HEX inputs, swatches and Pick Color HSV picker.
+- **Dependencies:** No new Flutter package added.
 - **Supabase DB changes:** None.
-- **Testing:** Repository code has been committed, but local `flutter analyze` and runtime UI testing are **PENDING** until the user pulls the commit.
+- **Testing:** Superseded by later global-only branding implementation.
 - **Commit:** `04d6295ff1ae584edc098d418d28e72fa6f81d94`
-- **Status:** Superseded by the global-only branding implementation above.
 
 ### 2026-09-17 — Fixed Developer Branding syntax/analyzer blocker
 
@@ -545,11 +550,7 @@ Never tell the user to pull before a new commit exists.
 - **Routing:** No session → Login; Developer → Developer Dashboard; Admin → Admin Dashboard; Owner → Owner Restaurant Selection; Driver → Driver Dashboard; Customer/unknown → Customer Home.
 - **Important:** Developer check uses `is_developer()` before normal profile query because Developer profile visibility can be affected by RLS.
 - **Driver:** Added placeholder dashboard with online/offline UI, stats placeholders, current delivery empty state, future tools and logout.
-- **Commits:**
-  - Driver screen: `fb1afe338cae0bf22692baec6cfc12878fb89950`
-  - Splash routing: `ee655029e7ceb447637cc71a4b03de3698178991`
-  - Login Driver routing: `e496d200f14c5d884093bc91ff31e984e7ecf9a0`
-- **Testing:** Local runtime/analyzer test was pending until pull.
+- **Commits:** `fb1afe338cae0bf22692baec6cfc12878fb89950`, `ee655029e7ceb447637cc71a4b03de3698178991`, `e496d200f14c5d884093bc91ff31e984e7ecf9a0`
 
 ### 2026-09-17 — Developer restaurant control separated from Admin console
 
@@ -607,29 +608,26 @@ Never tell the user to pull before a new commit exists.
 - Updated `chat-gpt.md` to require complete project-change logging.
 - Commit: `353bbd257abf51ae1b909009ffd3469715c1674a`.
 
-
-### 2026-09-18 — Added local automatic brand color palette generation
-
-- **User request:** Add a button to generate a good color combination for Primary, Secondary, Accent, Background, Surface, Text and Border colors. Keep HEX editing and visual color picking, but use a local/offline generator rather than an external API.
-- **File changed:** `lib/features/developer/screens/developer_branding_screen.dart`
-- **New controls:** Added **Generate from Primary** and **Generate Entire Palette** buttons above the Theme Colors fields.
-- **Behavior:** Generate from Primary derives a balanced secondary, accent and border color from the selected primary using Flutter's built-in HSL color model. Neutral background, surface and text colors are also populated.
-- **Entire Palette:** One tap selects a curated brand seed color and generates the complete palette locally. This avoids network/API dependencies and does not require an API key.
-- **Existing controls preserved:** Manual HEX editing and the existing Pick Color HSV picker remain available.
-- **Supabase/database changes:** None.
-- **Dependencies:** None added.
-- **Testing:** Local Flutter analyzer/runtime testing is **PENDING** until the user pulls the commit and runs the app.
-- **Commit:** `be1a5ca29452995570040b0310bd22331e89f4a5`
-- **Current stopping point:** Developer Branding now supports manual HEX, visual color picking, generation from Primary, and one-tap complete palette generation.
-- **Next:** `git pull` → `flutter analyze` → Developer → Branding → test both Generate buttons, Pick Color, manual HEX, preview and Save.
-
 ---
 
 ## 24. CURRENT STOPPING POINT
 
-The current work is **Developer Branding / Theme controls**.
+The **Developer Branding / Theme Controls milestone is COMPLETE**.
 
-The architecture is now explicitly **global-only**:
+Completed:
+- Global-only branding architecture
+- Global Supabase `brand_configs` configuration
+- Material 3 app-wide theme propagation
+- Manual HEX editing
+- Visual Pick Color
+- Generate from Primary
+- Generate Entire Palette
+- Live Preview
+- Save Global Branding
+
+The user has confirmed the latest branding work is **OK / working**.
+
+### Current architecture
 
 ```text
 One deployment / one app
@@ -647,36 +645,69 @@ Actual app-wide Material theme
 
 There are no Client 1 / Client 2 branding configurations and no client selector.
 
-### Exact test state
+### Latest branding implementation commit
+`be1a5ca29452995570040b0310bd22331e89f4a5`
 
-**NOT YET LOCALLY TESTED AFTER THE GLOBAL-THEME IMPLEMENTATION.**
-
-Do not claim runtime/analyzer-clean until the user pulls and reports the result.
-
-Latest implementation commit:
-`ed1738381e80690ccf4d56541f13c695d4aeb78c`
+### Latest documentation commit
+This update.
 
 ---
 
-## 25. IMMEDIATE NEXT TASK
+## 25. NEXT MILESTONE — BACKEND & SECURITY HARDENING
 
-1. User runs:
-   ```powershell
-   cd D:\FlutterApps\HALAL\halalfood
-   git pull
-   flutter analyze
-   ```
-2. If analyzer has errors, fix those first.
-3. Run the app.
-4. Open Developer → Branding.
-5. Test every color field using both:
-   - manual HEX
-   - Pick Color
-6. Save branding.
-7. Verify the actual app screens/components change according to the global theme, not just the preview.
-8. Verify reload/restart loads the saved global colors from Supabase.
-9. Report the first result/error before starting another unrelated feature.
-10. Record the test result in this file.
+We now move to the next major milestone before starting Customer/User ordering.
+
+### Goal
+Audit and harden the Supabase backend so the control layer is secure before real customer transactions are enabled.
+
+### Phase 1 — SECURITY DEFINER audit
+Start with these functions:
+- `calculate_delivery_fee`
+- `expire_restaurant_subscriptions`
+- `handle_new_user`
+- `is_admin`
+
+For each function:
+1. Inspect exact SQL/body.
+2. Inspect `SECURITY DEFINER` usage.
+3. Inspect/pin `search_path`.
+4. Check who can execute it.
+5. Check whether caller-controlled parameters can bypass intended authorization.
+6. Check whether the function exposes or modifies data beyond its intended scope.
+7. Only then create a focused migration if a real issue is found.
+
+### Phase 2 — Mutable search_path audit
+Review:
+- `set_promo_codes_updated_at`
+- `update_updated_at`
+- `update_updated_at_column`
+- `set_app_settings_updated_at`
+- `set_payments_updated_at`
+- `set_subscription_updated_at`
+
+Pin the search path where appropriate and verify triggers still work.
+
+### Phase 3 — Database hygiene
+Review:
+- missing foreign-key indexes
+- duplicate/redundant indexes
+- RLS gaps
+- `delivery_pricing_settings` access design
+- Auth leaked-password protection
+
+### Phase 4 — Verification
+After each security change:
+- apply migration
+- verify function privileges
+- verify Developer/Admin/Owner/Customer access behavior where relevant
+- verify normal application flows still work
+- record exact result in this file.
+
+### Do NOT do yet
+- Do not start Customer/User ordering yet.
+- Do not make broad schema changes without inspecting current usage.
+- Do not blindly enable RLS on `delivery_pricing_settings`.
+- Do not change security-sensitive functions without checking their current callers and intended behavior.
 
 ---
 
@@ -685,7 +716,7 @@ Latest implementation commit:
 Whenever any project action changes the development state, update this file, including:
 - PROJECT CHANGE LOG
 - CURRENT STOPPING POINT
-- IMMEDIATE NEXT TASK
+- NEXT MILESTONE / IMMEDIATE NEXT TASK
 - relevant feature/status section
 - known bugs/issues
 - important commit/hash
