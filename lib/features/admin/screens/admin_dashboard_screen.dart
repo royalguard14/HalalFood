@@ -13,6 +13,7 @@ import 'admin_saas_subscription_hub_screen.dart';
 import 'delivery_pricing_screen.dart';
 import 'food_category_management_screen.dart';
 import 'halal_verification_screen.dart';
+import 'identity_verification_management_screen.dart';
 import 'promo_management_screen.dart';
 import 'restaurant_management_screen.dart';
 import 'user_role_management_screen.dart';
@@ -697,6 +698,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           'Manage platform accounts and assigned roles',
           Colors.deepPurple,
           [
+            _AdminGroupItem(
+              Icons.verified_user_rounded,
+              'Identity Verification',
+              'Review Customer, Rider/Driver and Restaurant Owner IDs and selfies',
+              () => _open(const IdentityVerificationManagementScreen()),
+            ),
             _AdminGroupItem(
               Icons.people_alt_rounded,
               'Users & Roles',
