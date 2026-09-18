@@ -575,6 +575,20 @@ Never tell the user to pull before a new commit exists.
 
 # 26. PROJECT CHANGE LOG
 
+### 2026-09-18 — Fixed Login → Splash → Identity Verification routing
+
+- **User test finding:** After Login, the app was going directly to the role dashboard/home. The expected flow **Login → Splash → Identity Verification** did not appear.
+- **Root cause:** `lib/features/auth/screens/login_screen.dart` was performing its own role lookup and navigating directly to the role destination after successful authentication. This bypassed `SplashScreen`, where the identity-verification gate is implemented.
+- **File changed:** `lib/features/auth/screens/login_screen.dart`
+- **Fix:** After successful authentication, Login now navigates to `SplashScreen`. Splash remains the single centralized startup router and performs the identity-verification check before Customer, Driver and Restaurant Owner accounts enter the protected app.
+- **Behavior:** Admin and Developer still route to their normal dashboards through Splash; unverified Customer/Driver/Restaurant Owner accounts now reach the Identity Verification screen through the same startup path.
+- **Supabase changes:** None.
+- **Testing:** User reported the expected verification screen did not appear. Code fix is now committed; runtime retest is required.
+- **Commit:** `7e791356f5bb2e342a083bd0f190dabda3bd766b`
+- **Current stopping point:** Login routing now passes through Splash. Runtime verification has not yet been confirmed.
+- **Next task:** `git pull`, log in with a test Customer account, and verify **Login → Splash → Identity Verification**. Do not upload real government ID/selfie documents during development testing.
+
+
 ### 2026-09-18 — Added logout control to required identity-verification screen
 
 - **File changed:** `lib/features/identity/screens/identity_verification_screen.dart`
@@ -664,7 +678,7 @@ Core tested workflow is **working / PASSED** through Tests 1–4.
 Customer audit is the active workstream.
 
 ### Immediate Customer test
-**TEST C1 — Customer Profile & Account**
+**KYC routing verification comes first:** verify **Login → Splash → Identity Verification** with a test Customer account. After that is confirmed, resume **TEST C1 — Customer Profile & Account**.
 
 After C1, continue:
 **C2 Addresses → C3 Restaurant Discovery → C4 Cart → C5 Checkout → C6 Orders → C7 Realtime → C8 Edge Cases**
