@@ -692,6 +692,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     subtotal: subtotal,
                     deliveryFee: deliveryFee,
                     total: total,
+                    showDeliveryFee: _fulfillmentType == 'delivery',
                     isCalculating: _fulfillmentType == 'delivery' &&
                         (_isCalculatingDelivery || _deliveryFee == null),
                   ),
@@ -1390,12 +1391,14 @@ class _OrderSummaryCard
   final double subtotal;
   final double deliveryFee;
   final double total;
+  final bool showDeliveryFee;
   final bool isCalculating;
 
   const _OrderSummaryCard({
     required this.subtotal,
     required this.deliveryFee,
     required this.total,
+    required this.showDeliveryFee,
     required this.isCalculating,
   });
 
@@ -1465,7 +1468,7 @@ class _OrderSummaryCard
               subtotal,
             ),
 
-            if (isCalculating)
+            if (showDeliveryFee && isCalculating)
               const Padding(
                 padding:
                     EdgeInsets.symmetric(
@@ -1495,7 +1498,7 @@ class _OrderSummaryCard
                   ],
                 ),
               )
-            else
+            else if (showDeliveryFee)
               _row(
                 'Delivery Fee',
                 deliveryFee,
