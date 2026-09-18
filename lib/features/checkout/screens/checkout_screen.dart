@@ -9,6 +9,7 @@ import '../../cart/providers/cart_provider.dart';
 import '../../home/data/restaurant_model.dart';
 import '../../home/data/restaurant_repository.dart';
 import '../data/order_repository.dart';
+import '../data/promo_code_repository.dart';
 
 class CheckoutScreen extends StatefulWidget {
   final CartProvider cart;
@@ -32,6 +33,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final RestaurantRepository _restaurantRepository =
       RestaurantRepository();
 
+  final PromoCodeRepository _promoCodeRepository =
+      PromoCodeRepository();
+
   late Future<List<Address>> _addressesFuture;
 
   Address? _selectedAddress;
@@ -42,6 +46,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   double? _deliveryDistanceKm;
   double? _deliveryFee;
+
+  List<PromoCode> _availablePromos = const [];
+  PromoCode? _selectedPromo;
+  bool _isLoadingPromos = false;
 
   bool _isCalculatingDelivery = false;
   bool _isPlacingOrder = false;
@@ -54,6 +62,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         _addressRepository.getAddresses();
 
     _loadRestaurant();
+    _loadPromos();
   }
 
   // ============================================================
@@ -244,6 +253,49 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }  }
 
   // ============================================================
+  // PROMOS
+  // ============================================================
+
+  Future<void> _loadPromos() async {
+    final restaurantId = widget.cart.restaurantId;
+    if (restaurantId == null || restaurantId.trim().isEmpty) return;
+
+    setState(() => _isLoadingPromos = true);
+
+    try {
+      final promos = await _promoCodeRepository.getAvailablePromos(
+        restaurantId: restaurantId,
+      );
+      if (!mounted) return;
+      setState(() {
+        _availablePromos = promos;
+        if (_selectedPromo != null &&
+            !promos.any((promo) => promo.id == _selectedPromo!.id)) {
+          _selectedPromo = null;
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to load promo codes: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoadingPromos = false);
+    }
+  }
+
+  void _selectPromo(PromoCode? promo) {
+    if (_isPlacingOrder) return;
+    setState(() => _selectedPromo = promo);
+  }
+
+  double get _promoDiscount {
+    final promo = _selectedPromo;
+    if (promo == null) return 0;
+    return promo.calculateDiscount(widget.cart.total);
+  }
+
+  // ============================================================
   // PLACE ORDER
   // ============================================================
 
@@ -320,6 +372,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         subtotal: widget.cart.total,
         deliveryFee: deliveryFee ?? 0.0,
         fulfillmentType: fulfillmentType,
+        promoCode: _selectedPromo?.code,
       );
 
       if (!mounted) return;
@@ -393,7 +446,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final subtotal = widget.cart.total;
     final deliveryFee =
         _fulfillmentType == 'delivery' ? (_deliveryFee ?? 0.0) : 0.0;
-    final total = subtotal + deliveryFee;
+    final promoDiscount = _promoDiscount;
+    final total = subtotal + deliveryFee - promoDiscount;
 
     return Scaffold(
       appBar: AppBar(
@@ -550,6 +604,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
                 if (_fulfillmentType != null) ...[
                   const SizedBox(height: 26),
+                  _PromoSection(
+                    promos: _availablePromos,
+                    selectedPromo: _selectedPromo,
+                    promoDiscount: promoDiscount,
+                    subtotal: subtotal,
+                    isLoading: _isLoadingPromos,
+                    onSelect: _selectPromo,
+                    onRefresh: _loadPromos,
+                  ),
+                ],
+
+                if (_fulfillmentType != null) ...[
+                  const SizedBox(height: 26),
                   const Text(
                     'Order Summary',
                     style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
@@ -558,6 +625,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   _OrderSummaryCard(
                     subtotal: subtotal,
                     deliveryFee: deliveryFee,
+                    promoDiscount: promoDiscount,
                     total: total,
                     showDeliveryFee: _fulfillmentType == 'delivery',
                     isCalculating: _fulfillmentType == 'delivery' &&
@@ -605,6 +673,185 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
+}
+
+// ============================================================
+// PROMO SECTION
+// ============================================================
+
+class _PromoSection extends StatelessWidget {
+  final List<PromoCode> promos;
+  final PromoCode? selectedPromo;
+  final double promoDiscount;
+  final double subtotal;
+  final bool isLoading;
+  final ValueChanged<PromoCode?> onSelect;
+  final VoidCallback onRefresh;
+
+  const _PromoSection({
+    required this.promos,
+    required this.selectedPromo,
+    required this.promoDiscount,
+    required this.subtotal,
+    required this.isLoading,
+    required this.onSelect,
+    required this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Promo / Coupon',
+          style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Available promos from HALAL Food and this restaurant.',
+          style: TextStyle(fontSize: 13, color: HalalFoodTheme.textSecondary),
+        ),
+        const SizedBox(height: 12),
+        if (isLoading)
+          const Card(
+            child: Padding(
+              padding: EdgeInsets.all(18),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          )
+        else if (promos.isEmpty)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Row(
+                children: [
+                  const Icon(Icons.local_offer_outlined),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text('No available promo codes for this restaurant.'),
+                  ),
+                  IconButton(
+                    onPressed: onRefresh,
+                    tooltip: 'Refresh',
+                    icon: const Icon(Icons.refresh_rounded),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          ...promos.map((promo) {
+            final selected = selectedPromo?.id == promo.id;
+            final discount = promo.calculateDiscount(subtotal);
+            final meetsMinimum = subtotal >= promo.minimumOrder;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: InkWell(
+                onTap: () => onSelect(selected ? null : promo),
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: selected
+                          ? HalalFoodTheme.primaryGreen
+                          : Theme.of(context).dividerColor,
+                      width: selected ? 2 : 1,
+                    ),
+                    color: selected
+                        ? HalalFoodTheme.primaryGreen.withValues(alpha: 0.05)
+                        : null,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        selected
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_off,
+                        color: selected
+                            ? HalalFoodTheme.primaryGreen
+                            : HalalFoodTheme.textSecondary,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    promo.title,
+                                    style: const TextStyle(fontWeight: FontWeight.w800),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.10),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    promo.discountLabel,
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      color: HalalFoodTheme.primaryGreen,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              promo.code,
+                              style: const TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            if (promo.description != null && promo.description!.trim().isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                promo.description!.trim(),
+                                style: const TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary),
+                              ),
+                            ],
+                            const SizedBox(height: 5),
+                            Text(
+                              promo.minimumOrder > 0
+                                  ? 'Minimum order: ₱' + promo.minimumOrder.toStringAsFixed(2)
+                                  : 'No minimum order',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: meetsMinimum
+                                    ? HalalFoodTheme.textSecondary
+                                    : Colors.redAccent,
+                              ),
+                            ),
+                            if (selected && discount > 0) ...[
+                              const SizedBox(height: 5),
+                              Text(
+                                'Discount: -₱' + discount.toStringAsFixed(2),
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  color: HalalFoodTheme.primaryGreen,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+      ],
+    );
+  }
 }
 
 // ============================================================
@@ -1257,6 +1504,7 @@ class _OrderSummaryCard
     extends StatelessWidget {
   final double subtotal;
   final double deliveryFee;
+  final double promoDiscount;
   final double total;
   final bool showDeliveryFee;
   final bool isCalculating;
@@ -1264,6 +1512,7 @@ class _OrderSummaryCard
   const _OrderSummaryCard({
     required this.subtotal,
     required this.deliveryFee,
+    required this.promoDiscount,
     required this.total,
     required this.showDeliveryFee,
     required this.isCalculating,
