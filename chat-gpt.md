@@ -575,6 +575,18 @@ Never tell the user to pull before a new commit exists.
 
 # 26. PROJECT CHANGE LOG
 
+### 2026-09-18 — Allowed Developer to view KYC images
+
+- **User requirement:** Developer may view Customer, Rider/Driver and Restaurant Owner identity-verification images, but Developer must **not** approve or reject them.
+- **Supabase change:** Updated the private `identity-verifications` Storage SELECT policy so authenticated **Admin or Developer** accounts can view identity files. User upload/delete ownership rules remain unchanged.
+- **Approval authority:** The Admin Identity Verification screen remains the operational review/approval path. No Developer approval action was added.
+- **Privacy:** The bucket remains private; access is controlled by Storage RLS rather than public URLs.
+- **Migration:** `developer_identity_storage_view_access`
+- **Testing:** Migration applied successfully. Runtime Developer image-view test remains pending.
+- **Current stopping point:** Developer has backend permission to view private KYC images; Admin remains the only intended approver.
+- **Next task:** Continue KYC upload test with a test Customer account, then verify Admin review and Developer image viewing.
+
+
 ### 2026-09-18 — Fixed Login → Splash → Identity Verification routing
 
 - **User test finding:** After Login, the app was going directly to the role dashboard/home. The expected flow **Login → Splash → Identity Verification** did not appear.
