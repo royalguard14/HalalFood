@@ -1,3 +1,14 @@
+### 2026-09-18 — KYC rejection lifecycle fix VERIFIED by user
+
+- **Runtime test result:** User confirmed the latest KYC rejection fix is **OK / working**.
+- **Verified flow:** Admin → Identity Verification → Pending → open verification → Reject → enter rejection reason → Reject.
+- **Confirmed:** Rejection reason/remark is saved successfully, the verification is rejected, the Flutter red-screen assertion no longer occurs, and the rejection flow completes normally.
+- **Bug status:** The Flutter `'_dependents.isEmpty': is not true` / `Tried to build dirty widget in the wrong build scope` issue is considered **FIXED** for this tested flow.
+- **Code commit:** `708e7675c33ee2b5a1fd1663d97c94f2f397f2cf`
+- **Documentation update:** This entry records the successful runtime verification.
+- **Current stopping point:** Admin KYC rejection is working. KYC approval/rejection UI lifecycle issue is no longer the immediate blocker.
+- **Next task:** Continue the remaining Admin/KYC audit one test at a time. Next verify **Admin KYC approval flow**, then **Developer KYC view-only/image access**, then resume the broader Admin audit before moving to Customer C1/C2 testing.
+
 ### 2026-09-18 — KYC rejection red-screen lifecycle fix (second attempt)
 
 - **User runtime finding:** The rejection reason is saved successfully and the record is counted as rejected, but Flutter still shows `'_dependents.isEmpty': is not true` and `Tried to build dirty widget in the wrong build scope.` This confirms the backend rejection is successful; the remaining bug is Flutter widget/route lifecycle only.
