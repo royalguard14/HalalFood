@@ -245,7 +245,6 @@ class _CartItemCard extends StatelessWidget {
                             cartItem.quantity + 1,
                           );
 
-                          await onQuantityChanged();
                         },
                       ),
 
