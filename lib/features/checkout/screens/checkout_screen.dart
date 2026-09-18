@@ -37,6 +37,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Address? _selectedAddress;
   Restaurant? _restaurant;
 
+  // Customer must explicitly choose Pick-up or Delivery.
+  String? _fulfillmentType;
+
   double? _deliveryDistanceKm;
   double? _deliveryFee;
 
@@ -126,7 +129,28 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _deliveryFee = null;
     });
 
-    _calculateDelivery();
+    if (_fulfillmentType == 'delivery') {
+      _calculateDelivery();
+    }
+  }
+
+  void _selectFulfillment(String value) {
+    if (_isPlacingOrder || _fulfillmentType == value) return;
+
+    setState(() {
+      _fulfillmentType = value;
+      _selectedAddress = null;
+      _deliveryDistanceKm = null;
+      _deliveryFee = null;
+    });
+
+    if (value == 'delivery') {
+      _addressesFuture.then((addresses) {
+        if (!mounted || _fulfillmentType != 'delivery') return;
+        _selectDefaultAddress(addresses);
+        if (mounted) setState(() {});
+      });
+    }
   }
 
   // ============================================================
@@ -191,7 +215,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         _restaurant = restaurant;
       });
 
-      _calculateDelivery();
+      if (_fulfillmentType == 'delivery') {
+        _calculateDelivery();
+      } else if (mounted) {
+        setState(() => _isCalculatingDelivery = false);
+      }
     } catch (e) {
       debugPrint(
         'RESTAURANT ERROR: $e',
@@ -349,138 +377,96 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   // ============================================================
 
   Future<void> _placeOrder() async {
-    if (_isPlacingOrder) {
-      return;
-    }
+    if (_isPlacingOrder) return;
 
-    final address = _selectedAddress;
-
-    if (address == null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Please select a delivery address.',
-          ),
-        ),
+    final fulfillmentType = _fulfillmentType;
+    if (fulfillmentType == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please choose Pick-up or Delivery first.')),
       );
       return;
     }
 
     if (widget.cart.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Your cart is empty.',
-          ),
-        ),
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Your cart is empty.')),
       );
       return;
     }
 
-    final restaurantId =
-        widget.cart.restaurantId;
-
-    if (restaurantId == null ||
-        restaurantId.trim().isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Restaurant information is missing.',
-          ),
-        ),
+    final restaurantId = widget.cart.restaurantId;
+    if (restaurantId == null || restaurantId.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Restaurant information is missing.')),
       );
       return;
     }
 
-    final deliveryFee = _deliveryFee;
+    final address = _selectedAddress;
+    final deliveryFee =
+        fulfillmentType == 'delivery' ? _deliveryFee : 0.0;
 
-    if (deliveryFee == null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Delivery fee is not available yet.',
-          ),
-        ),
-      );
-      return;
+    if (fulfillmentType == 'delivery') {
+      if (address == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select a delivery address.')),
+        );
+        return;
+      }
+      if (address.latitude == null || address.longitude == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Selected address is missing GPS coordinates.')),
+        );
+        return;
+      }
+      if (deliveryFee == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Delivery fee is not available yet.')),
+        );
+        return;
+      }
+      if (deliveryFee.isInfinite) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('This restaurant is outside the current delivery area.')),
+        );
+        return;
+      }
+      if (deliveryFee.isNaN) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unable to calculate delivery fee.')),
+        );
+        return;
+      }
     }
 
-    if (deliveryFee.isInfinite) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        const SnackBar(
-          content: Text(
-            'This restaurant is outside the current delivery area.',
-          ),
-        ),
-      );
-      return;
-    }
-
-    if (deliveryFee.isNaN) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Unable to calculate delivery fee.',
-          ),
-        ),
-      );
-      return;
-    }
-
-    setState(() {
-      _isPlacingOrder = true;
-    });
+    setState(() => _isPlacingOrder = true);
 
     try {
-      final orderId =
-          await _orderRepository.createOrder(
-        address: address,
+      final orderId = await _orderRepository.createOrder(
+        address: fulfillmentType == 'delivery' ? address : null,
         restaurantId: restaurantId,
         items: widget.cart.items,
         subtotal: widget.cart.total,
-        deliveryFee: deliveryFee,
+        deliveryFee: deliveryFee ?? 0.0,
+        fulfillmentType: fulfillmentType,
       );
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       widget.cart.clearCart();
 
-      await Navigator.of(context)
-          .pushReplacement(
+      await Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) =>
-              OrderSuccessScreen(
-            orderId: orderId,
-          ),
+          builder: (_) => OrderSuccessScreen(orderId: orderId),
         ),
       );
     } catch (e) {
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        SnackBar(
-          content: Text(
-            'Unable to place order: $e',
-          ),
-        ),
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to place order: $e')),
       );
     } finally {
-      if (mounted) {
-        setState(() {
-          _isPlacingOrder = false;
-        });
-      }
+      if (mounted) setState(() => _isPlacingOrder = false);
     }
   }
 
@@ -532,152 +518,81 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   // ============================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final subtotal =
-        widget.cart.total;
-
+  Widget build(BuildContext context) {
+    final subtotal = widget.cart.total;
     final deliveryFee =
-        _deliveryFee ?? 0.0;
-
-    final total =
-        subtotal + deliveryFee;
+        _fulfillmentType == 'delivery' ? (_deliveryFee ?? 0.0) : 0.0;
+    final total = subtotal + deliveryFee;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text(
           'Checkout',
-          style: TextStyle(
-            fontWeight:
-                FontWeight.w800,
-          ),
+          style: TextStyle(fontWeight: FontWeight.w800),
         ),
       ),
       body: SafeArea(
         child: FutureBuilder<List<Address>>(
           future: _addressesFuture,
-          builder: (
-            context,
-            snapshot,
-          ) {
-            if (snapshot.connectionState ==
-                ConnectionState.waiting) {
-              return const Center(
-                child:
-                    CircularProgressIndicator(),
-              );
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
             }
-
             if (snapshot.hasError) {
               return _AddressErrorView(
-                error:
-                    snapshot.error.toString(),
-                onRetry:
-                    _reloadAddresses,
+                error: snapshot.error.toString(),
+                onRetry: _reloadAddresses,
               );
             }
 
-            final addresses =
-                snapshot.data ?? [];
-
-            _selectDefaultAddress(
-              addresses,
-            );
-
-            if (addresses.isEmpty) {
-              return _NoAddressView(
-                onAddAddress: () {
-                  Navigator.of(context)
-                      .pop();
-                },
-              );
-            }
+            final addresses = snapshot.data ?? [];
 
             return ListView(
-              padding:
-                  const EdgeInsets.fromLTRB(
-                20,
-                20,
-                20,
-                32,
-              ),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
               children: [
                 const Text(
-                  'Delivery Address',
-                  style: TextStyle(
-                    fontSize: 19,
-                    fontWeight:
-                        FontWeight.w800,
-                  ),
+                  'How would you like to receive your order?',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
                 ),
-
-                const SizedBox(height: 6),
-
-                const Text(
-                  'Where should we deliver your order?',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color:
-                        HalalFoodTheme
-                            .textSecondary,
-                  ),
-                ),
-
-                const SizedBox(height: 14),
-
-                ...addresses.map(
-                  (address) {
-                    final selected =
-                        _selectedAddress?.id ==
-                            address.id;
-
-                    return Padding(
-                      padding:
-                          const EdgeInsets.only(
-                        bottom: 10,
-                      ),
-                      child:
-                          _AddressOption(
-                        address: address,
-                        selected: selected,
-                        title:
-                            _addressTitle(
-                          address,
-                        ),
-                        details:
-                            _addressDetails(
-                          address,
-                        ),
-                        onTap: () {
-                          _selectAddress(
-                            address,
-                          );
-                        },
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 4),
-
-                SizedBox(
-                  width:
-                      double.infinity,
-                  child:
-                      OutlinedButton.icon(
-                    onPressed:
-                        _isPlacingOrder
+                const SizedBox(height: 12),
+                Card(
+                  child: Column(
+                    children: [
+                      RadioListTile<String>(
+                        value: 'pickup',
+                        groupValue: _fulfillmentType,
+                        onChanged: _isPlacingOrder
                             ? null
-                            : _reloadAddresses,
-                    icon: const Icon(
-                      Icons
-                          .refresh_rounded,
-                    ),
-                    label:
-                        const Text(
-                      'Refresh Addresses',
-                    ),
+                            : (value) {
+                                if (value != null) _selectFulfillment(value);
+                              },
+                        title: const Text(
+                          'Pick-up',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        subtitle: const Text(
+                          'Pick up your order directly from the restaurant.',
+                        ),
+                        secondary: const Icon(Icons.storefront_outlined),
+                      ),
+                      RadioListTile<String>(
+                        value: 'delivery',
+                        groupValue: _fulfillmentType,
+                        onChanged: _isPlacingOrder
+                            ? null
+                            : (value) {
+                                if (value != null) _selectFulfillment(value);
+                              },
+                        title: const Text(
+                          'Delivery',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        subtitle: const Text(
+                          'Have your order delivered to your saved address.',
+                        ),
+                        secondary: const Icon(Icons.delivery_dining_outlined),
+                      ),
+                    ],
                   ),
                 ),
 
@@ -685,118 +600,135 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
                 const Text(
                   'Your Order',
-                  style: TextStyle(
-                    fontSize: 19,
-                    fontWeight:
-                        FontWeight.w800,
-                  ),
+                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
                 ),
-
                 const SizedBox(height: 12),
+                _OrderItemsCard(items: widget.cart.items),
 
-                _OrderItemsCard(
-                  items:
-                      widget.cart.items,
-                ),
-
-                const SizedBox(height: 26),
-
-                const Text(
-                  'Delivery',
-                  style: TextStyle(
-                    fontSize: 19,
-                    fontWeight:
-                        FontWeight.w800,
+                if (_fulfillmentType == 'delivery') ...[
+                  const SizedBox(height: 26),
+                  const Text(
+                    'Delivery Address',
+                    style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
                   ),
-                ),
-
-                const SizedBox(height: 12),
-
-                _DeliveryInfoCard(
-                  distanceKm:
-                      _deliveryDistanceKm,
-                  deliveryFee:
-                      _deliveryFee,
-                  isCalculating:
-                      _isCalculatingDelivery,
-                  restaurant:
-                      _restaurant,
-                  address:
-                      _selectedAddress,
-                ),
-
-                const SizedBox(height: 26),
-
-                const Text(
-                  'Order Summary',
-                  style: TextStyle(
-                    fontSize: 19,
-                    fontWeight:
-                        FontWeight.w800,
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Where should we deliver your order?',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: HalalFoodTheme.textSecondary,
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 14),
 
-                const SizedBox(height: 12),
+                  if (addresses.isEmpty)
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(18),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.location_off_outlined),
+                            const SizedBox(height: 10),
+                            const Text(
+                              'No delivery address',
+                              style: TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'Please add a delivery address before placing a delivery order.',
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else ...[
+                    ...addresses.map((address) {
+                      final selected = _selectedAddress?.id == address.id;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _AddressOption(
+                          address: address,
+                          selected: selected,
+                          title: _addressTitle(address),
+                          details: _addressDetails(address),
+                          onTap: () => _selectAddress(address),
+                        ),
+                      );
+                    }),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _isPlacingOrder ? null : _reloadAddresses,
+                        icon: const Icon(Icons.refresh_rounded),
+                        label: const Text('Refresh Addresses'),
+                      ),
+                    ),
+                  ],
 
-                _OrderSummaryCard(
-                  subtotal: subtotal,
-                  deliveryFee:
-                      deliveryFee,
-                  total: total,
-                  isCalculating:
-                      _isCalculatingDelivery ||
-                          _deliveryFee == null,
-                ),
+                  const SizedBox(height: 26),
+                  const Text(
+                    'Delivery',
+                    style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 12),
+                  _DeliveryInfoCard(
+                    distanceKm: _deliveryDistanceKm,
+                    deliveryFee: _deliveryFee,
+                    isCalculating: _isCalculatingDelivery,
+                    restaurant: _restaurant,
+                    address: _selectedAddress,
+                  ),
+                ],
 
-                const SizedBox(height: 28),
-
-                SizedBox(
-                  height: 54,
-                  width:
-                      double.infinity,
-                  child:
-                      ElevatedButton(
-                    onPressed:
-                        _isPlacingOrder ||
-                                _isCalculatingDelivery ||
-                                _deliveryFee ==
-                                    null ||
-                                _deliveryFee!
-                                    .isInfinite ||
-                                _deliveryFee!
-                                    .isNaN
-                            ? null
-                            : _placeOrder,
-                    child:
-                        _isPlacingOrder
-                            ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child:
-                                    CircularProgressIndicator(
-                                  strokeWidth:
-                                      2.5,
-                                  valueColor:
-                                      AlwaysStoppedAnimation<
-                                          Color>(
-                                    Colors
-                                        .white,
-                                  ),
-                                ),
-                              )
-                            : Text(
-                                'Place Order • ₱${total.toStringAsFixed(2)}',
-                                style:
-                                    const TextStyle(
-                                  fontSize:
-                                      16,
-                                  fontWeight:
-                                      FontWeight
-                                          .w700,
-                                ),
+                if (_fulfillmentType != null) ...[
+                  const SizedBox(height: 26),
+                  const Text(
+                    'Order Summary',
+                    style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 12),
+                  _OrderSummaryCard(
+                    subtotal: subtotal,
+                    deliveryFee: deliveryFee,
+                    total: total,
+                    isCalculating: _fulfillmentType == 'delivery' &&
+                        (_isCalculatingDelivery || _deliveryFee == null),
+                  ),
+                  const SizedBox(height: 28),
+                  SizedBox(
+                    height: 54,
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _isPlacingOrder ||
+                              (_fulfillmentType == 'delivery' &&
+                                  (_isCalculatingDelivery ||
+                                      _deliveryFee == null ||
+                                      _deliveryFee!.isInfinite ||
+                                      _deliveryFee!.isNaN ||
+                                      _selectedAddress == null))
+                          ? null
+                          : _placeOrder,
+                      child: _isPlacingOrder
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
                               ),
+                            )
+                          : Text(
+                              'Place Order • ₱${total.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                    ),
                   ),
-                ),
+                ],
               ],
             );
           },
@@ -804,6 +736,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       ),
     );
   }
+
 }
 
 // ============================================================
