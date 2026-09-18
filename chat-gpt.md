@@ -1,3 +1,19 @@
+### 2026-09-18 — Cleaned current analyzer issues and removed Checkout debug logging
+
+- **User request:** Fix all current `flutter analyze` issues in one push and remove the temporary `debugPrint` diagnostics.
+- **Files changed:**
+  - `lib/features/cart/screens/cart_screen.dart`
+  - `lib/features/auth/screens/login_screen.dart`
+  - `lib/features/admin/screens/identity_verification_management_screen.dart`
+  - `lib/features/checkout/screens/checkout_screen.dart`
+  - `lib/features/developer/screens/developer_dashboard_screen.dart`
+- **Fixes:** Removed unused imports from Login and Cart; removed the obsolete Cart `onQuantityChanged` callback requirement; changed Cart total string to interpolation; changed the KYC rejection result to interpolation; removed unused Developer dashboard `_open` and `_ModuleCard`; removed the unused Checkout `_NoAddressView`; replaced deprecated Checkout `RadioListTile.groupValue/onChanged` usage with `RadioGroup`; removed Checkout `debugPrint` diagnostics.
+- **Supabase changes:** None.
+- **Testing:** User reported the analyzer output before this push; code was updated directly on GitHub. Local `flutter analyze` after these changes is **pending user verification**.
+- **Commits:** Cart `85387699bb6086615e7fc672af2f72c6d63fb7f5`; Login `9727888e3f2d5e1586a62754d0525e70e8024ea9`; Admin KYC `e2a4f536aeca88fb867cce85c8767a0e6786499b`; Developer dashboard `c6ca50d010cdb573d2284d8f9ece5e97487401be`; Checkout cleanup `f881325ccefef0ca52e8064ed385372bb0c926ca`.
+- **Current stopping point:** Analyzer issues listed by the user have been addressed in the affected files; no runtime/analyzer success is claimed yet.
+- **Next immediate test:** `git pull` then run `flutter analyze`. If it reports any remaining issue, send the exact output and we will clear the remaining one before continuing Checkout/payment work.
+
 ### 2026-09-18 — Simplified My Cart footer and removed redundant delivery fee UI
 
 - **User request:** Remove the Delivery Fee tiles/cards from **My Cart** because fulfillment is now chosen later in Checkout. Replace the redundant lower summary/button layout with a simple two-column footer.
