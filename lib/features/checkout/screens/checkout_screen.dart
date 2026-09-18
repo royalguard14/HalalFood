@@ -700,6 +700,10 @@ class _PromoSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final selected = selectedPromo;
+    final selectedMeetsMinimum =
+        selected == null || subtotal >= selected.minimumOrder;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -709,7 +713,7 @@ class _PromoSection extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         const Text(
-          'Available promos from HALAL Food and this restaurant.',
+          'Choose an available promo for this order.',
           style: TextStyle(fontSize: 13, color: HalalFoodTheme.textSecondary),
         ),
         const SizedBox(height: 12),
@@ -740,115 +744,141 @@ class _PromoSection extends StatelessWidget {
               ),
             ),
           )
-        else
-          ...promos.map((promo) {
-            final selected = selectedPromo?.id == promo.id;
-            final discount = promo.calculateDiscount(subtotal);
-            final meetsMinimum = subtotal >= promo.minimumOrder;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: InkWell(
-                onTap: meetsMinimum ? () => onSelect(selected ? null : promo) : null,
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: selected
-                          ? HalalFoodTheme.primaryGreen
-                          : Theme.of(context).dividerColor,
-                      width: selected ? 2 : 1,
-                    ),
-                    color: selected
-                        ? HalalFoodTheme.primaryGreen.withValues(alpha: 0.05)
-                        : null,
+        else ...[
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+              child: DropdownButtonFormField<String>(
+                initialValue: selected?.id,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Select Promo / Coupon',
+                  border: InputBorder.none,
+                  prefixIcon: Icon(Icons.local_offer_outlined),
+                ),
+                items: [
+                  const DropdownMenuItem<String>(
+                    value: null,
+                    child: Text('No promo'),
                   ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        selected
-                            ? Icons.radio_button_checked
-                            : Icons.radio_button_off,
-                        color: selected
-                            ? HalalFoodTheme.primaryGreen
-                            : HalalFoodTheme.textSecondary,
+                  ...promos.map((promo) {
+                    final meetsMinimum = subtotal >= promo.minimumOrder;
+                    return DropdownMenuItem<String>(
+                      value: promo.id,
+                      enabled: meetsMinimum,
+                      child: Text(
+                        '${promo.title} • ${promo.code} • ${promo.discountLabel}',
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    promo.title,
-                                    style: const TextStyle(fontWeight: FontWeight.w800),
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.10),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    promo.discountLabel,
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w800,
-                                      color: HalalFoodTheme.primaryGreen,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                    );
+                  }),
+                ],
+                onChanged: (id) {
+                  if (id == null) {
+                    onSelect(null);
+                    return;
+                  }
+
+                  final promo = promos.firstWhere(
+                    (item) => item.id == id,
+                  );
+
+                  if (subtotal < promo.minimumOrder) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Minimum order for ${promo.code} is '
+                          '₱${promo.minimumOrder.toStringAsFixed(2)}.',
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+
+                  onSelect(promo);
+                },
+              ),
+            ),
+          ),
+          if (selected != null) ...[
+            const SizedBox(height: 10),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.local_offer_rounded,
+                          size: 20,
+                          color: HalalFoodTheme.primaryGreen,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            selected.title,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
                             ),
-                            const SizedBox(height: 5),
-                            Text(
-                              promo.code,
-                              style: const TextStyle(fontWeight: FontWeight.w700),
-                            ),
-                            if (promo.description != null && promo.description!.trim().isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                promo.description!.trim(),
-                                style: const TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary),
-                              ),
-                            ],
-                            const SizedBox(height: 5),
-                            Text(
-                              promo.minimumOrder > 0
-                                  ? 'Minimum order: ₱' + promo.minimumOrder.toStringAsFixed(2)
-                                  : 'No minimum order',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: meetsMinimum
-                                    ? HalalFoodTheme.textSecondary
-                                    : Colors.redAccent,
-                              ),
-                            ),
-                            if (selected && discount > 0) ...[
-                              const SizedBox(height: 5),
-                              Text(
-                                'Discount: -₱' + discount.toStringAsFixed(2),
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w800,
-                                  color: HalalFoodTheme.primaryGreen,
-                                ),
-                              ),
-                            ],
-                          ],
+                          ),
+                        ),
+                        Text(
+                          selected.discountLabel,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: HalalFoodTheme.primaryGreen,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      selected.code,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    if (selected.description != null &&
+                        selected.description!.trim().isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        selected.description!.trim(),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          height: 1.35,
+                          color: HalalFoodTheme.textSecondary,
                         ),
                       ),
                     ],
-                  ),
+                    const SizedBox(height: 8),
+                    Text(
+                      selected.minimumOrder > 0
+                          ? 'Minimum order: ₱${selected.minimumOrder.toStringAsFixed(2)}'
+                          : 'No minimum order',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: selectedMeetsMinimum
+                            ? HalalFoodTheme.textSecondary
+                            : Colors.redAccent,
+                      ),
+                    ),
+                    if (promoDiscount > 0) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Discount: -₱${promoDiscount.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: HalalFoodTheme.primaryGreen,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-            );
-          }),
+            ),
+          ],
+        ],
       ],
     );
   }
