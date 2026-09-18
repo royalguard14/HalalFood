@@ -36,6 +36,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int _restaurantCount = 0;
   int _activeRestaurantCount = 0;
   int _pendingVerificationCount = 0;
+  int _pendingIdentityVerificationCount = 0;
   int _pendingPaymentCount = 0;
   int _todayOrderCount = 0;
   int _pendingOrderCount = 0;
@@ -43,9 +44,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   RealtimeChannel? _restaurantsChannel;
   RealtimeChannel? _ordersChannel;
   RealtimeChannel? _verificationChannel;
+  RealtimeChannel? _identityVerificationChannel;
   RealtimeChannel? _paymentChannel;
 
-  int get _actionCount => _pendingVerificationCount + _pendingPaymentCount;
+  int get _actionCount => _pendingVerificationCount + _pendingIdentityVerificationCount + _pendingPaymentCount;
 
   @override
   void initState() {
@@ -58,6 +60,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _restaurantsChannel?.unsubscribe();
     _ordersChannel?.unsubscribe();
     _verificationChannel?.unsubscribe();
+    _identityVerificationChannel?.unsubscribe();
     _paymentChannel?.unsubscribe();
     super.dispose();
   }
@@ -92,6 +95,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       _repository.getRestaurantCount(),
       _repository.getActiveRestaurantCount(),
       _repository.getPendingVerificationCount(),
+      _getPendingIdentityVerificationCount(),
       _getPendingPaymentCount(),
       _repository.getTodayOrderCount(),
       _repository.getPendingOrderCount(),
@@ -103,10 +107,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       _restaurantCount = results[0];
       _activeRestaurantCount = results[1];
       _pendingVerificationCount = results[2];
-      _pendingPaymentCount = results[3];
-      _todayOrderCount = results[4];
-      _pendingOrderCount = results[5];
+      _pendingIdentityVerificationCount = results[3];
+      _pendingPaymentCount = results[4];
+      _todayOrderCount = results[5];
+      _pendingOrderCount = results[6];
     });
+  }
+
+  Future<int> _getPendingIdentityVerificationCount() async {
+    final response = await _supabase.from('identity_verifications').select('id').eq('status', 'pending');
+    return (response as List).length;
   }
 
   Future<int> _getPendingPaymentCount() async {
@@ -150,6 +160,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'halal_verifications',
+          callback: (_) => _refreshDashboard(),
+        )
+        .subscribe();
+
+    _identityVerificationChannel = _supabase
+        .channel('admin-identity-verifications')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'identity_verifications',
           callback: (_) => _refreshDashboard(),
         )
         .subscribe();
@@ -389,7 +409,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             const SizedBox(height: 12),
             _stats(wide),
             const SizedBox(height: 24),
-            if (_pendingVerificationCount > 0) ...[
+            if (_pendingVerificationCount > 0 || _pendingIdentityVerificationCount > 0) ...[
               _verificationAlert(),
               const SizedBox(height: 24),
             ],
@@ -449,7 +469,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      '$_pendingVerificationCount halal verification • $_pendingPaymentCount subscription payment${_pendingPaymentCount == 1 ? '' : 's'}',
+                      '$_pendingVerificationCount halal • $_pendingIdentityVerificationCount identity • $_pendingPaymentCount subscription payment${_pendingPaymentCount == 1 ? '' : 's'}',
                       style: const TextStyle(
                         fontSize: 11,
                         color: HalalFoodTheme.textSecondary,
@@ -559,10 +579,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ),
       _DashboardStat(
         Icons.pending_actions_rounded,
-        'Verification',
+        'Halal Verification',
         '$_pendingVerificationCount',
-        'Requests to review',
+        'Restaurant requests',
         Colors.orange,
+      ),
+      _DashboardStat(
+        Icons.verified_user_rounded,
+        'Identity KYC',
+        '$_pendingIdentityVerificationCount',
+        'ID reviews',
+        Colors.teal,
       ),
       _DashboardStat(
         Icons.receipt_long_rounded,
@@ -613,7 +640,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ],
         ),
         const SizedBox(height: 10),
-        cards[4],
+        Row(
+          children: [
+            Expanded(child: cards[4]),
+            const SizedBox(width: 10),
+            Expanded(child: cards[5]),
+          ],
+        ),
       ],
     );
   }
@@ -621,20 +654,33 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget _verificationAlert() {
     return Card(
       color: Colors.orange.withValues(alpha: .08),
-      child: ListTile(
-        leading: const Icon(
-          Icons.priority_high_rounded,
-          color: Colors.orange,
-        ),
-        title: Text(
-          '$_pendingVerificationCount verification request${_pendingVerificationCount == 1 ? '' : 's'} waiting',
-          style: const TextStyle(fontWeight: FontWeight.w800),
-        ),
-        subtitle: const Text(
-          'Review submitted documents and make the halal classification decision.',
-        ),
-        trailing: const Icon(Icons.chevron_right_rounded),
-        onTap: () => _open(const HalalVerificationScreen()),
+      child: Column(
+        children: [
+          if (_pendingVerificationCount > 0)
+            ListTile(
+              leading: const Icon(Icons.priority_high_rounded, color: Colors.orange),
+              title: Text(
+                '$_pendingVerificationCount halal verification request${_pendingVerificationCount == 1 ? '' : 's'} waiting',
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              subtitle: const Text('Review restaurant halal classification requests.'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => _open(const HalalVerificationScreen()),
+            ),
+          if (_pendingVerificationCount > 0 && _pendingIdentityVerificationCount > 0)
+            const Divider(height: 1),
+          if (_pendingIdentityVerificationCount > 0)
+            ListTile(
+              leading: const Icon(Icons.verified_user_rounded, color: Colors.teal),
+              title: Text(
+                '$_pendingIdentityVerificationCount identity verification${_pendingIdentityVerificationCount == 1 ? '' : 's'} waiting',
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              subtitle: const Text('Review government ID and selfie submissions.'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => _open(const IdentityVerificationManagementScreen()),
+            ),
+        ],
       ),
     );
   }
@@ -669,6 +715,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               'Halal Verification',
               'Review verification requests and classifications',
               () => _open(const HalalVerificationScreen()),
+            ),            _AdminGroupItem(
+              Icons.verified_user_rounded,
+              'Identity Verification',
+              'Review Customer, Rider/Driver and Restaurant Owner KYC',
+              () => _open(const IdentityVerificationManagementScreen()),
             ),
           ],
         ),
