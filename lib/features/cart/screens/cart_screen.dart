@@ -83,7 +83,7 @@ class _CartScreenState extends State<CartScreen> {
                       Expanded(
                         child: Container(
                           height: 64,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                           decoration: BoxDecoration(
                             color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.06),
                             borderRadius: BorderRadius.circular(14),
