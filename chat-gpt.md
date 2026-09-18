@@ -575,6 +575,20 @@ Never tell the user to pull before a new commit exists.
 
 # 26. PROJECT CHANGE LOG
 
+### 2026-09-18 — Prepared Admin + Developer sides for physical-phone KYC testing
+
+- **User request:** Before testing Customer/Owner on the Android emulator and Admin/Developer on a physical Android phone at the same time, fix and connect the Admin + Developer KYC surfaces first.
+- **Admin changes:** Dashboard now counts pending personal identity-verification submissions separately from restaurant halal verification and subscription payments. Identity KYC is included in dashboard alerts and refreshes through Supabase Realtime. Admin Action Center now includes pending identity-verification actions.
+- **Admin KYC authority:** `IdentityVerificationManagementScreen` remains the approval/rejection screen. Admin can view ID/selfie images through short-lived signed URLs and can Approve or Reject with a reason.
+- **Developer changes:** Added `Identity Verification` under Developer → Overview & Access. It reuses the Admin KYC viewer in explicit `readOnly` mode, so Developer can view submitted KYC records/images but has no Approve/Reject controls.
+- **Supabase authorization:** Added a SELECT RLS policy allowing authenticated Admin or Developer accounts to read `public.identity_verifications`. Existing private Storage policy already allows Admin/Developer image viewing. The `identity-verifications` bucket remains private.
+- **Repository migration documentation:** Added `supabase/developer_identity_verification_view_access.sql` matching the applied RLS policy.
+- **Security verification:** Confirmed the identity-verification table policy is `(is_admin() OR is_developer())`. Supabase security advisors still report the previously known SECURITY DEFINER/search_path/auth findings; no unrelated security hardening was mixed into this testing-preparation change.
+- **Testing:** Code/database changes are implemented. No local Flutter runtime test has been run by the assistant; physical-phone/emulator test is the next step.
+- **Commits:** Admin KYC dashboard `d8e439d52d477f3be8a41b3159617364536ea2b7`; Admin Action Center `88f996c0a412bf3e021c353512814865f8625e18`; Developer KYC view-only `110b4ae3ece4e721fee4d286d9a53eeb0655cafb`; KYC read-only mode `2a785ac239e86761181619c2a9b0cdca9ab75befb`; RLS documentation `6895cbe4236e41589104e900fb88f8cf44d14b76`.
+- **Current stopping point:** Admin and Developer KYC surfaces are connected for the upcoming two-device test. Admin is the operational approver; Developer is view-only.
+- **Next task:** User should `git pull`, install/run the same build on the Android emulator (Customer/Owner) and physical phone (Admin/Developer), then test one flow at a time starting with Admin → Identity Verification list/view and Developer → Identity Verification view-only access.
+
 ### 2026-09-18 — Allowed Developer to view KYC images
 
 - **User requirement:** Developer may view Customer, Rider/Driver and Restaurant Owner identity-verification images, but Developer must **not** approve or reject them.
@@ -684,10 +698,13 @@ Never tell the user to pull before a new commit exists.
 Core tested workflow is **working / PASSED** through Tests 1–4.
 
 ## Admin
-**Not yet marked 100% complete.** Some Admin-side features/checks remain to be identified and tested.
+**KYC management is now connected for testing:** dashboard count/alerts, Action Center, Pending/Approved/Rejected viewer, signed image review, Approve/Reject with reason. Admin is still not marked 100% complete until the broader Admin audit is tested.
+
+## Developer
+KYC identity-verification records/images are now available through a dedicated **view-only** module. Developer must not approve/reject.
 
 ## Customer
-Customer audit is the active workstream.
+Customer audit remains queued while Admin + Developer KYC is tested on the physical phone.
 
 ### Immediate Customer test
 **KYC routing verification comes first:** verify **Login → Splash → Identity Verification** with a test Customer account. After that is confirmed, resume **TEST C1 — Customer Profile & Account**.
