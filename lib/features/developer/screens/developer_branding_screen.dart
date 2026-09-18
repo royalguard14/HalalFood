@@ -78,6 +78,53 @@ class _DeveloperBrandingScreenState extends State<DeveloperBrandingScreen> {
     return '#${rgb.toRadixString(16).padLeft(6, '0').toUpperCase()}';
   }
 
+  /// Generates a complete light palette locally from one primary color.
+  /// No API call or network connection is required.
+  void _generatePaletteFrom(Color primary) {
+    final hsl = HSLColor.fromColor(primary);
+    final hue = hsl.hue;
+
+    final secondary = HSLColor.fromAHSL(
+      1,
+      (hue + 38) % 360,
+      (hsl.saturation * 0.78).clamp(0.28, 0.82),
+      0.48,
+    ).toColor();
+
+    final accent = HSLColor.fromAHSL(
+      1,
+      (hue + 205) % 360,
+      (hsl.saturation * 0.86).clamp(0.35, 0.9),
+      0.52,
+    ).toColor();
+
+    _primary.text = _colorHex(primary);
+    _secondary.text = _colorHex(secondary);
+    _accent.text = _colorHex(accent);
+    _background.text = '#F7F8F6';
+    _surface.text = '#FFFFFF';
+    _textPrimary.text = '#172018';
+    _textSecondary.text = '#5E685F';
+    _border.text = _colorHex(HSLColor.fromAHSL(
+      1, hue, (hsl.saturation * 0.32).clamp(0.08, 0.3), 0.88,
+    ).toColor());
+    setState(() {});
+    _message('A balanced palette was generated from the Primary Color.');
+  }
+
+  void _generateEntirePalette() {
+    const seeds = [
+      Color(0xFF0B6B3A),
+      Color(0xFF1769AA),
+      Color(0xFF6A4C93),
+      Color(0xFFB45309),
+      Color(0xFF0F766E),
+      Color(0xFFBE185D),
+    ];
+    final seed = seeds[DateTime.now().millisecond % seeds.length];
+    _generatePaletteFrom(seed);
+    _message('A complete balanced brand palette was generated.');
+  }
   Future<void> _pickColor(TextEditingController controller, String label) async {
     final picked = await showDialog<Color>(
       context: context,
@@ -194,8 +241,30 @@ class _DeveloperBrandingScreenState extends State<DeveloperBrandingScreen> {
             Icons.color_lens_rounded,
             [
               const Text(
-                'Use HEX for exact values or Pick Color for visual selection. Both edit the same global color.',
+                'Enter HEX manually, pick a color visually, or generate a complete balanced palette locally. No API or internet connection is required.',
                 style: TextStyle(height: 1.4),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: _saving ? null : () => _generatePaletteFrom(
+                        _hex(_primary.text, const Color(0xFF0B6B3A)),
+                      ),
+                      icon: const Icon(Icons.auto_awesome_rounded),
+                      label: const Text('Generate from Primary'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _saving ? null : _generateEntirePalette,
+                      icon: const Icon(Icons.auto_fix_high_rounded),
+                      label: const Text('Generate Entire Palette'),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 14),
               _colorField(_primary, 'Primary Color'),
