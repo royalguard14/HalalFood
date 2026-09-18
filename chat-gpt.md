@@ -1,3 +1,19 @@
+### 2026-09-18 — Fixed actual Customer Checkout route for EDIT 1
+
+- **User finding:** Customer flow **Cart → Proceed to Checkout** still showed the old delivery-only checkout: **Delivery Address → Your Order → Delivery → Order Summary → Place Order**. The Pick-up/Delivery selector was not visible even after the latest pull.
+- **Root cause:** The Cart screen imports lib/features/checkout/screens/checkout_screen.dart, not lib/features/order/screens/checkout_screen.dart. EDIT 1 had previously been implemented in the latter file, so the actual Customer route never used that selector.
+- **Files changed:** lib/features/checkout/screens/checkout_screen.dart; lib/features/checkout/data/order_repository.dart.
+- **Fix:** The actual Customer Checkout now starts with **How would you like to receive your order?** and requires an explicit **Pick-up** or **Delivery** selection. _fulfillmentType starts as null, so Delivery is no longer assumed.
+- **Delivery behavior:** Delivery Address and Delivery fee/distance sections are shown only after the customer selects **Delivery**. Existing delivery-distance/fee calculation via DistanceUtils was preserved; no new hardcoded delivery-fee logic was introduced.
+- **Pick-up behavior:** Pick-up does not require a delivery address and uses a zero delivery fee for the current order calculation. Final pickup payment rules are intentionally still pending EDIT 3.
+- **Order persistence:** The actual Checkout OrderRepository now accepts nullable address, validates delivery/pickup, requires an address for Delivery, and persists the selected fulfillment_type to the existing orders.fulfillment_type column.
+- **Supabase changes:** None; existing orders.fulfillment_type and nullable delivery_address_id are reused.
+- **Testing:** Code pushed directly to GitHub. Runtime testing is **pending**; user should pull and verify the actual Customer Checkout screen. Do not claim C5 is revalidated until the user tests it.
+- **Commits:** Checkout UI 68cc98e08215b9fd026b9600b4dfc3c9fd6bb902; actual Checkout OrderRepository 49fef38409949fd9f38db7a6d92b1451a319f896.
+- **Current stopping point:** EDIT 1 is now implemented in the **actual Customer Checkout screen used by Cart**.
+- **Next immediate test:** git pull → Customer → Restaurant → Add Food → Cart → Checkout. Confirm the first section is the Pick-up/Delivery choice, neither option is preselected, and **Delivery Address is absent until Delivery is selected**.
+- **Important:** The separate lib/features/order/screens/checkout_screen.dart is not the route used by Cart. Do not continue editing that duplicate screen for Customer Checkout unless its role is deliberately changed later.
+
 ### 2026-09-18 — Started Payment/Fulfillment redesign: Checkout Pick-up vs Delivery
 
 - **Reason:** After Customer C0–C7 and C8.1–C8.4 passed, C8.5/C8.6 were paused because payment and fulfillment rules need to be explicit before testing invalid delivery locations or failed payments.
