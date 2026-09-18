@@ -748,7 +748,7 @@ class _PromoSection extends StatelessWidget {
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: InkWell(
-                onTap: () => onSelect(selected ? null : promo),
+                onTap: meetsMinimum ? () => onSelect(selected ? null : promo) : null,
                 borderRadius: BorderRadius.circular(16),
                 child: Container(
                   padding: const EdgeInsets.all(14),
