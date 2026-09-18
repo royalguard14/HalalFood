@@ -1,3 +1,15 @@
+### 2026-09-18 — Fixed remaining My Cart Total-panel 4px overflow
+
+- **User test result:** The My Cart footer still overflowed by 4px on the **Total** side. Flutter reported the inner Total Column constrained to 44px high inside the fixed 64px panel with 10px top/bottom padding.
+- **File changed:** `lib/features/cart/screens/cart_screen.dart`
+- **Root cause:** Even with `mainAxisSize: MainAxisSize.min`, the Total panel's vertical padding left too little content height for the two text rows plus spacing.
+- **Fix:** Reduced the Total panel's vertical padding from 10px to 6px while retaining the 64px footer height. This gives the content more vertical room without changing the overall footer size.
+- **Supabase changes:** None.
+- **Testing:** User reproduced the 4px overflow; runtime verification of this new fix is still pending.
+- **Commit:** `3b971082ab8dfa499c1ce72792271a7bce541424`
+- **Current stopping point:** Cart Total-panel sizing has been adjusted again. Do not mark it runtime-fixed until the user retests.
+- **Next immediate test:** `git pull` → run/restart the app → open **My Cart** → confirm there is no yellow/black overflow warning. If clean, test **Proceed to Checkout**.
+
 ### 2026-09-18 — Fixed My Cart Total footer 4px overflow
 
 - **User-reported runtime issue:** My Cart now opens, but the Total panel produced a 4px bottom RenderFlex overflow and the Android emulator connection was lost when the emulator closed.
