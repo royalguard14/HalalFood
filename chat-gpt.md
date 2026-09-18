@@ -610,6 +610,21 @@ Never tell the user to pull before a new commit exists.
 
 ---
 
+### 2026-09-18 — Added opt-in TEST LOGIN for release APK owner/admin testing
+
+- **User issue:** Temporary login buttons were visible on the emulator but missing from the installed release APK because the existing UI was guarded by `kDebugMode`.
+- **File changed:** `lib/features/auth/screens/login_screen.dart`
+- **Change:** Added compile-time flag `HALAL_TEST_LOGIN`. The existing Admin / Owner / User / Developer quick-login buttons now appear when either Debug mode is active or the APK is intentionally built with `--dart-define=HALAL_TEST_LOGIN=true`.
+- **Security behavior:** Normal release builds keep the test-login UI disabled by default. The flag must be explicitly enabled for a testing APK. Credentials continue to come from the local `.env` configuration and are not documented or committed here.
+- **Build for phone testing:** `flutter build apk --release --dart-define=HALAL_TEST_LOGIN=true`
+- **Production build:** Do not pass the `HALAL_TEST_LOGIN=true` define.
+- **Supabase/database changes:** None.
+- **Testing:** Code change pushed to GitHub; user still needs to build/install the opt-in testing APK and verify the buttons on the phone.
+- **Commit:** `990b35eabde74cb97ea8651ab1e24752c7b954f8`
+- **Current stopping point:** Admin remains frozen while Owner final audit/testing proceeds.
+- **Next task:** User builds the opt-in testing APK, installs it, then test Owner ↔ Admin subscription/restaurant workflow on the phone.
+
+
 ## 24. CURRENT STOPPING POINT
 
 The **Developer Branding / Theme Controls milestone is COMPLETE**.
