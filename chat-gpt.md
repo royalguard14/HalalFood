@@ -607,6 +607,22 @@ Never tell the user to pull before a new commit exists.
 - Updated `chat-gpt.md` to require complete project-change logging.
 - Commit: `353bbd257abf51ae1b909009ffd3469715c1674a`.
 
+
+### 2026-09-18 — Added local automatic brand color palette generation
+
+- **User request:** Add a button to generate a good color combination for Primary, Secondary, Accent, Background, Surface, Text and Border colors. Keep HEX editing and visual color picking, but use a local/offline generator rather than an external API.
+- **File changed:** `lib/features/developer/screens/developer_branding_screen.dart`
+- **New controls:** Added **Generate from Primary** and **Generate Entire Palette** buttons above the Theme Colors fields.
+- **Behavior:** Generate from Primary derives a balanced secondary, accent and border color from the selected primary using Flutter's built-in HSL color model. Neutral background, surface and text colors are also populated.
+- **Entire Palette:** One tap selects a curated brand seed color and generates the complete palette locally. This avoids network/API dependencies and does not require an API key.
+- **Existing controls preserved:** Manual HEX editing and the existing Pick Color HSV picker remain available.
+- **Supabase/database changes:** None.
+- **Dependencies:** None added.
+- **Testing:** Local Flutter analyzer/runtime testing is **PENDING** until the user pulls the commit and runs the app.
+- **Commit:** `be1a5ca29452995570040b0310bd22331e89f4a5`
+- **Current stopping point:** Developer Branding now supports manual HEX, visual color picking, generation from Primary, and one-tap complete palette generation.
+- **Next:** `git pull` → `flutter analyze` → Developer → Branding → test both Generate buttons, Pick Color, manual HEX, preview and Save.
+
 ---
 
 ## 24. CURRENT STOPPING POINT
