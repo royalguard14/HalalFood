@@ -821,6 +821,23 @@ Never tell the user to pull before a new commit exists.
 - **Next test:** `git pull`, run `flutter analyze`, then open a Pending KYC record and press Reject. Confirm the reason dialog opens without the Flutter assertion and that submitting the rejection removes the record from Pending immediately.
 
 
+### 2026-09-18 — Implemented Customer Checkout Promo/Coupon System
+
+- **User requirement:** Promo/Coupon belongs in Checkout, not My Cart. Customers should see available promos from Admin (global) and from the specific restaurant owner, and once a customer has used a promo code, that same customer must not be able to use it again.
+- **Existing DB inspected:** public.promo_codes already existed. Its existing model supports global promos with restaurant_id IS NULL and restaurant-specific promos with restaurant_id = restaurant UUID. Existing Admin and Restaurant Owner CRUD RLS policies were preserved.
+- **Supabase changes applied:** Added orders.promo_code_id and orders.promo_discount; created public.promo_redemptions with a unique (promo_code_id, customer_id) constraint, making each promo code one-time per customer. Added indexes and RLS for redemption visibility.
+- **Customer promo visibility:** Added a customer SELECT policy on promo_codes for active global promos and active promos belonging to the current restaurant. The Customer Checkout repository also filters out promos the current customer already redeemed and promos whose global usage limit has been reached.
+- **Atomic redemption protection:** Added public.claim_promo_code(order_id, code) as a restricted SECURITY DEFINER function with search_path = ''. It revalidates restaurant scope, active dates, minimum order, usage limit, one-use-per-customer, discount type/value and maximum discount before creating the redemption and updating the order total.
+- **Usage count:** Added a trigger to keep promo_codes.usage_count synchronized with actual redemption rows.
+- **Flutter:** Added lib/features/checkout/data/promo_code_repository.dart. Checkout now loads available global + restaurant-specific promos, lets the customer select one, shows the discount in Order Summary, and passes the selected promo code into order creation. The promo cannot be selected when the cart subtotal is below its minimum order.
+- **Order creation:** lib/features/checkout/data/order_repository.dart now claims the selected promo after order/order-items creation. If promo claiming fails, the newly created order is deleted as part of the existing rollback path.
+- **Important behavior:** A promo is only consumed when the order is successfully created and the server-side claim succeeds. The unique customer/promo constraint prevents reuse even if the customer tries again later.
+- **Supabase migration:** Applied directly to project taltqnxhivpfwjqlvxnt and documented in supabase/customer_checkout_promo_codes.sql.
+- **GitHub commits:** Promo repository 535e7ceed7ccb6198d6e60fb46a42ac66c553642; order repository 00720bd7cdb261ce5a091a89524c53856fbd37de; Checkout UI ba037fe2e3d09f89628b5e8c06d14f4c70cd5572; minimum-order selection guard 0f695616f5f5ba5041b1633222fb836d9ac350d5; SQL documentation 7f0d8c46963bb705de16ccc1323d9cbfb7c1b99a.
+- **Testing:** Supabase migrations executed successfully. Flutter runtime/analyzer testing has not yet been run after the promo implementation.
+- **Current stopping point:** Promo/Coupon is implemented in Checkout. My Cart remains unchanged. The customer should see Admin/global promos plus promos for the restaurant in the cart. Each customer can use each promo code only once.
+- **Next test:** git pull, run flutter analyze, then open a restaurant, add items, and Checkout. Confirm Promo/Coupon appears, global + restaurant-specific promos are listed, selecting a valid promo reduces the Order Summary total, and placing the order records the redemption. Then attempt the same promo again with the same customer and confirm it is no longer available / is rejected server-side.
+
 ### 2026-09-18 — KYC review UX, image zoom, retention cleanup and Developer deletion
 
 - **User-reported issue #1:** Admin approval moved a record from Pending to Approved immediately, but rejection could remain visible in Pending until a manual refresh.
