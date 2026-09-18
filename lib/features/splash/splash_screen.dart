@@ -10,6 +10,7 @@ import '../owner/screens/owner_restaurant_selection_screen.dart';
 import '../admin/screens/admin_dashboard_screen.dart';
 import '../developer/screens/developer_dashboard_screen.dart';
 import '../delivery/screens/driver_dashboard_screen.dart';
+import '../identity/screens/identity_verification_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -60,6 +61,17 @@ class _SplashScreenState extends State<SplashScreen> {
 
       final role = profile?['role']?.toString();
 
+      // Customer, driver and restaurant-owner accounts must complete identity
+      // verification before entering the protected app experience.
+      if (role == 'customer' || role == 'driver' || role == 'restaurant_owner') {
+        final verified = await supabase.rpc('is_identity_verified');
+        if (verified != true) {
+          if (!mounted) return;
+          _goToIdentityVerification();
+          return;
+        }
+      }
+
       switch (role) {
         case 'admin':
           _goToAdminDashboard();
@@ -90,6 +102,12 @@ class _SplashScreenState extends State<SplashScreen> {
       MaterialPageRoute(
         builder: (_) => const LoginScreen(),
       ),
+    );
+  }
+
+  void _goToIdentityVerification() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const IdentityVerificationScreen()),
     );
   }
 
