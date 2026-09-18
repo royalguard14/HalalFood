@@ -423,6 +423,57 @@ class _IdentityVerificationManagementScreenState
   }
 }
 
+class _RejectReasonDialog extends StatefulWidget {
+  const _RejectReasonDialog();
+
+  @override
+  State<_RejectReasonDialog> createState() => _RejectReasonDialogState();
+}
+
+class _RejectReasonDialogState extends State<_RejectReasonDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text(
+        'Reject Verification',
+        style: TextStyle(fontWeight: FontWeight.w800),
+      ),
+      content: TextField(
+        controller: _controller,
+        maxLines: 4,
+        autofocus: true,
+        decoration: const InputDecoration(
+          labelText: 'Rejection reason',
+          hintText: 'Explain what the user needs to correct.',
+          border: OutlineInputBorder(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton.icon(
+          onPressed: () {
+            final reason = _controller.text.trim();
+            if (reason.isEmpty) return;
+            Navigator.of(context).pop(reason);
+          },
+          icon: const Icon(Icons.close_rounded),
+          label: const Text('Reject'),
+        ),
+      ],
+    );
+  }
+}
 class _ReviewSheet extends StatelessWidget {
   final Map<String, dynamic> row;
   final String? idUrl;
@@ -439,52 +490,26 @@ class _ReviewSheet extends StatelessWidget {
   });
 
   Future<void> _reject(BuildContext context) async {
-    final controller = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (_) => const _RejectReasonDialog(),
+    );
 
-    try {
-      final reason = await showDialog<String>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text(
-            'Reject Verification',
-            style: TextStyle(fontWeight: FontWeight.w800),
-          ),
-          content: TextField(
-            controller: controller,
-            maxLines: 4,
-            decoration: const InputDecoration(
-              labelText: 'Rejection reason',
-              hintText: 'Explain what the user needs to correct.',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-            FilledButton.icon(
-              onPressed: () => Navigator.pop(
-                dialogContext,
-                controller.text.trim(),
-              ),
-              icon: const Icon(Icons.close_rounded),
-              label: const Text('Reject'),
-            ),
-          ],
-        ),
-      );
-
-      if (!context.mounted || reason == null || reason.trim().isEmpty) {
-        return;
-      }
-
-      Navigator.pop(context, 'reject:${reason.trim()}');
-    } finally {
-      controller.dispose();
+    if (!context.mounted || reason == null || reason.trim().isEmpty) {
+      return;
     }
-  }
 
+    final result = 'reject:' + reason.trim();
+
+    // Let the AlertDialog route finish its own frame before closing the
+    // review BottomSheet. This avoids navigating two routes during the
+    // same widget build scope.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (context.mounted) {
+        Navigator.of(context).pop(result);
+      }
+    });
+  }
   @override
   Widget build(BuildContext context) {
     final profile = row['profile'] is Map
