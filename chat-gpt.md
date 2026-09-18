@@ -589,6 +589,27 @@ Never tell the user to pull before a new commit exists.
 
 # 26. PROJECT CHANGE LOG
 
+### 2026-09-18 — KYC review UX, image zoom, retention cleanup and Developer deletion
+
+- **User-reported issue #1:** Admin approval moved a record from Pending to Approved immediately, but rejection could remain visible in Pending until a manual refresh.
+- **Fix:** lib/features/admin/screens/identity_verification_management_screen.dart now updates the local filtered list immediately after Approve/Reject. Approved records remain in Approved when that filter is active; rejected records are removed from Pending immediately. The screen also performs rejected-history cleanup after approval.
+- **User-reported issue #2:** Admin and Developer need to zoom KYC images for proper inspection.
+- **Fix:** ID and selfie previews are now tappable and open a full-screen-style dialog with InteractiveViewer, supporting pan and zoom up to 6x for both Admin and Developer view-only mode.
+- **User-reported issue #3:** Developer must be able to permanently delete an identity-verification record and its photos.
+- **Fix:** Developer view-only mode now includes Delete Verification Permanently. It requires confirmation, removes the ID/selfie through the Supabase Storage API, then deletes the identity_verifications row. This can also delete an approved record, which intentionally makes the account unverified again.
+- **Rejected-file retention:** Rejected submissions are kept while rejected so Admin/Developer can inspect them. When the user resubmits, previous rejected files are removed from Storage and the old rejected DB records are deleted before the new submission is uploaded.
+- **Approved cleanup:** When Admin approves a verification, all older rejected submissions for the same user/role are removed from Storage and the database. The approved submission remains.
+- **Upload failure cleanup:** If a new submission uploads files but the DB insert fails, the newly uploaded files are removed on a best-effort basis to avoid orphaned Storage objects.
+- **One-time approval hardening:** Added a unique partial index for one approved verification per user/role and changed the INSERT policy so an already-approved user/role cannot submit another verification. Rejected users can still resubmit.
+- **Delete authorization:** Added RLS so authenticated Admin/Developer accounts may delete verification rows and identity files. Users may delete only their own rejected verification rows; existing own-file Storage delete access remains.
+- **Storage safety:** File deletion uses the Supabase Storage API rather than direct SQL deletion of storage.objects, because direct SQL deletion can orphan physical files.
+- **Supabase changes:** Applied SQL directly to project taltqnxhivpfwjqlvxnt; documented the same SQL in supabase/identity_verification_retention_and_developer_delete.sql.
+- **GitHub commits:** Admin KYC UX/zoom/cleanup e0797b542a9a0c51fc84c8152e58ec4fc02b55cb; Customer/Owner/Driver resubmission cleanup a848dc9de8833c308011ce01a9323ebd16ed55a3; migration documentation 7e36c98f45068b4f9d7e4544867a339a9407d984.
+- **Testing:** Supabase SQL executed successfully. Flutter analyzer/runtime verification has **not** yet been run after these code changes.
+- **Current stopping point:** KYC Admin/Developer behavior has been updated for immediate Pending-list removal, image zoom, Developer deletion, rejected-history cleanup, and one-time approval protection.
+- **Next task:** User should git pull, run flutter analyze, then test one KYC flow at a time: Admin reject → Pending disappears without refresh; Admin/Developer tap image → zoom/pan; Customer resubmit after rejection → old files are gone; Admin approve → rejected history is cleaned; Developer delete → DB row and files are removed.
+
+
 ### 2026-09-18 — Prepared Admin + Developer sides for physical-phone KYC testing
 
 - **User request:** Before testing Customer/Owner on the Android emulator and Admin/Developer on a physical Android phone at the same time, fix and connect the Admin + Developer KYC surfaces first.
