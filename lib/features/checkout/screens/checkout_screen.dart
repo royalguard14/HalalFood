@@ -74,11 +74,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       return;
     }
 
-    if (addresses.isEmpty) {
-      debugPrint(
-        'ADDRESS: No addresses found.',
-      );
-      return;
+    if (addresses.isEmpty) {      return;
     }
 
     final defaultAddress =
@@ -87,30 +83,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       orElse: () => addresses.first,
     );
 
-    _selectedAddress = defaultAddress;
-
-    debugPrint(
-      '========== ADDRESS DEBUG ==========',
-    );
-    debugPrint(
-      'Selected customer: '
-      '${defaultAddress.recipientName}',
-    );
-    debugPrint(
-      'Address: '
-      '${defaultAddress.addressLine}',
-    );
-    debugPrint(
-      'Latitude: ${defaultAddress.latitude}',
-    );
-    debugPrint(
-      'Longitude: ${defaultAddress.longitude}',
-    );
-    debugPrint(
-      '===================================',
-    );
-
-    WidgetsBinding.instance
+    _selectedAddress = defaultAddress;    WidgetsBinding.instance
         .addPostFrameCallback((_) {
       if (mounted) {
         _calculateDelivery();
@@ -159,24 +132,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   Future<void> _loadRestaurant() async {
     final restaurantId =
-        widget.cart.restaurantId;
-
-    debugPrint(
-      '========== RESTAURANT DEBUG ==========',
-    );
-    debugPrint(
-      'Cart restaurant ID: $restaurantId',
-    );
-
-    if (restaurantId == null ||
-        restaurantId.trim().isEmpty) {
-      debugPrint(
-        'Restaurant ID is missing.',
-      );
-      debugPrint(
-        '======================================',
-      );
-      return;
+        widget.cart.restaurantId;    if (restaurantId == null ||
+        restaurantId.trim().isEmpty) {      return;
     }
 
     try {
@@ -190,24 +147,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           await _restaurantRepository
               .getRestaurantById(
         restaurantId,
-      );
-
-      debugPrint(
-        'Restaurant loaded: '
-        '${restaurant.name}',
-      );
-
-      debugPrint(
-        'Restaurant latitude: '
-        '${restaurant.latitude}',
-      );
-
-      debugPrint(
-        'Restaurant longitude: '
-        '${restaurant.longitude}',
-      );
-
-      if (!mounted) {
+      );      if (!mounted) {
         return;
       }
 
@@ -220,12 +160,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       } else if (mounted) {
         setState(() => _isCalculatingDelivery = false);
       }
-    } catch (e) {
-      debugPrint(
-        'RESTAURANT ERROR: $e',
-      );
-
-      if (!mounted) {
+    } catch (e) {      if (!mounted) {
         return;
       }
 
@@ -250,59 +185,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   void _calculateDelivery() {
     final address = _selectedAddress;
-    final restaurant = _restaurant;
-
-    debugPrint(
-      '========== DELIVERY DEBUG ==========',
-    );
-
-    debugPrint(
-      'Customer latitude: '
-      '${address?.latitude}',
-    );
-
-    debugPrint(
-      'Customer longitude: '
-      '${address?.longitude}',
-    );
-
-    debugPrint(
-      'Restaurant: '
-      '${restaurant?.name}',
-    );
-
-    debugPrint(
-      'Restaurant latitude: '
-      '${restaurant?.latitude}',
-    );
-
-    debugPrint(
-      'Restaurant longitude: '
-      '${restaurant?.longitude}',
-    );
-
-    if (address == null ||
+    final restaurant = _restaurant;    if (address == null ||
         restaurant == null ||
         address.latitude == null ||
         address.longitude == null ||
         restaurant.latitude == null ||
-        restaurant.longitude == null) {
-      debugPrint(
-        'DELIVERY STOPPED: '
-        'Missing address or restaurant coordinates.',
-      );
-
-      if (mounted) {
+        restaurant.longitude == null) {      if (mounted) {
         setState(() {
           _isCalculatingDelivery = false;
         });
-      }
-
-      debugPrint(
-        '====================================',
-      );
-
-      return;
+      }      return;
     }
 
     setState(() {
@@ -321,19 +213,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       final fee =
           DistanceUtils.deliveryFee(
         distanceKm: distance,
-      );
-
-      debugPrint(
-        'Distance: '
-        '${distance.toStringAsFixed(2)} km',
-      );
-
-      debugPrint(
-        'Delivery Fee: ₱'
-        '${fee.toStringAsFixed(2)}',
-      );
-
-      if (!mounted) {
+      );      if (!mounted) {
         return;
       }
 
@@ -342,12 +222,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         _deliveryFee = fee;
         _isCalculatingDelivery = false;
       });
-    } catch (e) {
-      debugPrint(
-        'DELIVERY CALCULATION ERROR: $e',
-      );
-
-      if (!mounted) {
+    } catch (e) {      if (!mounted) {
         return;
       }
 
@@ -365,12 +240,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ),
         ),
       );
-    }
-
-    debugPrint(
-      '====================================',
-    );
-  }
+    }  }
 
   // ============================================================
   // PLACE ORDER
@@ -556,43 +426,35 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ),
                 const SizedBox(height: 12),
                 Card(
-                  child: Column(
-                    children: [
-                      RadioListTile<String>(
-                        value: 'pickup',
-                        groupValue: _fulfillmentType,
-                        onChanged: _isPlacingOrder
-                            ? null
-                            : (value) {
-                                if (value != null) _selectFulfillment(value);
-                              },
-                        title: const Text(
-                          'Pick-up',
-                          style: TextStyle(fontWeight: FontWeight.w800),
+                  child: RadioGroup<String>(
+                    groupValue: _fulfillmentType,
+                    onChanged: _isPlacingOrder ? null : _selectFulfillment,
+                    child: const Column(
+                      children: [
+                        RadioListTile<String>(
+                          value: 'pickup',
+                          title: Text(
+                            'Pick-up',
+                            style: TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          subtitle: Text(
+                            'Pick up your order directly from the restaurant.',
+                          ),
+                          secondary: Icon(Icons.storefront_outlined),
                         ),
-                        subtitle: const Text(
-                          'Pick up your order directly from the restaurant.',
+                        RadioListTile<String>(
+                          value: 'delivery',
+                          title: Text(
+                            'Delivery',
+                            style: TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          subtitle: Text(
+                            'Have your order delivered to your saved address.',
+                          ),
+                          secondary: Icon(Icons.delivery_dining_outlined),
                         ),
-                        secondary: const Icon(Icons.storefront_outlined),
-                      ),
-                      RadioListTile<String>(
-                        value: 'delivery',
-                        groupValue: _fulfillmentType,
-                        onChanged: _isPlacingOrder
-                            ? null
-                            : (value) {
-                                if (value != null) _selectFulfillment(value);
-                              },
-                        title: const Text(
-                          'Delivery',
-                          style: TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                        subtitle: const Text(
-                          'Have your order delivered to your saved address.',
-                        ),
-                        secondary: const Icon(Icons.delivery_dining_outlined),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
 
