@@ -107,7 +107,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
-  void _selectFulfillment(String value) {
+  void _selectFulfillment(String? value) {
+    if (value == null) return;
     if (_isPlacingOrder || _fulfillmentType == value) return;
 
     setState(() {
