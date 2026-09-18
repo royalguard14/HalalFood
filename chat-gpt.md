@@ -575,6 +575,18 @@ Never tell the user to pull before a new commit exists.
 
 # 26. PROJECT CHANGE LOG
 
+### 2026-09-18 — Added logout control to required identity-verification screen
+
+- **File changed:** `lib/features/identity/screens/identity_verification_screen.dart`
+- **Reason:** An unverified user is intentionally prevented from backing out into the protected app, so the verification screen now provides an explicit Logout action.
+- **Behavior:** Logout signs out through Supabase Auth and returns to Login. The control is disabled while a verification submission is in progress.
+- **Supabase changes:** None.
+- **Testing:** Not runtime-tested yet.
+- **Commit:** `7e21f9fddc35fabe29f989a104a0709b5afd150e`
+- **Current stopping point:** Identity verification implementation is ready for runtime testing.
+- **Next task:** `git pull`, test Customer verification submission/status first, then Admin review/approve/reject, then Driver and Restaurant Owner.
+
+
 ### 2026-09-18 — Implemented Identity Verification / KYC foundation
 
 - **User requirement:** Customer, Rider/Driver and Restaurant Owner accounts must submit a valid government ID plus a selfie holding the same ID before using the protected app. Admin reviews the submission and can approve/reject it. Rejected users can resubmit after correcting the requirements.
