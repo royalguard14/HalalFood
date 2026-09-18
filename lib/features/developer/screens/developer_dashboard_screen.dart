@@ -531,68 +531,7 @@ class DeveloperDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _groupHeader(BuildContext context, _DeveloperGroup group) {
-    return Row(
-      children: [
-        Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: group.color.withValues(alpha: .09),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(group.icon, size: 18, color: group.color),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                group.title,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                group.subtitle,
-                style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w500),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 
-  Widget _moduleGrid(
-    BuildContext context,
-    _DeveloperGroup group, {
-    required bool wide,
-    required bool medium,
-  }) {
-    final modules = group.modules;
-    final columns = wide ? 3 : (medium ? 2 : 1);
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: modules.length,
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: columns,
-        crossAxisSpacing: 11,
-        mainAxisSpacing: 11,
-        mainAxisExtent: 112,
-      ),
-      itemBuilder: (context, index) {
-        final module = modules[index];
-        return _ModuleCard(
-          module: module,
-          groupColor: group.color,
-          onTap: () => _open(context, module.screen),
-        );
-      },
-    );
-  }
 
 }
 
