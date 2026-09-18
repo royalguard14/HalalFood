@@ -47,8 +47,9 @@ class DeveloperDashboardScreen extends StatelessWidget {
     final groups = <_DeveloperGroup>[
       _DeveloperGroup(
         title: 'Overview & Access',
-        subtitle: 'Identity, users and pending actions',
+        subtitle: 'Identity, users and pending platform actions',
         icon: Icons.dashboard_customize_rounded,
+        color: primary,
         modules: [
           _DeveloperModule(
             Icons.people_outline_rounded,
@@ -72,8 +73,9 @@ class DeveloperDashboardScreen extends StatelessWidget {
       ),
       _DeveloperGroup(
         title: 'Platform Operations',
-        subtitle: 'Restaurants, orders and subscriptions',
+        subtitle: 'Restaurants, orders, subscriptions and delivery',
         icon: Icons.settings_suggest_outlined,
+        color: Colors.indigo,
         modules: [
           _DeveloperModule(
             Icons.storefront_outlined,
@@ -109,8 +111,9 @@ class DeveloperDashboardScreen extends StatelessWidget {
       ),
       _DeveloperGroup(
         title: 'Catalog & Growth',
-        subtitle: 'Menu, categories and promotions',
+        subtitle: 'Menu, categories and promotional tools',
         icon: Icons.storefront_rounded,
+        color: Colors.deepOrange,
         modules: [
           _DeveloperModule(
             Icons.restaurant_menu_outlined,
@@ -134,8 +137,9 @@ class DeveloperDashboardScreen extends StatelessWidget {
       ),
       _DeveloperGroup(
         title: 'System',
-        subtitle: 'Branding and platform configuration',
+        subtitle: 'Global branding and platform configuration',
         icon: Icons.tune_rounded,
+        color: Colors.blueGrey,
         modules: [
           _DeveloperModule(
             Icons.palette_outlined,
@@ -274,7 +278,7 @@ class DeveloperDashboardScreen extends StatelessWidget {
                 const SizedBox(height: 10),
                 _moduleGrid(
                   context,
-                  groups[i].modules,
+                  groups[i],
                   wide: wide,
                   medium: medium,
                 ),
@@ -466,17 +470,13 @@ class DeveloperDashboardScreen extends StatelessWidget {
     return Row(
       children: [
         Container(
-          width: 32,
-          height: 32,
+          width: 34,
+          height: 34,
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primary.withValues(alpha: .08),
-            borderRadius: BorderRadius.circular(9),
+            color: group.color.withValues(alpha: .09),
+            borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(
-            group.icon,
-            size: 17,
-            color: Theme.of(context).colorScheme.primary,
-          ),
+          child: Icon(group.icon, size: 18, color: group.color),
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -485,23 +485,47 @@ class DeveloperDashboardScreen extends StatelessWidget {
             children: [
               Text(
                 group.title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                ),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
               ),
-              const SizedBox(height: 1),
+              const SizedBox(height: 2),
               Text(
                 group.subtitle,
-                style: const TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w500),
               ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _moduleGrid(
+    BuildContext context,
+    _DeveloperGroup group, {
+    required bool wide,
+    required bool medium,
+  }) {
+    final modules = group.modules;
+    final columns = wide ? 3 : (medium ? 2 : 1);
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: modules.length,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: columns,
+        crossAxisSpacing: 11,
+        mainAxisSpacing: 11,
+        mainAxisExtent: 112,
+      ),
+      itemBuilder: (context, index) {
+        final module = modules[index];
+        return _ModuleCard(
+          module: module,
+          groupColor: group.color,
+          onTap: () => _open(context, module.screen),
+        );
+      },
     );
   }
 
@@ -540,11 +564,13 @@ class _DeveloperGroup {
     required this.subtitle,
     required this.icon,
     required this.modules,
+    required this.color,
   });
 
   final String title;
   final String subtitle;
   final IconData icon;
+  final Color color;
   final List<_DeveloperModule> modules;
 }
 
@@ -567,10 +593,12 @@ class _DeveloperModule {
 class _ModuleCard extends StatelessWidget {
   const _ModuleCard({
     required this.module,
+    required this.groupColor,
     required this.onTap,
   });
 
   final _DeveloperModule module;
+  final Color groupColor;
   final VoidCallback onTap;
 
   @override
@@ -579,7 +607,7 @@ class _ModuleCard extends StatelessWidget {
     final brand = theme.extension<HalalFoodBrandExtension>();
     final primary = brand?.primary ?? theme.colorScheme.primary;
     final border = brand?.border ?? theme.colorScheme.outlineVariant;
-    final iconColor = module.featured ? primary : theme.colorScheme.onSurfaceVariant;
+    final iconColor = module.featured ? primary : groupColor;
 
     return Material(
       color: theme.colorScheme.surface,
