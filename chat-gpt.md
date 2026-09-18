@@ -422,6 +422,19 @@ Never tell the user to pull before a new commit exists.
 
 # 23. PROJECT CHANGE LOG
 
+### 2026-09-18 — Fixed Developer Dashboard analyzer errors
+
+- **User test result:** After pulling the grouped Developer Dashboard, local `flutter analyze` reported 5 issues in `developer_dashboard_screen.dart`.
+- **Root cause:** The file accidentally contained two `_moduleGrid` declarations from the grouping refactor. The active grouped version expected a `_DeveloperGroup`, while the duplicate legacy version expected `List<_DeveloperModule>`; the legacy version also omitted the required `groupColor` argument. An unused local `theme` variable remained in `_hero()`.
+- **File changed:** `lib/features/developer/screens/developer_dashboard_screen.dart`
+- **Fix:** Removed the duplicate legacy `_moduleGrid` implementation and removed the unused `theme` variable. The grouped `_moduleGrid` remains the only implementation and passes `group.color` into `_ModuleCard`.
+- **Supabase/database changes:** None.
+- **Testing:** The user has reported the analyzer errors; **post-fix local `flutter analyze` is PENDING** until the user pulls the new commit.
+- **Commit:** `e507144bb81860dbd3ff5802404da0207bd8c374`
+- **Current stopping point:** Analyzer blocker fixed in GitHub; waiting for user to pull and rerun `flutter analyze`.
+- **Next:** `git pull` → `flutter analyze`; if clean, run the app and inspect the Developer Dashboard grouping/navigation.
+
+
 > **Mandatory:** Newest entries are at the top. Add an entry for every development action.
 
 ### 2026-09-18 — Reorganized Developer Dashboard into base groups with sub-modules
