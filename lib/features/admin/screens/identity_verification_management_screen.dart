@@ -551,7 +551,7 @@ class _ReviewSheet extends StatelessWidget {
               _detail('Submitted', row['submitted_at']?.toString() ?? 'Not available'),
               if (row['rejection_reason']?.toString().isNotEmpty == true)
                 _detail('Previous Reason', row['rejection_reason'].toString()),
-              if (!readOnly) ...[
+              if (!readOnly && row['status']?.toString() == 'pending') ...[
                 const SizedBox(height: 20),
                 Row(
                   children: [
@@ -571,6 +571,24 @@ class _ReviewSheet extends StatelessWidget {
                       ),
                     ),
                   ],
+                ),
+              ] else if (!readOnly) ...[
+                const SizedBox(height: 20),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: row['status']?.toString() == 'approved'
+                        ? Colors.green.withValues(alpha: .08)
+                        : Colors.redAccent.withValues(alpha: .08),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    row['status']?.toString() == 'approved'
+                        ? 'Verdict: APPROVED. This verification has already been decided.'
+                        : 'Verdict: REJECTED. This verification has already been decided.',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
                 ),
               ] else ...[
                 const SizedBox(height: 20),
