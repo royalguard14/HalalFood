@@ -128,13 +128,11 @@ class _IdentityVerificationManagementScreenState
 
       if (result == 'approve') {
         await _setDecision(row, 'approved', null);
-      } else if (result == 'reject') {
-        // Let the review bottom sheet finish unmounting before opening
-        // the rejection dialog. This avoids a Flutter element-tree assertion
-        // during the route transition.
-        await Future<void>.delayed(const Duration(milliseconds: 200));
-        if (!mounted) return;
-        await _rejectWithReason(row);
+      } else if (result.startsWith('reject:')) {
+        final reason = result.substring('reject:'.length).trim();
+        if (reason.isNotEmpty) {
+          await _setDecision(row, 'rejected', reason);
+        }
       } else if (result == 'delete') {
         await _deleteVerification(row);
       }
@@ -286,46 +284,6 @@ class _IdentityVerificationManagementScreenState
         );
       }
     }
-  }
-
-  Future<void> _rejectWithReason(Map<String, dynamic> row) async {
-    final controller = TextEditingController();
-    final reason = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text(
-          'Reject Verification',
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
-        content: TextField(
-          controller: controller,
-          maxLines: 4,
-          decoration: const InputDecoration(
-            labelText: 'Rejection reason',
-            hintText: 'Explain what the user needs to correct.',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton.icon(
-            onPressed: () =>
-                Navigator.pop(context, controller.text.trim()),
-            icon: const Icon(Icons.close_rounded),
-            label: const Text('Reject'),
-          ),
-        ],
-      ),
-    );
-    // Dispose after the dialog route has completely returned.
-    await Future<void>.delayed(Duration.zero);
-    controller.dispose();
-
-    if (!mounted || reason == null || reason.trim().isEmpty) return;
-    await _setDecision(row, 'rejected', reason.trim());
   }
 
   @override
@@ -480,6 +438,53 @@ class _ReviewSheet extends StatelessWidget {
     required this.readOnly,
   });
 
+  Future<void> _reject(BuildContext context) async {
+    final controller = TextEditingController();
+
+    try {
+      final reason = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text(
+            'Reject Verification',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+          content: TextField(
+            controller: controller,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              labelText: 'Rejection reason',
+              hintText: 'Explain what the user needs to correct.',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(
+                dialogContext,
+                controller.text.trim(),
+              ),
+              icon: const Icon(Icons.close_rounded),
+              label: const Text('Reject'),
+            ),
+          ],
+        ),
+      );
+
+      if (!context.mounted || reason == null || reason.trim().isEmpty) {
+        return;
+      }
+
+      Navigator.pop(context, 'reject:${reason.trim()}');
+    } finally {
+      controller.dispose();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final profile = row['profile'] is Map
@@ -527,7 +532,7 @@ class _ReviewSheet extends StatelessWidget {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () => Navigator.pop(context, 'reject'),
+                        onPressed: () => _reject(context),
                         icon: const Icon(Icons.close_rounded),
                         label: const Text('Reject'),
                       ),
