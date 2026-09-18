@@ -4,11 +4,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/config/env.dart';
-import '../../admin/screens/admin_dashboard_screen.dart';
-import '../../developer/screens/developer_dashboard_screen.dart';
-import '../../delivery/screens/driver_dashboard_screen.dart';
-import '../../home/screens/home_screen.dart';
-import '../../owner/screens/owner_restaurant_selection_screen.dart';
 import '../../splash/splash_screen.dart';
 import 'register_screen.dart';
 
