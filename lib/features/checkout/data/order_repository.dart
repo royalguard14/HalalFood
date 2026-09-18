@@ -1,4 +1,3 @@
-
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../address/data/address_model.dart';
@@ -16,6 +15,7 @@ class OrderRepository {
     required double deliveryFee,
     String? notes,
     String fulfillmentType = 'delivery',
+    String? promoCode,
   }) async {
     final user =
         _supabase.auth.currentUser;
@@ -83,10 +83,18 @@ class OrderRepository {
           .from('order_items')
           .insert(orderItems);
 
+      if (promoCode != null && promoCode.trim().isNotEmpty) {
+        await _supabase.rpc(
+          'claim_promo_code',
+          params: {
+            'p_order_id': orderId,
+            'p_code': promoCode.trim(),
+          },
+        );
+      }
+
       return orderId;
     } catch (e) {
-      // Remove the order if order items
-      // could not be created.
       await _supabase
           .from('orders')
           .delete()
