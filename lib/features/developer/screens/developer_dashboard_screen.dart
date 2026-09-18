@@ -273,21 +273,81 @@ class DeveloperDashboardScreen extends StatelessWidget {
                 moduleCount: moduleCount,
               ),
               const SizedBox(height: 24),
-              for (var i = 0; i < groups.length; i++) ...[
-                _groupHeader(context, groups[i]),
-                const SizedBox(height: 10),
-                _moduleGrid(
-                  context,
-                  groups[i],
-                  wide: wide,
-                  medium: medium,
-                ),
-                if (i != groups.length - 1) const SizedBox(height: 24),
-              ],
+              _sectionTitle(
+                context,
+                'Developer Areas',
+                'Choose a base category to open its management sections.',
+              ),
+              const SizedBox(height: 12),
+              _groupGrid(
+                context,
+                groups,
+                wide: wide,
+              ),
             ],
           );
         },
       ),
+    );
+  }
+
+  void _openGroup(BuildContext context, _DeveloperGroup group) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _DeveloperGroupHubScreen(group: group),
+      ),
+    );
+  }
+
+  Widget _sectionTitle(
+    BuildContext context,
+    String title,
+    String subtitle,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          subtitle,
+          style: TextStyle(
+            fontSize: 11.5,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _groupGrid(
+    BuildContext context,
+    List<_DeveloperGroup> groups, {
+    required bool wide,
+  }) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: groups.length,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: wide ? 2 : 1,
+        mainAxisExtent: 122,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+      ),
+      itemBuilder: (_, index) {
+        final group = groups[index];
+        return _DeveloperGroupCard(
+          group: group,
+          onTap: () => _openGroup(context, group),
+        );
+      },
     );
   }
 
