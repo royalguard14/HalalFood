@@ -58,6 +58,7 @@ class _AdminActionCenterScreenState extends State<AdminActionCenterScreen> {
             .eq('status', 'pending')
             .order('submitted_at', ascending: false),
         _db
+            .from('subscription_payments')
             .select('id, subscription_id, amount, payment_method, transaction_reference, created_at, restaurants(name)')
             .eq('status', 'pending')
             .order('created_at', ascending: false),
@@ -86,7 +87,7 @@ class _AdminActionCenterScreenState extends State<AdminActionCenterScreen> {
           'type': 'identity',
           'id': row['id'],
           'title': 'Identity Verification',
-          'subtitle': 'Pending ' + _roleLabel(row['role']?.toString()),
+          'subtitle': 'Pending ${_roleLabel(row['role']?.toString())}',
           'created_at': row['submitted_at'],
         });
       }
