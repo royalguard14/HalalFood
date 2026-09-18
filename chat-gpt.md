@@ -1,3 +1,15 @@
+### 2026-09-18 — Admin KYC verdict actions restricted to Pending only
+
+- **User finding/requirement:** Once an identity verification already has a verdict (**Approved** or **Rejected**), the Admin review screen must no longer show **Approve** or **Reject** actions. Those actions are only valid while the record is **Pending**.
+- **File changed:** `lib/features/admin/screens/identity_verification_management_screen.dart`
+- **Fix:** Admin Approve/Reject buttons are now rendered only when `row['status'] == 'pending'`. Approved and Rejected records instead show a clear read-only verdict message.
+- **Behavior:** Pending → Admin can Approve or Reject. Approved → no decision buttons. Rejected → no decision buttons. Existing Developer read-only behavior and permanent-delete control remain unchanged.
+- **Supabase/database changes:** None.
+- **Testing:** Code change pushed to GitHub. Runtime verification is pending.
+- **Commit:** `c9a65d02af8dd694f97de5c0cf0cae7b72577925`
+- **Current stopping point:** Admin KYC decision controls are now logically limited to Pending records.
+- **Next test:** `git pull`, run the app, open Admin → Identity Verification → check Pending has Approve/Reject, then open Approved and Rejected records and confirm neither has Approve nor Reject.
+
 ### 2026-09-18 — KYC rejection lifecycle fix VERIFIED by user
 
 - **Runtime test result:** User confirmed the latest KYC rejection fix is **OK / working**.
