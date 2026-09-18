@@ -1,3 +1,14 @@
+### 2026-09-18 — Fixed final 3 analyzer issues
+
+- **User test:** `flutter analyze` reported 3 remaining issues: stale Cart `onQuantityChanged` reference, Checkout `RadioGroup` callback type mismatch, and unused `_NoAddressView`.
+- **Files changed:** `lib/features/cart/screens/cart_screen.dart`; `lib/features/checkout/screens/checkout_screen.dart`.
+- **Fixes:** Removed the stale Cart callback reference; made Checkout `RadioGroup` use an explicit nullable `String?` callback; removed `_NoAddressView`.
+- **Supabase changes:** None.
+- **Testing:** GitHub fixes pushed; local `flutter analyze` is pending.
+- **Commits:** Cart `e44aa447a1d045840ddd2809c06f58a9695ab2bb`; Checkout `4bd3a9fa6e5705e5c93b507c3a79164530741f16`.
+- **Current stopping point:** All 3 issues from the latest analyzer run have been addressed.
+- **Next immediate test:** `git pull` → `flutter analyze`. If clean, continue with the planned Checkout delivery validation/payment work.
+
 ### 2026-09-18 — Cleared remaining 3 analyzer issues from user test
 
 - **User test result:** `flutter analyze` reported 3 issues after the previous cleanup.
