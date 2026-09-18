@@ -1,3 +1,14 @@
+### 2026-09-18 — Fixed My Cart footer RenderFlex crash
+
+- **User-reported runtime issue:** Opening **My Cart** caused the screen to disappear and Flutter threw RenderFlex / RenderBox layout assertions.
+- **Root cause:** The new bottom two-column Cart footer used `Row(crossAxisAlignment: CrossAxisAlignment.stretch)` inside a vertically unbounded `Column` child. Flutter attempted to stretch the Row's children against an unbounded height, leaving the RenderFlex without a finite layout size.
+- **File changed:** `lib/features/cart/screens/cart_screen.dart`
+- **Fix:** Changed the footer Row to `mainAxisSize: MainAxisSize.min` and `crossAxisAlignment: CrossAxisAlignment.center`. The two footer columns retain their explicit 64px heights, while the Row no longer requests an unbounded vertical stretch.
+- **Supabase changes:** None.
+- **Testing:** User reproduced the crash immediately after opening My Cart. Fix is committed; runtime retest is required.
+- **Current stopping point:** My Cart footer layout crash is fixed in code, but the user must pull and retest before we proceed.
+- **Next task:** git pull, hot restart/run the app, open My Cart, and confirm the cart renders with the Total column and Proceed to Checkout column. If it renders, then run flutter analyze again.
+
 ### 2026-09-18 — Fixed final 3 analyzer issues
 
 - **User test:** `flutter analyze` reported 3 remaining issues: stale Cart `onQuantityChanged` reference, Checkout `RadioGroup` callback type mismatch, and unused `_NoAddressView`.
