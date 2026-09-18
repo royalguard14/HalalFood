@@ -1,3 +1,18 @@
+### 2026-09-18 — Started Payment/Fulfillment redesign: Checkout Pick-up vs Delivery
+
+- **Reason:** After Customer C0–C7 and C8.1–C8.4 passed, C8.5/C8.6 were paused because payment and fulfillment rules need to be explicit before testing invalid delivery locations or failed payments.
+- **Files changed:** `lib/features/order/screens/checkout_screen.dart`, `lib/features/order/data/order_repository.dart`.
+- **EDIT 1 implemented:** Checkout now asks **How would you like to receive your order?** with **Pick-up** and **Delivery** choices.
+- **Delivery behavior:** Delivery remains the current path and shows the saved delivery-address section. A delivery address is required before order creation.
+- **Pick-up behavior:** Pick-up no longer requires a delivery address and persists `fulfillment_type = 'pickup'`. Payment is intentionally **not yet finalized**; the next edit will add the pickup prepayment/payment-method rules before pickup orders are allowed to complete the final payment workflow.
+- **Repository hardening:** `OrderRepository.createOrder()` now accepts nullable `deliveryAddressId`, accepts `fulfillmentType` (delivery/pickup), validates the fulfillment value, requires an address for delivery, and persists `fulfillment_type` to the existing `orders` column.
+- **Supabase inspection:** Existing `orders.fulfillment_type` is NOT NULL with default `delivery`; `delivery_address_id` is nullable. No migration was required for this edit.
+- **Important sequencing:** Do not treat Pick-up as fully payment-ready yet. The next edit must implement payment-method/payment-state rules so the restaurant is not exposed to unpaid orders.
+- **Testing:** Code pushed to GitHub. User should `git pull` and run the checkout flow to verify the new selector and ensure the existing Delivery checkout still behaves correctly. Do not claim C5 remains fully validated for the modified UI until this retest is performed.
+- **Commits:** Checkout UI `f34e5866f19356a9be2db197f009b6f2496a8bb2`; OrderRepository `9ad5fcfd907a2b2c70ab29fd3b5d79aaf0dba033`.
+- **Current stopping point:** EDIT 1 — fulfillment selection is implemented.
+- **Next immediate task:** User test EDIT 1. If good, proceed to **EDIT 2 — Delivery validation + real delivery-fee computation**, then payment rules.
+
 ### 2026-09-18 — Customer audit C0–C7 and C8.1–C8.4 PASSED; payment/fulfillment redesign queued
 
 - **Customer runtime results reported by user:** C0 KYC routing/one-time approval **GOODS**; C1 Profile & Account **GOODS**; C2 Addresses + GPS **GOODS**; C3 Restaurant Discovery/filter/menu **GOODS**; C4 Cart **GOODS**; C5 Checkout/place-order/computation and Owner receipt/processing **GOODS**; C6 Orders **GOODS**; C7 realtime Owner → Customer status updates **GOODS**.
