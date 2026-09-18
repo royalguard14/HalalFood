@@ -821,6 +821,16 @@ Never tell the user to pull before a new commit exists.
 - **Next test:** `git pull`, run `flutter analyze`, then open a Pending KYC record and press Reject. Confirm the reason dialog opens without the Flutter assertion and that submitting the rejection removes the record from Pending immediately.
 
 
+### 2026-09-18 — Added Promo Discount to Checkout Order Summary
+
+- Updated `lib/features/checkout/screens/checkout_screen.dart`.
+- **Order Summary** now explicitly shows a **Promo Discount** row whenever a promo is applied.
+- The discount is displayed as a negative amount (for example, `-₱50.00`) and is reflected in the final **Total**.
+- No Supabase/database changes.
+- GitHub commit: `3baf90b4180007f59d1ae94177d5cb288f4c98d6`.
+- **Testing:** Flutter runtime/analyzer testing still pending after this UI change.
+- **Next test:** `git pull`, run `flutter analyze`, then open Checkout and verify the Order Summary shows Subtotal, Delivery Fee when applicable, Promo Discount when a promo is selected, and the correctly reduced Total.
+
 ### 2026-09-18 — Implemented Customer Checkout Promo/Coupon System
 
 - **User requirement:** Promo/Coupon belongs in Checkout, not My Cart. Customers should see available promos from Admin (global) and from the specific restaurant owner, and once a customer has used a promo code, that same customer must not be able to use it again.
