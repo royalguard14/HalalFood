@@ -1,3 +1,14 @@
+### 2026-09-18 — Fixed My Cart Total footer 4px overflow
+
+- **User-reported runtime issue:** My Cart now opens, but the Total panel produced a 4px bottom RenderFlex overflow and the Android emulator connection was lost when the emulator closed.
+- **Root cause:** The Total panel had a fixed 64px height with 10px vertical padding, leaving only 44px for a Column whose natural content height was slightly larger than the available space.
+- **File changed:** `lib/features/cart/screens/cart_screen.dart`
+- **Fix:** Set the inner Total-panel Column to `mainAxisSize: MainAxisSize.min` so it sizes to its content instead of requesting the full available 44px content area. The outer 64px footer height is retained.
+- **Supabase changes:** None.
+- **Testing:** User reproduced the 4px overflow. Emulator then closed/lost connection; emulator stability itself is not treated as a code failure.
+- **Current stopping point:** The remaining Cart layout overflow is fixed in code; runtime retest is required after restarting the emulator.
+- **Next task:** Restart the Pixel_8 emulator, run the app, open My Cart, and verify there is no yellow/black overflow warning. Then test Proceed to Checkout.
+
 ### 2026-09-18 — Fixed My Cart footer RenderFlex crash
 
 - **User-reported runtime issue:** Opening **My Cart** caused the screen to disappear and Flutter threw RenderFlex / RenderBox layout assertions.
