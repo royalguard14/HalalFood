@@ -1,3 +1,15 @@
+### 2026-09-18 — Reworked Admin KYC rejection dialog to avoid Flutter route lifecycle assertion
+
+- **User runtime finding:** After typing the rejection reason and pressing Reject, the rejection is saved/counts as rejected, but Flutter shows a red-screen assertion: `'_dependents.isEmpty': is not true` followed by `Tried to build dirty widget in the wrong build scope.`
+- **Root cause:** The previous fix still opened a second AlertDialog from the parent screen after the review BottomSheet had returned. The route/widget tree was still transitioning, so the second route could trigger Flutter's element/dependent lifecycle assertion.
+- **Fix:** Rejection reason input is now opened **inside the existing review BottomSheet**. The reason dialog completes first, then the review sheet returns a single `reject:<reason>` result to the parent. The parent directly saves the rejection. This removes the nested route transition between the BottomSheet and a parent-level dialog.
+- **Controller lifecycle:** The rejection TextEditingController is disposed in a `finally` block after the reason dialog finishes.
+- **File changed:** `lib/features/admin/screens/identity_verification_management_screen.dart`
+- **Supabase/database changes:** None.
+- **Commit:** `0678f4166e52b65624b22a444103a3d57eb79380`
+- **Testing:** User confirmed the previous implementation still produced the red screen even though the rejection was successfully counted. This new implementation has **not yet been runtime-tested**.
+- **Next test:** `git pull`, run `flutter analyze`, then Admin → Identity Verification → Pending → open record → Reject → type reason → Reject. Confirm: (1) no red screen/assertion, (2) rejection saves, and (3) record disappears from Pending immediately.
+
 ### 2026-09-18 — Fixed Flutter analyzer errors before two-device testing
 
 - **User reported:** `flutter analyze` returned 8 issues after the Admin/Developer KYC preparation.
