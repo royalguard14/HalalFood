@@ -1,5 +1,6 @@
 
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../../../app/theme.dart';
 import '../data/address_model.dart';
@@ -34,6 +35,10 @@ class _EditAddressScreenState
 
   late bool _isDefault;
   bool _isSaving = false;
+  bool _isGettingLocation = false;
+
+  double? _latitude;
+  double? _longitude;
 
   @override
   void initState() {
@@ -74,6 +79,8 @@ class _EditAddressScreenState
     );
 
     _isDefault = address.isDefault;
+    _latitude = address.latitude;
+    _longitude = address.longitude;
   }
 
   @override
@@ -88,6 +95,38 @@ class _EditAddressScreenState
     super.dispose();
   }
 
+  Future<void> _getCurrentLocation() async {
+    setState(() { _isGettingLocation = true; });
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please turn on Location/GPS on your phone.')));
+        return;
+      }
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Location permission was denied.')));
+        return;
+      }
+      if (permission == LocationPermission.deniedForever) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Location permission is permanently denied. Please enable it in Settings.')));
+        return;
+      }
+      final position = await Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.high));
+      if (!mounted) return;
+      setState(() { _latitude = position.latitude; _longitude = position.longitude; });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Current location captured successfully.')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unable to get current location: $e')));
+    } finally {
+      if (mounted) setState(() { _isGettingLocation = false; });
+    }
+  }
   Future<void> _saveChanges() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -124,8 +163,8 @@ class _EditAddressScreenState
             _provinceController.text.trim().isEmpty
                 ? null
                 : _provinceController.text.trim(),
-        latitude: widget.address.latitude,
-        longitude: widget.address.longitude,
+        latitude: _latitude,
+        longitude: _longitude,
         isDefault: _isDefault,
       );
 
@@ -215,6 +254,41 @@ class _EditAddressScreenState
 
               const SizedBox(height: 24),
 
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Delivery Location', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                      const SizedBox(height: 6),
+                      const Text('Update the GPS location used to calculate delivery distance and fee.', style: TextStyle(fontSize: 12, height: 1.4, color: HalalFoodTheme.textSecondary)),
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: double.infinity, height: 48,
+                        child: OutlinedButton.icon(
+                          onPressed: _isGettingLocation || _isSaving ? null : _getCurrentLocation,
+                          icon: _isGettingLocation ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.my_location_rounded),
+                          label: Text(_isGettingLocation ? 'Getting Location...' : 'Update Current Location'),
+                        ),
+                      ),
+                      if (_latitude != null && _longitude != null) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity, padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
+                          child: Row(children: [
+                            const Icon(Icons.location_on_rounded, color: HalalFoodTheme.primaryGreen),
+                            const SizedBox(width: 10),
+                            Expanded(child: Text('Saved GPS location\nLat: ${_latitude!.toStringAsFixed(6)}\nLng: ${_longitude!.toStringAsFixed(6)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                          ]),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
               const Text(
                 'Address Label',
                 style: TextStyle(
