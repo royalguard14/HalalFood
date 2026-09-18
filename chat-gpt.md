@@ -589,6 +589,17 @@ Never tell the user to pull before a new commit exists.
 
 # 26. PROJECT CHANGE LOG
 
+### 2026-09-18 — Fixed Admin KYC rejection dialog assertion
+
+- **User-reported runtime error:** Rejecting an identity verification triggered Flutter assertion `'_dependents.isEmpty': is not true` from `framework.dart`.
+- **Cause addressed:** The rejection reason AlertDialog was being opened immediately while the review BottomSheet route was still completing its dismissal transition.
+- **Fix:** Added a short route-settlement delay before opening the rejection dialog and delayed controller disposal until the dialog route has fully returned.
+- **File:** `lib/features/admin/screens/identity_verification_management_screen.dart`
+- **Commit:** `cd9229d2e0f6f92cc135201ab33958849a512cdc`
+- **Testing:** Not yet runtime-tested by user after this fix.
+- **Next test:** `git pull`, run `flutter analyze`, then open a Pending KYC record and press Reject. Confirm the reason dialog opens without the Flutter assertion and that submitting the rejection removes the record from Pending immediately.
+
+
 ### 2026-09-18 — KYC review UX, image zoom, retention cleanup and Developer deletion
 
 - **User-reported issue #1:** Admin approval moved a record from Pending to Approved immediately, but rejection could remain visible in Pending until a manual refresh.
