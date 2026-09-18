@@ -1,3 +1,17 @@
+### 2026-09-18 — Changed Checkout Promo/Coupon UI from tiles to dropdown
+
+- **User request:** The previous Promo/Coupon section used one large tile/card per promo. Since a restaurant may have many promos, the user requested a compact dropdown instead, with the selected promo's description shown below it.
+- **File changed:** `lib/features/checkout/screens/checkout_screen.dart`
+- **UI change:** Replaced the multi-tile promo list with a single **Select Promo / Coupon** dropdown. Each available promo appears as a compact option showing its title, code and discount label.
+- **Selected promo details:** After a promo is selected, a separate card appears directly below the dropdown showing the promo title, code, discount label, description (when provided), minimum-order requirement and calculated discount.
+- **Validation:** Promos whose minimum-order requirement is not met are disabled in the dropdown. Existing refresh/no-promos behavior remains.
+- **Backend/Supabase:** No changes. Existing one-use-per-customer redemption and server-side promo claim logic remains intact.
+- **Order Summary:** Existing Promo Discount row and discounted Total remain unchanged.
+- **Testing:** Code change committed; Flutter analyzer/runtime retest is still pending.
+- **Commit:** `492df41356468913c774a2f9316676d09f506f20`
+- **Current stopping point:** Checkout Promo/Coupon is now compact and scalable for many promo codes.
+- **Next immediate test:** `git pull` → `flutter analyze` → open Checkout → verify the dropdown lists promos, select one, confirm its description appears below, and confirm Order Summary still shows the discount and reduced total.
+
 ### 2026-09-18 — Fixed remaining My Cart Total-panel 4px overflow
 
 - **User test result:** The My Cart footer still overflowed by 4px on the **Total** side. Flutter reported the inner Total Column constrained to 44px high inside the fixed 64px panel with 10px top/bottom padding.
