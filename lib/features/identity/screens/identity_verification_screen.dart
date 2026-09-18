@@ -135,6 +135,32 @@ class _IdentityVerificationScreenState
     final selfiePath = '$basePath/selfie_with_id';
 
     try {
+      final rejectedRows = await _supabase
+          .from('identity_verifications')
+          .select('id,id_document_path,selfie_with_id_path')
+          .eq('user_id', user.id)
+          .eq('role', _role)
+          .eq('status', 'rejected');
+
+      final rejected = List<Map<String, dynamic>>.from(rejectedRows as List);
+      final rejectedPaths = <String>[];
+      for (final row in rejected) {
+        final oldIdPath = row['id_document_path']?.toString();
+        final oldSelfiePath = row['selfie_with_id_path']?.toString();
+        if (oldIdPath != null && oldIdPath.isNotEmpty) rejectedPaths.add(oldIdPath);
+        if (oldSelfiePath != null && oldSelfiePath.isNotEmpty) rejectedPaths.add(oldSelfiePath);
+      }
+
+      if (rejectedPaths.isNotEmpty) {
+        await _supabase.storage.from('identity-verifications').remove(rejectedPaths);
+      }
+      if (rejected.isNotEmpty) {
+        await _supabase
+            .from('identity_verifications')
+            .delete()
+            .inFilter('id', rejected.map((e) => e['id']).toList());
+      }
+
       await _supabase.storage.from('identity-verifications').uploadBinary(
             idPath,
             _idBytes!,
@@ -179,6 +205,14 @@ class _IdentityVerificationScreenState
         );
       }
     } catch (e) {
+      try {
+        await _supabase.storage.from('identity-verifications').remove([
+          idPath,
+          selfiePath,
+        ]);
+      } catch (_) {
+        // Best-effort cleanup if the submission itself failed.
+      }
       if (!mounted) return;
       setState(() {
         _submitting = false;
