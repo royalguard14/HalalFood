@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme.dart';
-import '../../address/data/address_model.dart';
-import '../../address/data/address_repository.dart';
 import '../../checkout/screens/checkout_screen.dart';
-import '../../home/data/restaurant_model.dart';
-import '../../home/data/restaurant_repository.dart';
 import '../data/cart_item.dart';
 import '../providers/cart_provider.dart';
 
@@ -104,7 +100,7 @@ class _CartScreenState extends State<CartScreen> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                '₱' + total.toStringAsFixed(2),
+                                '₱${total.toStringAsFixed(2)}',
                                 style: const TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.w900,
@@ -152,12 +148,9 @@ class _CartScreenState extends State<CartScreen> {
 class _CartItemCard extends StatelessWidget {
   final CartItem cartItem;
   final CartProvider cart;
-  final Future<void> Function() onQuantityChanged;
-
   const _CartItemCard({
     required this.cartItem,
     required this.cart,
-    required this.onQuantityChanged,
   });
 
   @override
@@ -223,7 +216,6 @@ class _CartItemCard extends StatelessWidget {
                             cartItem.quantity - 1,
                           );
 
-                          await onQuantityChanged();
                         },
                       ),
 
@@ -283,9 +275,6 @@ class _CartItemCard extends StatelessWidget {
               onPressed: () async {
                 cart.removeItem(item.id);
 
-                if (cart.items.isNotEmpty) {
-                  await onQuantityChanged();
-                }
               },
               icon: const Icon(
                 Icons.delete_outline_rounded,
