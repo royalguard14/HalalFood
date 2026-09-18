@@ -422,6 +422,20 @@ Never tell the user to pull before a new commit exists.
 
 # 23. PROJECT CHANGE LOG
 
+### 2026-09-18 — Fixed Customer Edit Address GPS controls
+
+- **User finding:** Customer **Add Address** already showed Latitude/Longitude and a GPS capture control, but **Edit Address** did not expose the location controls.
+- **File changed:** `lib/features/address/screens/edit_address_screen.dart`
+- **Fix:** Added the same Geolocator-based location capture flow to Edit Address. Existing latitude/longitude are loaded from the address model and displayed. The user can tap **Update Current Location** to capture new GPS coordinates.
+- **Save behavior:** Edit Address now passes the current `_latitude` and `_longitude` values to `AddressRepository.updateAddress()`, so changed coordinates are persisted to `user_addresses`.
+- **Existing behavior preserved:** Address text fields, default-address handling, validation and save flow remain unchanged.
+- **Supabase/database changes:** None; the existing `latitude` and `longitude` columns and repository update support were already present.
+- **Testing:** Code fix pushed to GitHub. Runtime verification is the next user test.
+- **Commit:** `33a727d8efa3607c51c9c7b5d8cfc757503be0ff`
+- **Current stopping point:** Customer Edit Address now has parity with Add Address for GPS coordinates.
+- **Next task:** `git pull`, run the app, open an existing Customer address → Edit, verify saved Lat/Lng are shown, tap **Update Current Location**, save, reopen the address and verify the coordinates persist.
+
+
 ### 2026-09-18 — Updated handoff after branding palette work and test completion
 
 - **User result:** User confirmed the latest Developer Branding/palette work is **OK / working** after the previously pending test step.
