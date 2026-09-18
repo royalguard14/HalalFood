@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../app/theme.dart';
 import 'admin_subscription_payment_review_screen.dart';
 import 'halal_verification_screen.dart';
+import 'identity_verification_management_screen.dart';
 
 class AdminActionCenterScreen extends StatefulWidget {
   const AdminActionCenterScreen({super.key});
@@ -18,6 +19,7 @@ class _AdminActionCenterScreenState extends State<AdminActionCenterScreen> {
   String? _error;
   List<Map<String, dynamic>> _actions = [];
   RealtimeChannel? _verificationChannel;
+  RealtimeChannel? _identityVerificationChannel;
   RealtimeChannel? _paymentChannel;
 
   @override
@@ -30,6 +32,7 @@ class _AdminActionCenterScreenState extends State<AdminActionCenterScreen> {
   @override
   void dispose() {
     _verificationChannel?.unsubscribe();
+    _identityVerificationChannel?.unsubscribe();
     _paymentChannel?.unsubscribe();
     super.dispose();
   }
@@ -50,14 +53,19 @@ class _AdminActionCenterScreenState extends State<AdminActionCenterScreen> {
             .eq('status', 'pending')
             .order('created_at', ascending: false),
         _db
-            .from('subscription_payments')
+            .from('identity_verifications')
+            .select('id,user_id,role,status,submitted_at')
+            .eq('status', 'pending')
+            .order('submitted_at', ascending: false),
+        _db
             .select('id, subscription_id, amount, payment_method, transaction_reference, created_at, restaurants(name)')
             .eq('status', 'pending')
             .order('created_at', ascending: false),
       ]);
 
       final verificationRows = List<Map<String, dynamic>>.from(results[0] as List);
-      final paymentRows = List<Map<String, dynamic>>.from(results[1] as List);
+      final identityRows = List<Map<String, dynamic>>.from(results[1] as List);
+      final paymentRows = List<Map<String, dynamic>>.from(results[2] as List);
       final actions = <Map<String, dynamic>>[];
 
       for (final row in verificationRows) {
@@ -70,6 +78,16 @@ class _AdminActionCenterScreenState extends State<AdminActionCenterScreen> {
               : 'Restaurant',
           'subtitle': 'New halal verification request',
           'created_at': row['created_at'],
+        });
+      }
+
+      for (final row in identityRows) {
+        actions.add({
+          'type': 'identity',
+          'id': row['id'],
+          'title': 'Identity Verification',
+          'subtitle': 'Pending ' + _roleLabel(row['role']?.toString()),
+          'created_at': row['submitted_at'],
         });
       }
 
@@ -130,14 +148,24 @@ class _AdminActionCenterScreenState extends State<AdminActionCenterScreen> {
         .subscribe();
   }
 
+  String _roleLabel(String? role) {
+    switch (role) {
+      case 'driver': return 'Rider / Driver';
+      case 'restaurant_owner': return 'Restaurant Owner';
+      default: return 'Customer';
+    }
+  }
+
   Future<void> _openAction(Map<String, dynamic> action) async {
     final type = action['type'];
 
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => type == 'verification'
-            ? const HalalVerificationScreen()
-            : const AdminSubscriptionPaymentReviewScreen(),
+        builder: (_) {
+          if (type == 'verification') return const HalalVerificationScreen();
+          if (type == 'identity') return const IdentityVerificationManagementScreen();
+          return const AdminSubscriptionPaymentReviewScreen();
+        },
       ),
     );
 
@@ -243,7 +271,8 @@ class _AdminActionCenterScreenState extends State<AdminActionCenterScreen> {
 
   Widget _actionCard(Map<String, dynamic> action) {
     final verification = action['type'] == 'verification';
-    final color = verification ? Colors.orange : Colors.deepOrange;
+    final identity = action['type'] == 'identity';
+    final color = verification ? Colors.orange : identity ? Colors.teal : Colors.deepOrange;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -264,7 +293,9 @@ class _AdminActionCenterScreenState extends State<AdminActionCenterScreen> {
                 child: Icon(
                   verification
                       ? Icons.verified_rounded
-                      : Icons.payments_rounded,
+                      : identity
+                          ? Icons.verified_user_rounded
+                          : Icons.payments_rounded,
                   color: color,
                 ),
               ),
@@ -291,8 +322,10 @@ class _AdminActionCenterScreenState extends State<AdminActionCenterScreen> {
                     const SizedBox(height: 7),
                     Text(
                       verification
-                          ? 'REVIEW VERIFICATION'
-                          : 'REVIEW PAYMENT',
+                          ? 'REVIEW HALAL'
+                          : identity
+                              ? 'REVIEW IDENTITY'
+                              : 'REVIEW PAYMENT',
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w900,
