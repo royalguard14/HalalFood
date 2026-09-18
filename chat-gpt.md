@@ -424,6 +424,18 @@ Never tell the user to pull before a new commit exists.
 
 > **Mandatory:** Newest entries are at the top. Add an entry for every development action.
 
+### 2026-09-18 — Reorganized Developer Dashboard into base groups with sub-modules
+
+- **User request:** Make the Developer Dashboard structure similar to Admin: base categories/groups first, with related sub-categories/modules inside each group.
+- **File changed:** `lib/features/developer/screens/developer_dashboard_screen.dart`
+- **New base groups:** Overview & Access; Platform Operations; Catalog & Growth; System.
+- Each base group now has its own icon, description and color identity, with the existing Developer modules displayed inside that group.
+- The dashboard keeps the existing responsive card layout, but modules are now visually grouped under clear parent categories instead of one flat platform-module list.
+- **Functionality:** Existing module destinations and logout behavior preserved. No Supabase/database changes.
+- **Testing:** Local Flutter analyzer/runtime testing is **PENDING** until the user pulls the latest commit.
+- **Commit:** `39bd67aea140874a18eceec2b78ea25eda8297fd`
+- **Current stopping point:** Grouped Developer Dashboard is pushed to `main`; waiting for user pull/test.
+
 ### 2026-09-18 — Redesigned Developer Dashboard UI
 
 - **User request:** Improve the Developer Dashboard UI and make it more polished.
