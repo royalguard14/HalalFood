@@ -130,6 +130,8 @@ class _IdentityVerificationManagementScreenState
         await _setDecision(row, 'approved', null);
       } else if (result == 'reject') {
         await _rejectWithReason(row);
+      } else if (result == 'delete') {
+        await _deleteVerification(row);
       }
     } catch (e) {
       if (mounted) {
@@ -156,21 +158,126 @@ class _IdentityVerificationManagementScreenState
         'reviewed_at': DateTime.now().toUtc().toIso8601String(),
       }).eq('id', row['id']);
 
+      if (status == 'approved') {
+        await _cleanupRejectedHistory(
+          userId: row['user_id'].toString(),
+          role: row['role'].toString(),
+          excludeId: row['id'].toString(),
+        );
+      }
+
       if (!mounted) return;
+      setState(() {
+        if (_filter == status) {
+          final index = _rows.indexWhere((item) => item['id'] == row['id']);
+          if (index >= 0) {
+            _rows[index] = {...row, 'status': status, 'rejection_reason': reason};
+          }
+        } else {
+          _rows.removeWhere((item) => item['id'] == row['id']);
+        }
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             status == 'approved'
-                ? 'Identity verification approved.'
-                : 'Identity verification rejected.',
+                ? 'Identity verification approved. Rejected history was cleaned up.'
+                : 'Identity verification rejected and removed from Pending.',
           ),
         ),
       );
-      await _load();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Unable to save decision: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _cleanupRejectedHistory({
+    required String userId,
+    required String role,
+    required String excludeId,
+  }) async {
+    final rows = await _supabase
+        .from('identity_verifications')
+        .select('id,id_document_path,selfie_with_id_path')
+        .eq('user_id', userId)
+        .eq('role', role)
+        .eq('status', 'rejected')
+        .neq('id', excludeId);
+
+    final rejected = List<Map<String, dynamic>>.from(rows as List);
+    if (rejected.isEmpty) return;
+
+    final paths = <String>[];
+    for (final item in rejected) {
+      final idPath = item['id_document_path']?.toString();
+      final selfiePath = item['selfie_with_id_path']?.toString();
+      if (idPath != null && idPath.isNotEmpty) paths.add(idPath);
+      if (selfiePath != null && selfiePath.isNotEmpty) paths.add(selfiePath);
+    }
+
+    if (paths.isNotEmpty) {
+      await _supabase.storage.from('identity-verifications').remove(paths);
+    }
+
+    await _supabase
+        .from('identity_verifications')
+        .delete()
+        .inFilter('id', rejected.map((e) => e['id']).toList());
+  }
+
+  Future<void> _deleteVerification(Map<String, dynamic> row) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Verification?'),
+        content: const Text(
+          'This permanently deletes the verification record and its ID/selfie files. '
+          'The user will become unverified if this is their approved record.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete Permanently'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final paths = <String>[];
+      final idPath = row['id_document_path']?.toString();
+      final selfiePath = row['selfie_with_id_path']?.toString();
+      if (idPath != null && idPath.isNotEmpty) paths.add(idPath);
+      if (selfiePath != null && selfiePath.isNotEmpty) paths.add(selfiePath);
+
+      if (paths.isNotEmpty) {
+        await _supabase.storage.from('identity-verifications').remove(paths);
+      }
+
+      await _supabase
+          .from('identity_verifications')
+          .delete()
+          .eq('id', row['id']);
+
+      if (!mounted) return;
+      setState(() => _rows.removeWhere((item) => item['id'] == row['id']));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Verification and its files were deleted.')),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to delete verification: $e')),
         );
       }
     }
@@ -394,14 +501,14 @@ class _ReviewSheet extends StatelessWidget {
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 8),
-              _image(idUrl),
+              _image(idUrl, context),
               const SizedBox(height: 16),
               const Text(
                 'Selfie with ID',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 8),
-              _image(selfieUrl),
+              _image(selfieUrl, context),
               const SizedBox(height: 18),
               _detail('ID Type', row['id_type']?.toString() ?? 'Not provided'),
               _detail('Submitted', row['submitted_at']?.toString() ?? 'Not available'),
@@ -438,6 +545,15 @@ class _ReviewSheet extends StatelessWidget {
                     color: HalalFoodTheme.textSecondary,
                   ),
                 ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.pop(context, 'delete'),
+                    icon: const Icon(Icons.delete_forever_rounded),
+                    label: const Text('Delete Verification Permanently'),
+                  ),
+                ),
               ],
             ],
           ),
@@ -446,7 +562,7 @@ class _ReviewSheet extends StatelessWidget {
     );
   }
 
-  Widget _image(String? url) {
+  Widget _image(String? url, BuildContext context) {
     if (url == null || url.isEmpty) {
       return Container(
         height: 220,
@@ -459,16 +575,50 @@ class _ReviewSheet extends StatelessWidget {
         child: const Text('Document unavailable'),
       );
     }
-    return ClipRRect(
+
+    return InkWell(
       borderRadius: BorderRadius.circular(14),
-      child: Image.network(
-        url,
-        width: double.infinity,
-        height: 280,
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) => const SizedBox(
-          height: 220,
-          child: Center(child: Text('Unable to display document')),
+      onTap: () => _openImageViewer(context, url),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Image.network(
+          url,
+          width: double.infinity,
+          height: 280,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) => const SizedBox(
+            height: 220,
+            child: Center(child: Text('Unable to display document')),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openImageViewer(BuildContext context, String url) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (_) => Dialog(
+        insetPadding: const EdgeInsets.all(12),
+        backgroundColor: Colors.black,
+        child: InteractiveViewer(
+          minScale: 1,
+          maxScale: 6,
+          boundaryMargin: const EdgeInsets.all(80),
+          child: Image.network(
+            url,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) => const SizedBox(
+              height: 300,
+              child: Center(
+                child: Text(
+                  'Unable to display document',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
