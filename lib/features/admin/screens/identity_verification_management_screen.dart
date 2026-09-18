@@ -499,7 +499,7 @@ class _ReviewSheet extends StatelessWidget {
       return;
     }
 
-    final result = 'reject:' + reason.trim();
+    final result = 'reject:${reason.trim()}';
 
     // Let the AlertDialog route finish its own frame before closing the
     // review BottomSheet. This avoids navigating two routes during the
