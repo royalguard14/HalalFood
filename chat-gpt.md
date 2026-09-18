@@ -1,3 +1,15 @@
+### 2026-09-18 — KYC rejection red-screen lifecycle fix (second attempt)
+
+- **User runtime finding:** The rejection reason is saved successfully and the record is counted as rejected, but Flutter still shows `'_dependents.isEmpty': is not true` and `Tried to build dirty widget in the wrong build scope.` This confirms the backend rejection is successful; the remaining bug is Flutter widget/route lifecycle only.
+- **File changed:** `lib/features/admin/screens/identity_verification_management_screen.dart`
+- **Fix:** Replaced the inline TextEditingController/dialog lifecycle inside `_ReviewSheet` with a dedicated stateful `_RejectReasonDialog`. The dialog now owns and disposes its controller in its own `dispose()`.
+- **Route sequencing fix:** After the rejection reason dialog returns, the review BottomSheet is no longer popped synchronously. Its result is returned through `WidgetsBinding.instance.addPostFrameCallback`, allowing the AlertDialog route to finish its frame before the BottomSheet is dismissed.
+- **Expected behavior:** Reason dialog closes cleanly → review BottomSheet closes on the next frame → parent receives `reject:<reason>` → existing Supabase update saves the rejection → parent updates Pending list.
+- **Supabase/database changes:** None. The previous runtime result already confirmed the database update succeeds.
+- **Commit:** `708e7675c33ee2b5a1fd1663d97c94f2f397f2cf`
+- **Testing:** Not yet runtime-tested after this second lifecycle fix.
+- **Next test:** `git pull`, run `flutter analyze`, then perform exactly one test: Admin → Identity Verification → Pending → open a record → Reject → enter reason → Reject. Confirm no red screen, reason still saves, and Pending item disappears immediately.
+
 ### 2026-09-18 — Reworked Admin KYC rejection dialog to avoid Flutter route lifecycle assertion
 
 - **User runtime finding:** After typing the rejection reason and pressing Reject, the rejection is saved/counts as rejected, but Flutter shows a red-screen assertion: `'_dependents.isEmpty': is not true` followed by `Tried to build dirty widget in the wrong build scope.`
