@@ -25,6 +25,11 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _isLoading = false;
 
+  // Enabled only when the APK is intentionally built for owner/admin testing.
+  // Keep this false for normal/production builds.
+  static const bool _testLoginEnabled =
+      bool.fromEnvironment('HALAL_TEST_LOGIN', defaultValue: false);
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -156,7 +161,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         : const Text('Login', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                   ),
                 ),
-                if (kDebugMode) ...[
+                if (kDebugMode || _testLoginEnabled) ...[
                   const SizedBox(height: 24),
                   _buildQuickLoginSection(),
                 ],
