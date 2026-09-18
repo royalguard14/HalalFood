@@ -422,6 +422,25 @@ Never tell the user to pull before a new commit exists.
 
 # 23. PROJECT CHANGE LOG
 
+### 2026-09-18 — Changed Developer Dashboard navigation to Admin-style group hubs
+
+- **Clarification from user:** Developer Dashboard must work like the Admin Dashboard: clicking a base category such as **Overview & Access** should open a separate next screen containing its sub-modules (Users & Roles, Action Center, Developer Profile), rather than displaying the modules directly on the main dashboard.
+- **File changed:** `lib/features/developer/screens/developer_dashboard_screen.dart`
+- **Navigation structure:** Main Developer Dashboard now shows only the four base groups:
+  1. Overview & Access
+  2. Platform Operations
+  3. Catalog & Growth
+  4. System
+- Tapping a group opens a dedicated `_DeveloperGroupHubScreen` showing that group's management sections as individual cards.
+- Tapping a sub-module then opens the existing destination screen.
+- This now mirrors the Admin Dashboard's parent-category → management-sections navigation pattern.
+- **Supabase/database changes:** None.
+- **Testing:** Local `flutter analyze` and runtime testing are **PENDING** until the user pulls the latest commits.
+- **Commits:** `a56f3469c2a866d672326441be367f8d88d7e4f9`, `eeb2f3d6d551241cbe363c2308ac416f8fe43e1e`
+- **Current stopping point:** Admin-style Developer group navigation is implemented and pushed to `main`.
+- **Next:** `git pull` → `flutter analyze` → run app → tap each Developer base group and verify its sub-module hub/navigation.
+
+
 ### 2026-09-18 — Fixed Developer Dashboard analyzer errors
 
 - **User test result:** After pulling the grouped Developer Dashboard, local `flutter analyze` reported 5 issues in `developer_dashboard_screen.dart`.
