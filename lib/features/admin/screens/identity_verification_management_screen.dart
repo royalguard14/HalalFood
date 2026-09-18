@@ -466,7 +466,7 @@ class _ReviewSheet extends StatelessWidget {
         width: double.infinity,
         height: 280,
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => const SizedBox(
+        errorBuilder: (context, error, stackTrace) => const SizedBox(
           height: 220,
           child: Center(child: Text('Unable to display document')),
         ),
