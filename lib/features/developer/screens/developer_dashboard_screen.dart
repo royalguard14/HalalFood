@@ -12,6 +12,7 @@ import '../../admin/screens/admin_saas_subscription_hub_screen.dart';
 import '../../admin/screens/delivery_pricing_screen.dart';
 import '../../admin/screens/food_category_management_screen.dart';
 import '../../admin/screens/halal_verification_screen.dart';
+import '../../admin/screens/identity_verification_management_screen.dart';
 import '../../admin/screens/promo_management_screen.dart';
 import '../../admin/screens/user_role_management_screen.dart';
 import 'developer_branding_screen.dart';
@@ -62,6 +63,12 @@ class DeveloperDashboardScreen extends StatelessWidget {
             'Action Center',
             'Review pending platform actions.',
             const AdminActionCenterScreen(),
+          ),
+          _DeveloperModule(
+            Icons.verified_user_outlined,
+            'Identity Verification',
+            'View customer, rider/driver and owner KYC submissions.',
+            const IdentityVerificationManagementScreen(readOnly: true),
           ),
           _DeveloperModule(
             Icons.account_circle_outlined,
