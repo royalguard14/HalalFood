@@ -30,71 +30,216 @@ class DeveloperDashboardScreen extends StatelessWidget {
   }
 
   Future<void> _open(BuildContext context, Widget screen) async {
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => screen),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final modules = <_DeveloperModule>[
-      _DeveloperModule(Icons.palette_outlined, 'Branding & Theme', 'Global app identity and colors.', Colors.purple, const DeveloperBrandingScreen()),
-      _DeveloperModule(Icons.people_outline_rounded, 'Users & Roles', 'Manage platform users and roles.', Colors.blue, const UserRoleManagementScreen()),
-      _DeveloperModule(Icons.storefront_outlined, 'Restaurants', 'Restaurant maintenance and control.', Colors.teal, const DeveloperRestaurantManagementScreen()),
-      _DeveloperModule(Icons.restaurant_menu_outlined, 'Menus', 'Manage menu items across restaurants.', Colors.deepOrange, const AdminMenuManagementScreen()),
-      _DeveloperModule(Icons.category_outlined, 'Food Categories', 'Manage global food categories.', Colors.indigo, const FoodCategoryManagementScreen()),
-      _DeveloperModule(Icons.receipt_long_outlined, 'Orders', 'Monitor orders and payments.', Colors.blueGrey, const AdminOrderManagementScreen()),
-      _DeveloperModule(Icons.workspace_premium_outlined, 'Subscriptions', 'Plans and subscription payments.', Colors.deepPurple, const AdminSaasSubscriptionHubScreen()),
-      _DeveloperModule(Icons.verified_outlined, 'Halal Verification', 'Review halal verification requests.', Colors.green, const HalalVerificationScreen()),
-      _DeveloperModule(Icons.local_shipping_outlined, 'Delivery Pricing', 'Configure delivery pricing.', Colors.orange, const DeliveryPricingScreen()),
-      _DeveloperModule(Icons.local_offer_outlined, 'Promos & Discounts', 'Manage promo codes and discounts.', Colors.pink, const PromoManagementScreen()),
-      _DeveloperModule(Icons.settings_outlined, 'App Settings', 'Platform-wide application settings.', Colors.grey, const AdminSettingsScreen()),
-      _DeveloperModule(Icons.notifications_none_rounded, 'Action Center', 'Review pending platform actions.', Colors.redAccent, const AdminActionCenterScreen()),
-      _DeveloperModule(Icons.account_circle_outlined, 'Developer Profile', 'Manage the current developer profile.', Colors.cyan, const AdminProfileScreen()),
+    final theme = Theme.of(context);
+    final brand = theme.extension<HalalFoodBrandExtension>();
+    final primary = brand?.primary ?? theme.colorScheme.primary;
+    final secondary = brand?.secondary ?? theme.colorScheme.primaryContainer;
+    final surface = brand?.surface ?? theme.colorScheme.surface;
+    final border = brand?.border ?? theme.colorScheme.outlineVariant;
+
+    final groups = <_DeveloperGroup>[
+      _DeveloperGroup(
+        title: 'Overview & Access',
+        subtitle: 'Identity, users and pending actions',
+        icon: Icons.dashboard_customize_rounded,
+        modules: [
+          _DeveloperModule(
+            Icons.people_outline_rounded,
+            'Users & Roles',
+            'Manage platform users and roles.',
+            const UserRoleManagementScreen(),
+          ),
+          _DeveloperModule(
+            Icons.notifications_none_rounded,
+            'Action Center',
+            'Review pending platform actions.',
+            const AdminActionCenterScreen(),
+          ),
+          _DeveloperModule(
+            Icons.account_circle_outlined,
+            'Developer Profile',
+            'Manage the current developer profile.',
+            const AdminProfileScreen(),
+          ),
+        ],
+      ),
+      _DeveloperGroup(
+        title: 'Platform Operations',
+        subtitle: 'Restaurants, orders and subscriptions',
+        icon: Icons.settings_suggest_outlined,
+        modules: [
+          _DeveloperModule(
+            Icons.storefront_outlined,
+            'Restaurants',
+            'Restaurant maintenance and control.',
+            const DeveloperRestaurantManagementScreen(),
+          ),
+          _DeveloperModule(
+            Icons.receipt_long_outlined,
+            'Orders',
+            'Monitor orders and payments.',
+            const AdminOrderManagementScreen(),
+          ),
+          _DeveloperModule(
+            Icons.workspace_premium_outlined,
+            'Subscriptions',
+            'Plans and subscription payments.',
+            const AdminSaasSubscriptionHubScreen(),
+          ),
+          _DeveloperModule(
+            Icons.verified_outlined,
+            'Halal Verification',
+            'Review halal verification requests.',
+            const HalalVerificationScreen(),
+          ),
+          _DeveloperModule(
+            Icons.local_shipping_outlined,
+            'Delivery Pricing',
+            'Configure delivery pricing.',
+            const DeliveryPricingScreen(),
+          ),
+        ],
+      ),
+      _DeveloperGroup(
+        title: 'Catalog & Growth',
+        subtitle: 'Menu, categories and promotions',
+        icon: Icons.storefront_rounded,
+        modules: [
+          _DeveloperModule(
+            Icons.restaurant_menu_outlined,
+            'Menus',
+            'Manage menu items across restaurants.',
+            const AdminMenuManagementScreen(),
+          ),
+          _DeveloperModule(
+            Icons.category_outlined,
+            'Food Categories',
+            'Manage global food categories.',
+            const FoodCategoryManagementScreen(),
+          ),
+          _DeveloperModule(
+            Icons.local_offer_outlined,
+            'Promos & Discounts',
+            'Manage promo codes and discounts.',
+            const PromoManagementScreen(),
+          ),
+        ],
+      ),
+      _DeveloperGroup(
+        title: 'System',
+        subtitle: 'Branding and platform configuration',
+        icon: Icons.tune_rounded,
+        modules: [
+          _DeveloperModule(
+            Icons.palette_outlined,
+            'Branding & Theme',
+            'Global app identity and colors.',
+            const DeveloperBrandingScreen(),
+            featured: true,
+          ),
+          _DeveloperModule(
+            Icons.settings_outlined,
+            'App Settings',
+            'Platform-wide application settings.',
+            const AdminSettingsScreen(),
+          ),
+        ],
+      ),
     ];
 
+    final moduleCount = groups.fold<int>(
+      0,
+      (total, group) => total + group.modules.length,
+    );
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8F7),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+        toolbarHeight: 68,
         titleSpacing: 20,
         title: Row(
           children: [
             Container(
-              width: 34,
-              height: 34,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
-                color: HalalFoodTheme.primaryGreen.withValues(alpha: .10),
-                borderRadius: BorderRadius.circular(10),
+                gradient: LinearGradient(
+                  colors: [primary, secondary],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.developer_mode_rounded, size: 19, color: HalalFoodTheme.primaryGreen),
+              child: const Icon(
+                Icons.developer_mode_rounded,
+                color: Colors.white,
+                size: 21,
+              ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 11),
             const Flexible(
-              child: Text(
-                'Developer Console',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Developer Console',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -.2,
+                    ),
+                  ),
+                  SizedBox(height: 1),
+                  Text(
+                    'HALAL Food platform control',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
         actions: [
           Container(
-            margin: const EdgeInsets.only(right: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            margin: const EdgeInsets.only(right: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
             decoration: BoxDecoration(
-              color: HalalFoodTheme.primaryGreen.withValues(alpha: .08),
+              color: primary.withValues(alpha: .09),
               borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: primary.withValues(alpha: .14)),
             ),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.lock_outline_rounded, size: 13, color: HalalFoodTheme.primaryGreen),
-                SizedBox(width: 5),
-                Text('Developer', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: HalalFoodTheme.primaryGreen)),
+                Icon(
+                  Icons.shield_outlined,
+                  size: 14,
+                  color: primary,
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  'Developer',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    color: primary,
+                  ),
+                ),
               ],
             ),
           ),
@@ -108,33 +253,33 @@ class DeveloperDashboardScreen extends StatelessWidget {
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final wide = constraints.maxWidth >= 1200;
+          final wide = constraints.maxWidth >= 1180;
           final medium = constraints.maxWidth >= 760;
-          final columns = wide ? 4 : (medium ? 3 : 2);
-          final horizontalPadding = wide ? 42.0 : (medium ? 26.0 : 14.0);
+          final horizontal = wide ? 42.0 : (medium ? 28.0 : 16.0);
 
           return ListView(
-            padding: EdgeInsets.fromLTRB(horizontalPadding, 18, horizontalPadding, 36),
+            padding: EdgeInsets.fromLTRB(horizontal, 20, horizontal, 40),
             children: [
-              _compactHeader(),
-              const SizedBox(height: 22),
-              _sectionHeader('Platform modules', '${modules.length} available'),
-              const SizedBox(height: 10),
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: modules.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: columns,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  mainAxisExtent: 104,
-                ),
-                itemBuilder: (context, index) {
-                  final module = modules[index];
-                  return _ModuleCard(module: module, onTap: () => _open(context, module.screen));
-                },
+              _hero(
+                context,
+                primary: primary,
+                secondary: secondary,
+                surface: surface,
+                border: border,
+                moduleCount: moduleCount,
               ),
+              const SizedBox(height: 24),
+              for (var i = 0; i < groups.length; i++) ...[
+                _groupHeader(groups[i]),
+                const SizedBox(height: 10),
+                _moduleGrid(
+                  context,
+                  groups[i].modules,
+                  wide: wide,
+                  medium: medium,
+                ),
+                if (i != groups.length - 1) const SizedBox(height: 24),
+              ],
             ],
           );
         },
@@ -142,98 +287,341 @@ class DeveloperDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _sectionHeader(String title, String count) {
+  Widget _hero(
+    BuildContext context, {
+    required Color primary,
+    required Color secondary,
+    required Color surface,
+    required Color border,
+    required int moduleCount,
+  }) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: border),
+        boxShadow: [
+          BoxShadow(
+            color: primary.withValues(alpha: .06),
+            blurRadius: 28,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 600;
+
+          final intro = Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [primary, secondary],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: const Icon(
+                  Icons.admin_panel_settings_outlined,
+                  color: Colors.white,
+                  size: 26,
+                ),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Platform Control Center',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -.4,
+                      ),
+                    ),
+                    SizedBox(height: 5),
+                    Text(
+                      'Manage the HALAL Food platform from one protected workspace.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+
+          final stats = Row(
+            children: [
+              _stat(
+                context,
+                Icons.apps_rounded,
+                '$moduleCount',
+                'Modules',
+                primary,
+              ),
+              const SizedBox(width: 10),
+              _stat(
+                context,
+                Icons.security_rounded,
+                'Protected',
+                'Access',
+                primary,
+              ),
+              const SizedBox(width: 10),
+              _stat(
+                context,
+                Icons.public_rounded,
+                'Global',
+                'Platform',
+                primary,
+              ),
+            ],
+          );
+
+          return compact
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    intro,
+                    const SizedBox(height: 18),
+                    stats,
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(child: intro),
+                    const SizedBox(width: 28),
+                    SizedBox(width: 360, child: stats),
+                  ],
+                );
+        },
+      ),
+    );
+  }
+
+  Widget _stat(
+    BuildContext context,
+    IconData icon,
+    String value,
+    String label,
+    Color primary,
+  ) {
+    final surface = Theme.of(context).colorScheme.surfaceContainerLow;
+
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+        decoration: BoxDecoration(
+          color: surface,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 17, color: primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _groupHeader(_DeveloperGroup group) {
     return Row(
       children: [
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, letterSpacing: -.1),
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: .08),
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: Icon(
+            group.icon,
+            size: 17,
+            color: Theme.of(context).colorScheme.primary,
           ),
         ),
-        Text(
-          count,
-          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: HalalFoodTheme.textSecondary),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                group.title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 1),
+              Text(
+                group.subtitle,
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
   }
 
-  Widget _compactHeader() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE3E7E4)),
+  Widget _moduleGrid(
+    BuildContext context,
+    List<_DeveloperModule> modules, {
+    required bool wide,
+    required bool medium,
+  }) {
+    final columns = wide ? 4 : (medium ? 3 : 2);
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: modules.length,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: columns,
+        crossAxisSpacing: 11,
+        mainAxisSpacing: 11,
+        mainAxisExtent: 112,
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: HalalFoodTheme.primaryGreen.withValues(alpha: .09),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.admin_panel_settings_outlined, color: HalalFoodTheme.primaryGreen, size: 23),
-          ),
-          const SizedBox(width: 13),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Platform Control', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-                SizedBox(height: 3),
-                Text('Global configuration and maintenance tools', style: TextStyle(fontSize: 11.5, color: HalalFoodTheme.textSecondary)),
-              ],
-            ),
-          ),
-          const Icon(Icons.chevron_right_rounded, color: Color(0xFFB6BDB9), size: 20),
-        ],
-      ),
+      itemBuilder: (context, index) {
+        final module = modules[index];
+        return _ModuleCard(
+          module: module,
+          onTap: () => _open(context, module.screen),
+        );
+      },
     );
   }
 }
 
+class _DeveloperGroup {
+  const _DeveloperGroup({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.modules,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final List<_DeveloperModule> modules;
+}
+
 class _DeveloperModule {
-  const _DeveloperModule(this.icon, this.title, this.subtitle, this.color, this.screen);
+  const _DeveloperModule(
+    this.icon,
+    this.title,
+    this.subtitle,
+    this.screen, {
+    this.featured = false,
+  });
+
   final IconData icon;
   final String title;
   final String subtitle;
-  final Color color;
   final Widget screen;
+  final bool featured;
 }
 
 class _ModuleCard extends StatelessWidget {
-  const _ModuleCard({required this.module, required this.onTap});
+  const _ModuleCard({
+    required this.module,
+    required this.onTap,
+  });
+
   final _DeveloperModule module;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final brand = theme.extension<HalalFoodBrandExtension>();
+    final primary = brand?.primary ?? theme.colorScheme.primary;
+    final border = brand?.border ?? theme.colorScheme.outlineVariant;
+    final iconColor = module.featured ? primary : theme.colorScheme.onSurfaceVariant;
+
     return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(13),
+      color: theme.colorScheme.surface,
+      borderRadius: BorderRadius.circular(15),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(15),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          padding: const EdgeInsets.all(13),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(13),
-            border: Border.all(color: const Color(0xFFE3E7E4)),
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(
+              color: module.featured
+                  ? primary.withValues(alpha: .35)
+                  : border,
+            ),
+            boxShadow: module.featured
+                ? [
+                    BoxShadow(
+                      color: primary.withValues(alpha: .07),
+                      blurRadius: 16,
+                      offset: const Offset(0, 5),
+                    ),
+                  ]
+                : null,
           ),
           child: Row(
             children: [
               Container(
-                width: 38,
-                height: 38,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
-                  color: module.color.withValues(alpha: .09),
-                  borderRadius: BorderRadius.circular(10),
+                  color: module.featured
+                      ? primary.withValues(alpha: .10)
+                      : theme.colorScheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(11),
                 ),
-                child: Icon(module.icon, color: module.color, size: 20),
+                child: Icon(
+                  module.icon,
+                  color: iconColor,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -241,14 +629,51 @@ class _ModuleCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(module.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 3),
-                    Text(module.subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9.5, height: 1.2, color: HalalFoodTheme.textSecondary)),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            module.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 11,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      module.subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        height: 1.25,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    if (module.featured) ...[
+                      const SizedBox(height: 5),
+                      Text(
+                        'Global theme',
+                        style: TextStyle(
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.w800,
+                          color: primary,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
-              const SizedBox(width: 5),
-              const Icon(Icons.chevron_right_rounded, size: 17, color: Color(0xFFB8BFBB)),
             ],
           ),
         ),
