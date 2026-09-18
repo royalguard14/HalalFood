@@ -270,7 +270,7 @@ class DeveloperDashboardScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               for (var i = 0; i < groups.length; i++) ...[
-                _groupHeader(groups[i]),
+                _groupHeader(context, groups[i]),
                 const SizedBox(height: 10),
                 _moduleGrid(
                   context,
@@ -462,7 +462,7 @@ class DeveloperDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _groupHeader(_DeveloperGroup group) {
+  Widget _groupHeader(BuildContext context, _DeveloperGroup group) {
     return Row(
       children: [
         Container(
