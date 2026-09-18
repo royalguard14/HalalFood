@@ -4,7 +4,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../app/theme.dart';
 
 class IdentityVerificationManagementScreen extends StatefulWidget {
-  const IdentityVerificationManagementScreen({super.key});
+  const IdentityVerificationManagementScreen({
+    super.key,
+    this.readOnly = false,
+  });
+
+  final bool readOnly;
 
   @override
   State<IdentityVerificationManagementScreen> createState() =>
@@ -115,6 +120,7 @@ class _IdentityVerificationManagementScreenState
           idUrl: idUrl,
           selfieUrl: selfieUrl,
           roleLabel: _roleLabel(row['role']?.toString() ?? 'customer'),
+          readOnly: widget.readOnly,
         ),
       );
 
@@ -350,12 +356,14 @@ class _ReviewSheet extends StatelessWidget {
   final String? idUrl;
   final String? selfieUrl;
   final String roleLabel;
+  final bool readOnly;
 
   const _ReviewSheet({
     required this.row,
     required this.idUrl,
     required this.selfieUrl,
     required this.roleLabel,
+    required this.readOnly,
   });
 
   @override
@@ -399,26 +407,38 @@ class _ReviewSheet extends StatelessWidget {
               _detail('Submitted', row['submitted_at']?.toString() ?? 'Not available'),
               if (row['rejection_reason']?.toString().isNotEmpty == true)
                 _detail('Previous Reason', row['rejection_reason'].toString()),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => Navigator.pop(context, 'reject'),
-                      icon: const Icon(Icons.close_rounded),
-                      label: const Text('Reject'),
+              if (!readOnly) ...[
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => Navigator.pop(context, 'reject'),
+                        icon: const Icon(Icons.close_rounded),
+                        label: const Text('Reject'),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: () => Navigator.pop(context, 'approve'),
-                      icon: const Icon(Icons.verified_rounded),
-                      label: const Text('Approve'),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () => Navigator.pop(context, 'approve'),
+                        icon: const Icon(Icons.verified_rounded),
+                        label: const Text('Approve'),
+                      ),
                     ),
+                  ],
+                ),
+              ] else ...[
+                const SizedBox(height: 20),
+                const Text(
+                  'View-only access • Developer cannot approve or reject identity verification.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: HalalFoodTheme.textSecondary,
                   ),
-                ],
-              ),
+                ),
+              ],
             ],
           ),
         ),
