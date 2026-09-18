@@ -25,7 +25,7 @@ class _IdentityVerificationScreenState
   String? _error;
   Map<String, dynamic>? _latest;
   String _role = 'customer';
-  String _idType = 'National ID';
+  final String _idType = 'National ID';
 
   Uint8List? _idBytes;
   Uint8List? _selfieBytes;
