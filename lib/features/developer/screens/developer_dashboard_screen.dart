@@ -621,6 +621,228 @@ class _DeveloperModule {
   final bool featured;
 }
 
+class _DeveloperGroupCard extends StatelessWidget {
+  const _DeveloperGroupCard({
+    required this.group,
+    required this.onTap,
+  });
+
+  final _DeveloperGroup group;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: group.color.withValues(alpha: .10),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Icon(
+                  group.icon,
+                  color: group.color,
+                  size: 27,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      group.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      group.subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 15,
+                color: group.color,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DeveloperGroupHubScreen extends StatelessWidget {
+  const _DeveloperGroupHubScreen({required this.group});
+
+  final _DeveloperGroup group;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          group.title,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(18, 22, 18, 32),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: group.color.withValues(alpha: .08),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: group.color.withValues(alpha: .12),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: group.color.withValues(alpha: .12),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Icon(
+                    group.icon,
+                    color: group.color,
+                    size: 27,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        group.title,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        group.subtitle,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 22),
+          const Text(
+            'Management Sections',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 10),
+          ...group.modules.map(
+            (module) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Card(
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => module.screen,
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(15),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: group.color.withValues(alpha: .09),
+                            borderRadius: BorderRadius.circular(13),
+                          ),
+                          child: Icon(
+                            module.icon,
+                            color: group.color,
+                            size: 23,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                module.title,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                module.subtitle,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 15,
+                          color: group.color,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ModuleCard extends StatelessWidget {
   const _ModuleCard({
     required this.module,
