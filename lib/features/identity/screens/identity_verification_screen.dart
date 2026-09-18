@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/theme.dart';
+import '../../auth/screens/login_screen.dart';
 
 class IdentityVerificationScreen extends StatefulWidget {
   const IdentityVerificationScreen({super.key});
@@ -186,6 +187,15 @@ class _IdentityVerificationScreenState
     }
   }
 
+  Future<void> _logout() async {
+    await _supabase.auth.signOut();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (_) => false,
+    );
+  }
+
   String _roleLabel(String role) {
     switch (role) {
       case 'driver':
@@ -255,6 +265,13 @@ class _IdentityVerificationScreenState
             'Identity Verification',
             style: TextStyle(fontWeight: FontWeight.w800),
           ),
+          actions: [
+            IconButton(
+              tooltip: 'Logout',
+              onPressed: _submitting ? null : _logout,
+              icon: const Icon(Icons.logout_rounded),
+            ),
+          ],
         ),
         body: ListView(
           padding: const EdgeInsets.fromLTRB(18, 20, 18, 36),
