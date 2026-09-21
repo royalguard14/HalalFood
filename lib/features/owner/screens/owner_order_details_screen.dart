@@ -25,6 +25,7 @@ class _OwnerOrderDetailsScreenState
 
   bool _isLoading = true;
   bool _isUpdating = false;
+  String? _receiptUrl;
 
   String? _error;
 
@@ -38,6 +39,73 @@ class _OwnerOrderDetailsScreenState
         widget.order['status']?.toString() ?? 'pending';
 
     _loadOrderItems();
+    _loadPickupReceipt();
+  }
+
+  Future<void> _loadPickupReceipt() async {
+    final path = widget.order['pickup_receipt_path']?.toString();
+    if (path == null || path.isEmpty) return;
+    try {
+      final url = await _supabase.storage.from('payment-receipts').createSignedUrl(path, 900);
+      if (mounted) setState(() => _receiptUrl = url);
+    } catch (e) {
+      debugPrint('OWNER RECEIPT ERROR: $e');
+    }
+  }
+
+  Future<void> _confirmPickupReceipt() async {
+    await _updatePickupPayment('paid');
+  }
+
+  Future<void> _rejectPickupReceipt() async {
+    final controller = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reject payment receipt'),
+        content: TextField(
+          controller: controller,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            labelText: 'Reason (optional)',
+            hintText: 'Example: Amount does not match GCash transaction.',
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: const Text('Reject')),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (reason == null || !mounted) return;
+    await _updatePickupPayment('receipt_rejected', reason: reason);
+  }
+
+  Future<void> _updatePickupPayment(String state, {String? reason}) async {
+    if (_isUpdating) return;
+    setState(() => _isUpdating = true);
+    try {
+      final orderId = widget.order['id']?.toString();
+      if (orderId == null || orderId.isEmpty) throw Exception('Invalid order ID.');
+      final data = <String, dynamic>{'pickup_downpayment_status': state};
+      if (state == 'paid') data['payment_status'] = 'paid';
+      if (state == 'receipt_rejected') data['pickup_receipt_rejection_reason'] = reason;
+      await _supabase.from('orders').update(data).eq('id', orderId);
+      if (!mounted) return;
+      setState(() {
+        _status = widget.order['status']?.toString() ?? _status;
+        _isUpdating = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(state == 'paid' ? 'Receipt accepted. The order can now be processed.' : 'Receipt rejected. Customer can upload another receipt.')),
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isUpdating = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unable to update payment: $e')));
+      }
+    }
   }
 
   Future<void> _loadOrderItems() async {
@@ -248,6 +316,8 @@ class _OwnerOrderDetailsScreenState
       children: [
         _buildStatusCard(),
 
+        if (widget.order['fulfillment_type']?.toString() == 'pickup') _buildPickupPaymentCard(),
+
         const SizedBox(height: 24),
 
         const Text(
@@ -286,6 +356,37 @@ class _OwnerOrderDetailsScreenState
 
         _buildActionButtons(),
       ],
+    );
+  }
+
+  Widget _buildPickupPaymentCard() {
+    final state = widget.order['pickup_downpayment_status']?.toString() ?? 'pending';
+    final amount = (widget.order['pickup_downpayment_amount'] as num?)?.toDouble() ?? 0;
+    final submitted = state == 'receipt_submitted';
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Pickup Payment', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 6),
+          Text('Downpayment: ₱'+amount.toStringAsFixed(2), style: const TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 10),
+          Text('Payment: '+_displayStatus(state), style: const TextStyle(fontWeight: FontWeight.w700)),
+          if (_receiptUrl != null) ...[
+            const SizedBox(height: 14),
+            ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(_receiptUrl!, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Text('Unable to load receipt.'))),
+          ],
+          if (submitted) ...[
+            const SizedBox(height: 14),
+            Row(children: [
+              Expanded(child: OutlinedButton.icon(onPressed: _isUpdating ? null : _rejectPickupReceipt, icon: const Icon(Icons.close_rounded), label: const Text('Reject'))),
+              const SizedBox(width: 10),
+              Expanded(child: ElevatedButton.icon(onPressed: _isUpdating ? null : _confirmPickupReceipt, icon: const Icon(Icons.check_rounded), label: const Text('Accept'))),
+            ]),
+          ] else if (state == 'receipt_rejected')
+            const Padding(padding: EdgeInsets.only(top: 10), child: Text('Waiting for customer to upload a new receipt.')),
+        ]),
+      ),
     );
   }
 
