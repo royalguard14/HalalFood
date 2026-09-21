@@ -32,6 +32,7 @@ class _OrderDetailsScreenState
   bool _isUploadingReceipt = false;
   String? _error;
   Map<String, dynamic>? _restaurantPayment;
+  double _cashPaidAmount = 0;
 
   RealtimeChannel? _orderChannel;
 
@@ -43,6 +44,7 @@ class _OrderDetailsScreenState
 
     _loadOrderItems();
     _loadRestaurantPayment();
+    _loadCashPaidAmount();
     _subscribeToOrderUpdates();
   }
 
@@ -96,6 +98,27 @@ class _OrderDetailsScreenState
     } catch (e) { debugPrint('PICKUP PAYMENT DETAILS ERROR: $e'); }
   }
 
+  Future<void> _loadCashPaidAmount() async {
+    try {
+      final response = await _supabase
+          .from('payments')
+          .select('amount')
+          .eq('order_id', _currentOrder.id)
+          .eq('payment_method', 'cash_on_delivery')
+          .eq('status', 'paid');
+
+      final total = (response as List).fold<double>(
+        0,
+        (sum, row) => sum + ((row['amount'] as num?)?.toDouble() ?? 0),
+      );
+
+      if (mounted) {
+        setState(() => _cashPaidAmount = total);
+      }
+    } catch (e) {
+      debugPrint('CASH PAYMENT LOAD ERROR: ' + e.toString());
+    }
+  }
   Future<void> _uploadPickupReceipt() async {
     if (_isUploadingReceipt) return;
     try {
@@ -187,6 +210,8 @@ class _OrderDetailsScreenState
       setState(() {
         _currentOrder = updatedOrder;
       });
+
+      _loadCashPaidAmount();
 
       debugPrint(
         'ORDER STATUS: '
@@ -1158,21 +1183,32 @@ class _OrderDetailsScreenState
                 '-₱${(_currentOrder.pickupDownpaymentStatus.toLowerCase() == 'paid' ? _currentOrder.pickupDownpaymentAmount : 0).toStringAsFixed(2)}',
               ),
 
-              if (_normalizeStatus(_currentOrder.status) == 'ready') ...[
+              if (_cashPaidAmount > 0.005) ...[
                 const SizedBox(height: 10),
                 _summaryRow(
-                  'Cash Balance',
-                  '₱${(_currentOrder.paymentStatus.toLowerCase() == 'paid'
-                          ? 0
-                          : (_currentOrder.totalAmount -
-                                  (_currentOrder.pickupDownpaymentStatus.toLowerCase() == 'paid'
-                                      ? _currentOrder.pickupDownpaymentAmount
-                                      : 0))
-                              .clamp(0, double.infinity))
-                      .toStringAsFixed(2)}',
-                  isTotal: true,
+                  'Cash',
+                  '₱${_cashPaidAmount.toStringAsFixed(2)}',
                 ),
               ],
+
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 14),
+                child: Divider(),
+              ),
+
+              _summaryRow(
+                'Balance',
+                '₱${(_currentOrder.paymentStatus.toLowerCase() == 'paid'
+                        ? 0
+                        : (_currentOrder.totalAmount -
+                                (_currentOrder.pickupDownpaymentStatus.toLowerCase() == 'paid'
+                                    ? _currentOrder.pickupDownpaymentAmount
+                                    : 0) -
+                                _cashPaidAmount)
+                            .clamp(0, double.infinity))
+                    .toStringAsFixed(2)}',
+                isTotal: true,
+              ),
             ] else ...[
               _summaryRow(
                 'Delivery Fee',
