@@ -1,3 +1,21 @@
+### 2026-09-21 — Added dynamic Customer Restaurant Discovery + Delivery Radius
+
+- **User requirement:** Admin and Developer must control a dynamic maximum distance in kilometers. Customers should only see restaurants within that radius of their saved/default address, and customers must also be unable to order beyond the same platform radius.
+- **Existing backend capability reused:** `public.delivery_pricing_settings.maximum_delivery_distance_km` already existed and `public.calculate_delivery_fee()` already calculates Restaurant → Customer distance with Haversine and rejects a delivery when the distance exceeds that maximum.
+- **Design decision:** Use the existing platform-wide `maximum_delivery_distance_km` as the single global **Customer Restaurant Discovery + Delivery Maximum** setting. No hardcoded 10 km value was added. Admin and Developer can change the value from the existing Delivery Pricing module.
+- **Supabase change:** Added `public.get_customer_restaurant_radius_km()`, a `SECURITY DEFINER`, `STABLE` function with `search_path = ''`. It exposes only the maximum radius to authenticated customers instead of exposing the full delivery-pricing configuration.
+- **Supabase permissions:** Execute was revoked from `public` and `anon`, and granted only to `authenticated`.
+- **Customer Home change:** `lib/features/home/screens/home_screen.dart` now loads the customer's default saved address (falling back to the first saved address), loads the platform radius, and filters restaurants by actual Restaurant → Customer Haversine distance before showing Featured/Nearby results.
+- **Location validation:** Restaurants with missing/invalid coordinates are excluded from radius-filtered results. Customers without a saved address with valid GPS coordinates are shown a clear prompt instead of an unrestricted restaurant list.
+- **Repository change:** `lib/features/home/data/restaurant_repository.dart` now reads the radius through the new RPC.
+- **Admin/Developer UI clarification:** `lib/features/admin/screens/delivery_pricing_screen.dart` now labels the setting **Maximum Customer & Delivery Distance** and explains that it controls both customer discovery and delivery ordering.
+- **SQL documentation:** Added `supabase/customer_restaurant_discovery_radius.sql` matching the live Supabase function.
+- **Important:** The current development test data has Restaurant and Customer coordinates that are the same/very close, so an actual out-of-range runtime test cannot be meaningfully demonstrated yet. The code path is now ready for a future test using clearly separated coordinates.
+- **Testing status:** C8.5 missing-GPS behavior was already confirmed by the user: Place Order is disabled when the selected Delivery address has no latitude/longitude. The new radius/discovery feature itself has not yet been runtime-tested by the user.
+- **Commits:** Restaurant radius repository `63b4762d0cd9e3a5c52f08e31127cc6db2c01cd6`; Customer Home filtering `5fc8a0e598d01f0b3d6f2714cfade2cfbf736535`; Admin/Developer UI clarification `e8e5d6197328fc90fc4421aebedfdb448d250dde`; SQL documentation `446ee780c88e81029691b8199f6171b618d3cd4f`.
+- **Current stopping point:** Dynamic global customer radius is implemented. Do not change the distance algorithm unless a later test exposes a problem.
+- **Next action:** User should `git pull`, run the app, and verify the Customer Home loads normally. A real out-of-range C8.5 test can be done later after creating clearly separated test coordinates or test locations.
+
 ### 2026-09-21 — Fixed Promo/Coupon order placement database error
 
 - **User-reported error:** Customer could select a promo, but Place Order failed with PostgreSQL error `42702` because `promo_code_id` was ambiguous inside `public.claim_promo_code()`.
