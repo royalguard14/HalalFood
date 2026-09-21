@@ -390,3 +390,15 @@
 ### 2026-09-18 — End-of-session handoff updated for next ChatGPT session
 
 - **Purpose:** Updated this handoff so the next ChatGPT can continue the HALAL Food project without asking the user to repeat the project history.
+
+### 2026-09-21 — Fixed Pickup Owner order-status enum error
+
+- **User-reported error:** Owner Pickup order update failed with PostgreSQL `22P02`: Invalid input value for enum `order_status`: `ready_to_pick_up`.
+- **Verified live Supabase enum:** `order_status` only contains `pending`, `confirmed`, `preparing`, `ready`, `out_for_delivery`, `delivered`, `cancelled`, and `refunded`. The custom Pickup labels `ready_to_pick_up`, `full_payment`, and `claimed` are not valid database enum values.
+- **Root cause:** Owner Pickup UI was trying to store UI lifecycle labels directly into the `orders.status` enum.
+- **Flutter fix:** `lib/features/owner/screens/owner_order_details_screen.dart` now maps Pickup `ready_to_pick_up` → database `ready`; records final Pickup payment using `orders.payment_status = paid` instead of changing `order_status`; and maps Pickup `claimed` → database terminal status `delivered`.
+- **Reload behavior:** The screen now reads `payment_status` when loading the order so a Pickup order in `ready` can correctly show the final-payment/claim step after reopening.
+- **No Supabase schema change:** The existing `order_status` enum remains unchanged.
+- **Commit:** `7d6623961864694fe86b7606f1d9c9ad59521f22`.
+- **Verification:** Live enum was queried directly before the code fix. Flutter runtime test is still pending.
+- **Next action:** User should `git pull`, open the Owner Pickup order, advance it from Preparing → Ready to Pick Up, and confirm there is no enum error. Then mark final payment paid and confirm the next button becomes Claimed. Report the first result/error before any further edit.
