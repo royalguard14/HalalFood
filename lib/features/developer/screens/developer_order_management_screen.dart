@@ -7,12 +7,12 @@ class DeveloperOrderManagementScreen extends StatefulWidget {
   const DeveloperOrderManagementScreen({super.key});
 
   @override
-  State<AdminOrderManagementScreen> createState() =>
-      _AdminOrderManagementScreenState();
+  State<DeveloperOrderManagementScreen> createState() =>
+      _DeveloperOrderManagementScreenState();
 }
 
-class _AdminOrderManagementScreenState
-    extends State<AdminOrderManagementScreen> {
+class _DeveloperOrderManagementScreenState
+    extends State<DeveloperOrderManagementScreen> {
   final SupabaseClient _supabase = Supabase.instance.client;
   final TextEditingController _searchController = TextEditingController();
 
