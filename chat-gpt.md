@@ -1,3 +1,19 @@
+### 2026-09-21 — Fixed Pickup final-payment gate before Claimed
+
+- **User finding:** After Owner accepted the Pickup downpayment receipt, the order correctly moved to **Preparing** and then **Ready to Pick Up**, but the Owner could see **Claimed** immediately instead of requiring the remaining **Full Payment** first.
+- **Root cause:** Accepting the initial downpayment was incorrectly setting `orders.payment_status = 'paid'`. The Owner screen uses `payment_status = paid` to determine whether the final Pickup payment has already been completed, so the downpayment was being mistaken for full payment.
+- **Fix:** Accepting the initial Pickup downpayment now only:
+  - marks `pickup_downpayment_status = paid`
+  - moves the order to `preparing`
+  - does **not** mark `orders.payment_status = paid`
+- **Final Pickup payment:** When the order reaches **Ready to Pick Up**, the Owner must first press **Full Payment**. Only then is `orders.payment_status = paid`, after which the next action becomes **Claimed**.
+- **Wording:** Changed the Owner action from **Payment Complete** to **Full Payment** to match the agreed lifecycle.
+- **Pickup lifecycle:** **For Confirmation → Confirmed → Preparing → Ready to Pick Up → Full Payment → Claimed**.
+- **File changed:** `lib/features/owner/screens/owner_order_details_screen.dart`
+- **Commit:** `b383f308809c6b6a5433c6f45bcc612f1af867e6`
+- **Testing status:** Not runtime-tested yet.
+- **Next exact test:** `git pull` → use the current Pickup order if it is still at **Ready to Pick Up**. Verify the Owner action is **Full Payment**, not **Claimed**. Press **Full Payment** once; only after that should **Claimed** appear.
+
 ### 2026-09-21 — Fixed Owner Pickup first-step wording to For Confirmation
 
 - **User finding:** On **Owner Dashboard → Recent Orders**, a Pickup order whose GCash downpayment receipt has already been uploaded for Owner review was still labeled **Order Placed**.
