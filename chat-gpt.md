@@ -1,3 +1,14 @@
+### 2026-09-21 — Reset Pickup Test Orders for Fresh Workflow Test
+
+- **User request:** Clear the existing test order data so a fresh Pickup order can be created and the Pickup lifecycle can be tested from the beginning.
+- **Scope:** Pickup orders only. Delivery orders were not touched.
+- **Deleted from Supabase:** the existing Pickup order(s), their cascaded order items, and their associated payment records.
+- **Verification:** Pickup order count is now **0** and Pickup payment count is **0**.
+- **Pickup lifecycle to test next:** **Order Placed → Confirmed → Preparing → Ready to Pick Up → Full Payment → Claimed**.
+- **Owner tile wording:** Use the proper customer-facing step names exactly as written above, including **Ready to Pick Up**, **Full Payment**, and **Claimed** — not technical/database-style wording.
+- **Current stopping point:** Database is cleared for a fresh Pickup test. Do not create another test order until the user pulls/refreshes and is ready to start the new Pickup flow.
+- **Testing status:** Fresh Pickup order not created yet.
+
 ### 2026-09-21 — Improved Owner Order Tiles + Collapsed Receipt Viewer
 
 - **Owner Dashboard order tiles:** Recent Order tiles are now compact and no longer dominated by large content.
