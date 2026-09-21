@@ -1,4 +1,27 @@
 -- Manual Pickup GCash Receipt Workflow
--- Applied directly to Supabase. Kept here as repository documentation.
--- Adds restaurant GCash destination fields, pickup receipt metadata,
--- private payment-receipts storage, owner/customer policies, and 7-day cleanup.
+-- Applied directly to Supabase project taltqnxhivpfwjqlvxnt.
+--
+-- Database:
+-- restaurants.gcash_name
+-- restaurants.gcash_number
+-- restaurants.gcash_qr_url
+-- orders.pickup_receipt_path
+-- orders.pickup_receipt_submitted_at
+-- orders.pickup_receipt_rejection_reason
+-- pickup_downpayment_status values:
+-- not_required, pending, receipt_submitted, receipt_rejected,
+-- paid, non_refundable, refunded
+--
+-- Storage:
+-- Private bucket: payment-receipts
+-- Customer upload/view policies and restaurant-owner view policy.
+--
+-- Security:
+-- Customer order UPDATE policy is restricted by a BEFORE UPDATE guard so
+-- customers can only cancel pending pickup orders or submit/re-submit receipts.
+--
+-- Cleanup:
+-- Supabase Edge Function: cleanup-pickup-receipts
+-- pg_cron invokes the Edge Function daily.
+-- The function uses the Storage API to permanently delete receipt objects
+-- older than 7 days, then clears their order metadata.
