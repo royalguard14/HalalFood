@@ -1,3 +1,13 @@
+### 2026-09-21 — Differentiated Owner Recent Orders completed tiles
+
+- **User request:** Owner Dashboard → Recent Orders should visually distinguish new/active orders from completed orders; they should no longer look identical.
+- **Fix:** Completed/terminal tiles now use a softer neutral appearance, reduced elevation, neutral border/icon/progress color, a **COMPLETED** badge, and a check-circle icon. Active/new tiles retain the green actionable styling.
+- **Actions:** Active orders continue to show **Track Order**; completed orders continue to show **View**.
+- **File changed:** `lib/features/owner/screens/owner_dashboard_screen.dart`
+- **Commit:** 002e867cd915982e87396319f85d9750670950c0
+- **Testing status:** Not runtime-tested.
+- **Next exact test:** `git pull` → Owner Dashboard → Recent Orders → verify an active/new tile remains green/actionable while a completed tile is visibly subdued and marked **COMPLETED** with **View**.
+
 ### 2026-09-21 — Fixed Customer Pickup Tracking final step
 
 - **User finding:** Customer → My Orders → Order Details showed the order header as delivered/completed, but **Pickup Tracking** still highlighted **Order Placed**.
