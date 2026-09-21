@@ -531,3 +531,14 @@
 - **GitHub documentation commit:** `34f3a00fd1666db88f09728b87cc8116fdfdbe16`.
 - **Testing:** Not runtime-tested after the database fix.
 - **Next action:** No Flutter code pull is required for this backend-only fix. Repeat **Owner Pickup → Confirm GCash Downpayment → enter Amount Received + Reference Number → Accept Payment**. Report **goods** or the exact new error.
+
+
+### 2026-09-21 — Added Owner Payment Breakdown + Restaurant Vault Summary
+
+- Owner Pickup Order Details now loads actual paid payment records and displays GCash Downpayment, Cash for Pickup, Total Paid, and remaining Balance.
+- Cash for Pickup is the actual cash payment received, not the remaining balance.
+- Owner Dashboard now shows a Restaurant Vault near the top with actual paid Cash Vault and current GCash Vault for the selected restaurant.
+- GCash Vault subtracts recorded owner GCash cashouts.
+- Vault values are filtered to paid payments belonging to the selected restaurant.
+- Files changed: lib/features/owner/screens/owner_order_details_screen.dart and lib/features/owner/screens/owner_dashboard_screen.dart.
+- Testing: not runtime-tested by ChatGPT; user should pull and verify a Pickup order with GCash downpayment and final cash payment, then verify dashboard vault amounts.
