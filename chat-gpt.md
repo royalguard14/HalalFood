@@ -1,3 +1,15 @@
+### 2026-09-21 — Made server-side delivery distance authoritative at Place Order
+
+- **Reason:** The existing `public.calculate_delivery_fee()` already enforces `maximum_delivery_distance_km`, but Customer Checkout was previously using only the Flutter-side fee calculation when creating the order.
+- **File changed:** `lib/features/checkout/data/order_repository.dart`
+- **Fix:** For Delivery orders, `OrderRepository.createOrder()` now calls `public.calculate_delivery_fee(p_restaurant_id, p_address_id)` before inserting the order. The returned server-calculated fee becomes the authoritative `delivery_fee`.
+- **Security/behavior:** If the Restaurant → Customer distance exceeds the platform maximum, the database function raises an error and the order is not inserted. This protects the rule even if the client is manipulated.
+- **Pickup:** Pickup orders continue with a zero delivery fee and do not call the delivery calculation.
+- **Testing:** Runtime test is pending. Current test coordinates are too close to demonstrate an out-of-range delivery.
+- **Commit:** `c95edb753c67fbb9f67c860565b6be58fda2cc7b`
+- **Current stopping point:** Customer discovery filtering and server-side delivery-radius enforcement are both implemented.
+- **Next action:** User should `git pull` and run the Customer Home/Checkout flow. Do not mark out-of-range C8.5 as PASSED until a separated test location is available.
+
 ### 2026-09-21 — Added dynamic Customer Restaurant Discovery + Delivery Radius
 
 - **User requirement:** Admin and Developer must control a dynamic maximum distance in kilometers. Customers should only see restaurants within that radius of their saved/default address, and customers must also be unable to order beyond the same platform radius.
