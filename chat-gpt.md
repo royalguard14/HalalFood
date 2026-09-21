@@ -1,3 +1,16 @@
+### 2026-09-21 — Implemented manual GCash pickup receipt workflow
+
+- **Concept finalized:** Customer places a Pickup order first, but the Owner does not receive/start it yet. Customer gets two actions while waiting: **Cancel Order** or **Upload Receipt**. Customer pays directly to the restaurant's GCash account.
+- **Receipt verification:** After receipt upload, the order becomes `receipt_submitted` and appears to the Restaurant Owner. Owner can **Accept** or **Reject**. Rejection keeps the order alive and lets the customer upload another receipt. Accepting the receipt marks the downpayment paid and automatically starts the order as `preparing`. **Admin has no payment-approval role.**
+- **7-day cleanup:** Pickup receipt objects and receipt metadata are scheduled for automatic cleanup after 7 days to prevent Storage/order-queue flooding. Actual completed order/payment audit records are not blanket-deleted.
+- **Supabase:** Added restaurant GCash fields (`gcash_name`, `gcash_number`, `gcash_qr_url`), pickup receipt fields on `orders`, `payment-receipts` private Storage bucket, customer/owner Storage policies, and `cleanup-old-pickup-receipts()` with a daily pg_cron job.
+- **Flutter files:** Updated checkout success flow, customer order model/repository/details, owner dashboard/order details, and owner restaurant profile. Owner can configure GCash name/number and upload a GCash QR. Customer can upload receipt from gallery.
+- **Security:** Receipt bucket is private; access is restricted by customer ownership or restaurant ownership. Receipt URLs are signed for short-lived viewing.
+- **Testing:** Supabase schema/bucket/cron creation verified. Flutter runtime/analyzer verification is still pending.
+- **Commits:** `e600d784b7a801a6752f724b7a52b513b4bac04e`, `116e66caccaa4e2b5543bd9e1ebb3c1d52091ecc`, `ba52d772e9ee7aa7785d94776c5a727390465eff`, `30a0d5514b4966b32ffd7fa8d64cc6d9e5052578`, `28d5feec71d2ef161265545eba4b4be47b2cdfc9`, `d8e4ef69e575661c0fdfb93f18c8a2600e97eeea`, `b6a9c0d31b5d2f83ad65ea421ab3c0b3e469bb7d`.
+- **Current stopping point:** Manual Pickup GCash receipt workflow is implemented in code and database; runtime/analyzer test is next.
+- **Next task:** `git pull`, run `flutter analyze`, then test Owner GCash settings → Customer Pickup Place Order → Upload Receipt → Owner Accept/Reject.
+
 ### 2026-09-21 — Made restaurant distance display GPS-only
 
 - **File changed:** `lib/features/home/screens/home_screen.dart`
