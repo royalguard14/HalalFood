@@ -185,6 +185,10 @@ begin
     v_discount
   );
 
+  -- Mark this trusted transaction so the customer-order UPDATE guard allows
+  -- only the promo fields changed by this SECURITY DEFINER workflow.
+  perform set_config('app.claim_promo_code', 'true', true);
+
   update public.orders o
   set promo_code_id = v_promo.id,
       promo_discount = v_discount,
