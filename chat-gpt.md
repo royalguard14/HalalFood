@@ -86,3 +86,14 @@
 - Cash amount is refreshed after realtime order updates so the summary reflects the owner's final cash payment.
 - GitHub commit: `3a579747932ce6e8edbbeb1562b23ef2d0bde6ab`.
 - **Next:** pull `origin/main`, open the Customer Pickup Order Details, and verify **Cash = actual cash paid** and **Balance = ₱0.00** after Full Payment.
+
+
+## 2026-09-21 — Customer Cash Payment Was Hidden by Payments RLS
+
+- Follow-up testing showed the Customer Order Summary code was already querying actual paid `cash_on_delivery` payments, but the Customer could not read `public.payments` because the table only allowed Admins and Restaurant Owners to SELECT payment rows.
+- Added a secure Supabase RLS SELECT policy: **Customers can view own payment records**.
+- The policy only exposes payment rows whose `order_id` belongs to an order where `customer_id = auth.uid()`; it does not expose other customers' payments.
+- This allows the existing Customer Order Summary to display the actual cash amount paid and calculate the final Balance as **₱0.00** after full payment.
+- Live policy verified in `pg_policies` after creation.
+- Customer UI code commit remains: `3a579747932ce6e8edbbeb1562b23ef2d0bde6ab`.
+- **Next:** pull `origin/main` if needed, restart the app, open the same Full Payment Pickup Order, and verify the **Cash** row now shows the actual cash payment.
