@@ -586,3 +586,18 @@
 - **Behavior:** Pickup summary structure remains Subtotal, Downpayment, Cash for Pickup, Balance; Delivery summary remains unchanged.
 - **Commit:** `1600ef4c9dbabb845a5a6867231a5b81f2bd1dc9`.
 - **Testing:** Not runtime-tested by ChatGPT. User should pull and hot reload/restart, then reopen Customer Order Details and confirm the yellow/black overflow indicators are gone.
+
+
+### 2026-09-21 — Fixed Customer Promo Place Order Trigger Error
+
+- **User-reported error:** Customer Checkout with a promo failed at Place Order with: `PostgrestException(message: Customers may only update pickup receipt fields, code: P0001, ...)`.
+- **Scenario:** Subtotal ₱1,400, promo discount -₱700, expected total ₱700.
+- **Root cause:** `public.claim_promo_code()` is a trusted `SECURITY DEFINER` workflow that updates `orders.promo_code_id`, `promo_discount`, and `total_amount` after the order is inserted. The customer-order BEFORE UPDATE guard correctly blocked normal customer updates, but it could not distinguish this trusted promo update from a direct client update.
+- **Supabase fix:** `claim_promo_code()` now sets a transaction-local flag `app.claim_promo_code = true` before its internal order update. `guard_customer_pickup_update()` recognizes that flag and allows only the promo workflow's permitted fields to remain unchanged while the promo fields are updated. Normal customer order updates remain protected.
+- **Security behavior:** The flag is transaction-local and the guard still rejects changes to restaurant, customer, address, fulfillment type, subtotal, delivery fee, notes, payment status, pickup payment fields/status, receipt fields, and order status during the promo workflow.
+- **Verification:** Executed the live `claim_promo_code('ab81b1d9-ef0e-44a4-ae70-138ccdadc1a3','666')` inside a transaction and rolled it back. The function successfully calculated **₱700 discount** from **₱1,400 subtotal** and produced **₱700 total**, confirming the trigger no longer blocks the trusted promo update.
+- **GitHub SQL:** Updated `supabase/customer_checkout_promo_codes.sql` to match the live promo function.
+- **Live Supabase functions updated:** `public.claim_promo_code(uuid,text)` and `public.guard_customer_pickup_update()`.
+- **Commit:** `59f4133889b6e887a50b6f9f05e9fa837ea109b4`.
+- **Flutter changes:** None required for this error.
+- **Next action:** User should pull and retry Customer Checkout with the same promo. Expected result: Subtotal ₱1,400 → Promo -₱700 → Total ₱700, and Place Order should proceed.
