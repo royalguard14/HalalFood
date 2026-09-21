@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/theme.dart';
 import '../data/order_repository.dart';
@@ -16,6 +17,8 @@ class OrdersScreen extends StatefulWidget {
 class _OrdersScreenState
     extends State<OrdersScreen> {
   final _orderRepository = OrderRepository();
+  final _supabase = Supabase.instance.client;
+  RealtimeChannel? _ordersChannel;
 
   List<Map<String, dynamic>> _orders = [];
 
@@ -25,6 +28,34 @@ class _OrdersScreenState
   void initState() {
     super.initState();
     _loadOrders();
+    _subscribeToOrderUpdates();
+  }
+
+  @override
+  void dispose() {
+    _ordersChannel?.unsubscribe();
+    super.dispose();
+  }
+
+  void _subscribeToOrderUpdates() {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return;
+    _ordersChannel = _supabase
+        .channel('customer-order-list-${user.id}')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'orders',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'customer_id',
+            value: user.id,
+          ),
+          callback: (_) {
+            if (mounted) _loadOrders();
+          },
+        )
+        .subscribe();
   }
 
   Future<void> _loadOrders() async {
