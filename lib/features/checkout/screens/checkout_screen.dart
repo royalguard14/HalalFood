@@ -46,6 +46,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   double? _deliveryDistanceKm;
   double? _deliveryFee;
+  double _pickupDownpaymentPercent = 50.0;
 
   List<PromoCode> _availablePromos = const [];
   PromoCode? _selectedPromo;
@@ -62,6 +63,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         _addressRepository.getAddresses();
 
     _loadRestaurant();
+    _loadPickupDownpaymentPercent();
     _loadPromos();
   }
 
@@ -133,6 +135,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         _selectDefaultAddress(addresses);
         if (mounted) setState(() {});
       });
+    }
+  }
+
+  Future<void> _loadPickupDownpaymentPercent() async {
+    try {
+      final value = await _orderRepository.getPickupDownpaymentPercent();
+      if (!mounted) return;
+      setState(() => _pickupDownpaymentPercent = value);
+    } catch (_) {
+      // Keep the database default of 50% if the setting cannot be loaded.
     }
   }
 
@@ -373,6 +385,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         deliveryFee: deliveryFee ?? 0.0,
         fulfillmentType: fulfillmentType,
         promoCode: _selectedPromo?.code,
+        pickupDownpaymentPercent: _pickupDownpaymentPercent,
+        pickupDownpaymentAmount: pickupDownpayment,
       );
 
       if (!mounted) return;
@@ -448,6 +462,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         _fulfillmentType == 'delivery' ? (_deliveryFee ?? 0.0) : 0.0;
     final promoDiscount = _promoDiscount;
     final total = subtotal + deliveryFee - promoDiscount;
+    final pickupPayableSubtotal = (subtotal - promoDiscount).clamp(0.0, double.infinity);
+    final pickupDownpayment = _fulfillmentType == 'pickup'
+        ? pickupPayableSubtotal * (_pickupDownpaymentPercent / 100)
+        : 0.0;
 
     return Scaffold(
       appBar: AppBar(
@@ -612,6 +630,42 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     isLoading: _isLoadingPromos,
                     onSelect: _selectPromo,
                     onRefresh: _loadPromos,
+                  ),
+                ],
+
+                if (_fulfillmentType == 'pickup') ...[
+                  const SizedBox(height: 18),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.lock_clock_rounded),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Pickup downpayment: ${_pickupDownpaymentPercent.toStringAsFixed(0)}%',
+                                  style: const TextStyle(fontWeight: FontWeight.w800),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Required before the restaurant processes a pickup order. Amount: ₱${pickupDownpayment.toStringAsFixed(2)}. This downpayment is non-refundable under the pickup no-show rule.',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: HalalFoodTheme.textSecondary,
+                                    height: 1.35,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
 
