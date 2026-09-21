@@ -442,9 +442,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final distance = _deliveryDistanceKm;
     final maximum = _maximumDeliveryDistanceKm;
     if (distance != null && maximum != null && maximum > 0) {
-      return 'This restaurant is ' + distance.toStringAsFixed(2) +
-          ' km away. Delivery is available only within ' +
-          maximum.toStringAsFixed(2) + ' km. Pick-up is available.';
+      return 'This restaurant is ${distance.toStringAsFixed(2)} km away. Delivery is available only within ${maximum.toStringAsFixed(2)} km. Pick-up is available.';
     }
     return 'Delivery availability is being checked. Pick-up is available.';
   }
@@ -547,7 +545,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         _selectFulfillment(value);
                       }
                     },
-                    child: const Column(
+                    child: Column(
                       children: [
                         RadioListTile<String>(
                           value: 'pickup',
@@ -575,9 +573,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 : _deliveryUnavailableMessage,
                           ),
                           secondary: const Icon(Icons.delivery_dining_outlined),
-                          onChanged: _deliveryAvailable
-                              ? (value) => _selectFulfillment(value)
-                              : null,
+                          enabled: _deliveryAvailable,
                         ),
                       ],
                     ),
