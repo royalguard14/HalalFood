@@ -163,7 +163,7 @@ class _DeliveryPricingScreenState extends State<DeliveryPricingScreen> {
                           _moneyField(_minimumFee, 'Minimum Delivery Fee'),
                           _distanceField(
                             _maximumDistance,
-                            'Maximum Delivery Distance',
+                            'Maximum Customer & Delivery Distance',
                           ),
                         ],
                       ),
@@ -277,7 +277,7 @@ class _IntroCard extends StatelessWidget {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'These settings control the default delivery charges across the HALAL Food platform.',
+                  'These settings control delivery charges and the maximum distance customers can discover and order from restaurants.',
                   style: TextStyle(
                     fontSize: 12,
                     color: HalalFoodTheme.textSecondary,
