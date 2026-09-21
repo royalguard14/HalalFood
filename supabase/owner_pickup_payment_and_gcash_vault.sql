@@ -126,12 +126,10 @@ begin
     if p_payment_method <> 'cash_on_delivery' then raise exception 'Final pickup payment must be cash.'; end if;
 
     v_new_total := v_paid + p_amount;
+    v_remaining := greatest(v_order.total_amount - v_paid, 0);
 
-    if v_new_total > v_order.total_amount + 0.005 then
-      raise exception 'Payment exceeds the order total. Remaining balance is ₱%.', to_char(greatest(v_order.total_amount - v_paid, 0), 'FM999999990.00');
-    end if;
-    if abs(v_new_total - v_order.total_amount) > 0.005 then
-      raise exception 'Payment is incomplete. Remaining balance is ₱%.', to_char(greatest(v_order.total_amount - v_paid, 0), 'FM999999990.00');
+    if abs(p_amount - v_remaining) > 0.005 then
+      raise exception 'Payment must be exactly the remaining balance of ₱%.', to_char(v_remaining, 'FM999999990.00');
     end if;
 
     insert into public.payments (order_id,customer_id,amount,payment_method,status,paid_at,notes)
