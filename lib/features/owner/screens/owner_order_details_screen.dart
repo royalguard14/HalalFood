@@ -115,7 +115,7 @@ class _OwnerOrderDetailsScreenState
     await _recordPickupPayment(
       stage: 'final',
       amount: result.amount,
-      paymentMethod: result.paymentMethod,
+      paymentMethod: 'cash_on_delivery',
     );
   }
 
@@ -129,7 +129,7 @@ class _OwnerOrderDetailsScreenState
       text: initialAmount == null ? '' : initialAmount.toStringAsFixed(2),
     );
     final referenceController = TextEditingController();
-    var paymentMethod = 'cash';
+    const paymentMethod = 'cash_on_delivery';
 
     final result = await showDialog<_PickupPaymentInput>(
       context: context,
@@ -158,20 +158,12 @@ class _OwnerOrderDetailsScreenState
                   ),
                 ] else ...[
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: paymentMethod,
-                    decoration: const InputDecoration(
-                      labelText: 'Payment Method',
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Payment Method: Cash',
+                      style: TextStyle(fontWeight: FontWeight.w700),
                     ),
-                    items: const [
-                      DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                      DropdownMenuItem(value: 'gcash', child: Text('GCash')),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) {
-                        setDialogState(() => paymentMethod = value);
-                      }
-                    },
                   ),
                   const SizedBox(height: 8),
                   const Align(
@@ -258,7 +250,7 @@ class _OwnerOrderDetailsScreenState
       setState(() {
         if (stage == 'downpayment') {
           _pickupPaymentState = 'paid';
-          _pickupFinalPaymentPaid = false;
+          _pickupFinalPaymentPaid = amount >= ((widget.order['total_amount'] as num?)?.toDouble() ?? 0) - 0.005;
           _status = 'confirmed';
         } else {
           _pickupFinalPaymentPaid = true;
