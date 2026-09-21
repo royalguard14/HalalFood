@@ -316,6 +316,12 @@ class _OrderDetailsScreenState
         return 5;
       }
 
+      // Final Pickup payment is stored on payment_status while the
+      // order status remains "ready" until the customer claims it.
+      if (_currentOrder.paymentStatus.toLowerCase() == 'paid') {
+        return 4;
+      }
+
       switch (status) {
         case 'placed':
           return 0;
@@ -1138,10 +1144,22 @@ class _OrderDetailsScreenState
 
             const SizedBox(height: 10),
 
-            _summaryRow(
-              'Delivery Fee',
-              '₱${_currentOrder.deliveryFee.toStringAsFixed(2)}',
-            ),
+            if (_currentOrder.fulfillmentType == 'pickup') ...[
+              _summaryRow(
+                'Downpayment',
+                '₱${_currentOrder.pickupDownpaymentAmount.toStringAsFixed(2)}',
+              ),
+              const SizedBox(height: 10),
+              _summaryRow(
+                'Cash Payment (Balance)',
+                '₱${(_currentOrder.totalAmount - _currentOrder.pickupDownpaymentAmount).clamp(0, double.infinity).toStringAsFixed(2)}',
+              ),
+            ] else ...[
+              _summaryRow(
+                'Delivery Fee',
+                '₱${_currentOrder.deliveryFee.toStringAsFixed(2)}',
+              ),
+            ],
 
             const Padding(
               padding:
