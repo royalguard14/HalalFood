@@ -553,3 +553,11 @@
 - Cash Vault still sums paid cash_on_delivery; GCash Vault still sums paid gcash and subtracts owner_gcash_cashouts.
 - Commit: 57192476e6528881f7d4565fe6e2a51e1a5bc535
 - Runtime testing pending after git pull.
+
+
+### 2026-09-21 — Fixed Pickup Order Summary Display
+- Pickup order summary was showing Subtotal as ₱0 when the incoming order map did not contain a `subtotal` field.
+- For Pickup, Subtotal now falls back to the order `total_amount`, representing the full order amount before subtracting GCash Downpayment and Cash for Pickup.
+- Removed the redundant `Total Paid` row because the `Balance` row already communicates the remaining amount.
+- Expected example: Subtotal ₱1,000; GCash Downpayment -₱800; Cash for Pickup -₱200; Balance ₱0.
+- Commit: a82ef3c3cb77e8d9524b0b81ffa1cb58f515b00c
