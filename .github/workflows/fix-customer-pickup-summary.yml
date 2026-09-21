@@ -1,0 +1,50 @@
+name: Apply Customer Pickup Summary Fix
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-customer-pickup-summary.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Patch customer order summary
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('lib/features/order/screens/order_details_screen.dart')
+          text = path.read_text(encoding='utf-8')
+
+          old = """            _summaryRow(\n              'Subtotal',\n              _currentOrder.fulfillmentType == 'pickup'\n                  ? '₱${_currentOrder.totalAmount.toStringAsFixed(2)}'\n                  : '₱${_currentOrder.subtotal.toStringAsFixed(2)}',\n            ),\n\n            const SizedBox(height: 10),\n\n            if (_currentOrder.fulfillmentType == 'pickup') ...[\n              _summaryRow(\n                'Downpayment',\n                '-₱${_currentOrder.pickupDownpaymentAmount.toStringAsFixed(2)}',\n              ),\n              const SizedBox(height: 10),\n              _summaryRow(\n                'Cash for Pickup',\n                '-₱${(_currentOrder.totalAmount - _currentOrder.pickupDownpaymentAmount).clamp(0, double.infinity).toStringAsFixed(2)}',\n              ),\n              const SizedBox(height: 10),\n              _summaryRow(\n                'Balance',\n                '₱0.00',\n              ),\n            ] else ...[\n              _summaryRow(\n                'Delivery Fee',\n                '₱${_currentOrder.deliveryFee.toStringAsFixed(2)}',\n              ),\n            ],\n"""
+
+          new = """            _summaryRow(\n              'Subtotal',\n              '₱${_currentOrder.subtotal.toStringAsFixed(2)}',\n            ),\n\n            const SizedBox(height: 10),\n\n            if (_currentOrder.fulfillmentType == 'pickup') ...[\n              if ((_currentOrder.subtotal - _currentOrder.totalAmount) > 0.005) ...[\n                _summaryRow(\n                  'Promo',\n                  '-₱${(_currentOrder.subtotal - _currentOrder.totalAmount).toStringAsFixed(2)}',\n                ),\n                const SizedBox(height: 10),\n              ],\n\n              _summaryRow(\n                'Downpayment',\n                '-₱${(_currentOrder.pickupDownpaymentStatus.toLowerCase() == 'paid' ? _currentOrder.pickupDownpaymentAmount : 0).toStringAsFixed(2)}',\n              ),\n\n              if (_normalizeStatus(_currentOrder.status) == 'ready') ...[\n                const SizedBox(height: 10),\n                _summaryRow(\n                  'Cash Balance',\n                  '₱${(_currentOrder.paymentStatus.toLowerCase() == 'paid'\n                          ? 0\n                          : (_currentOrder.totalAmount -\n                                  (_currentOrder.pickupDownpaymentStatus.toLowerCase() == 'paid'\n                                      ? _currentOrder.pickupDownpaymentAmount\n                                      : 0))\n                              .clamp(0, double.infinity))\n                      .toStringAsFixed(2)}',\n                  isTotal: true,\n                ),\n              ],\n            ] else ...[\n              _summaryRow(\n                'Delivery Fee',\n                '₱${_currentOrder.deliveryFee.toStringAsFixed(2)}',\n              ),\n            ],\n"""
+
+          if old not in text:
+              raise SystemExit('Expected Customer Order Summary block was not found; no changes made.')
+
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+      - name: Update project handoff log
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('chat-gpt.md')
+          entry = '''\n### 2026-09-21 — Fixed Customer Pickup Order Summary\n- **Customer-first correction:** Pickup Order Summary now uses the original `subtotal` as **Subtotal**, instead of the discounted `total_amount`.\n- When a pickup promo is applied, the summary shows **Promo** as the difference between original subtotal and discounted `total_amount`.\n- **Downpayment** is shown as ₱0 until `pickup_downpayment_status` is `paid`; only the Owner-approved amount is deducted.\n- When the Pickup order reaches **Ready to Pick Up** (`orders.status = ready`), the summary shows the remaining **Cash Balance**.\n- Cash Balance uses the discounted order total minus the approved GCash downpayment. Once `payment_status = paid`, Cash Balance becomes ₱0.\n- Delivery summary behavior remains unchanged.\n- **File changed:** `lib/features/order/screens/order_details_screen.dart`\n- **Testing status:** Code committed by GitHub Actions; local runtime test still pending.\n- **Next:** `git pull origin main`, run the app, then test the ₱1,400 Pickup order with ₱700 promo through receipt approval and Ready to Pick Up.\n'''
+          path.write_text(path.read_text(encoding='utf-8') + entry, encoding='utf-8')
+
+      - name: Commit and remove temporary workflow
+        run: |
+          rm -f .github/workflows/fix-customer-pickup-summary.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/features/order/screens/order_details_screen.dart chat-gpt.md .github/workflows/fix-customer-pickup-summary.yml
+          git commit -m "fix: correct customer pickup order summary"
+          git push
