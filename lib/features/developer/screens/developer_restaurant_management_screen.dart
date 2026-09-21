@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/theme.dart';
+import 'developer_restaurant_control_screen.dart';
 
 class DeveloperRestaurantManagementScreen extends StatefulWidget {
   const DeveloperRestaurantManagementScreen({super.key});
@@ -60,6 +61,13 @@ class _DeveloperRestaurantManagementScreenState
       final province = r['province']?.toString().toLowerCase() ?? '';
       return name.contains(query) || city.contains(query) || province.contains(query);
     }).toList();
+  }
+
+  Future<void> _openControl(Map<String, dynamic> restaurant) async {
+    final id = restaurant['id']?.toString();
+    final name = restaurant['name']?.toString() ?? 'Restaurant';
+    if (id == null || id.isEmpty) return;
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => DeveloperRestaurantControlScreen(restaurantId: id, restaurantName: name)));
   }
 
   Future<void> _deleteRestaurant(Map<String, dynamic> restaurant) async {
@@ -202,6 +210,15 @@ class _DeveloperRestaurantManagementScreenState
             _Badge('★ ${restaurant['average_rating'] ?? 0} (${restaurant['review_count'] ?? 0})', Colors.amber.shade800),
           ]),
           const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: _deleting ? null : () => _openControl(restaurant),
+              icon: const Icon(Icons.account_balance_wallet_rounded),
+              label: const Text('Restaurant Control • Cash & GCash Vault', style: TextStyle(fontWeight: FontWeight.w800)),
+            ),
+          ),
+          const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
