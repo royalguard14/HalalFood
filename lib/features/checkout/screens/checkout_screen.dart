@@ -338,6 +338,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
 
     final address = _selectedAddress;
+    final pickupPayableSubtotal =
+        (widget.cart.total - _promoDiscount).clamp(0.0, double.infinity);
+    final pickupDownpayment = fulfillmentType == 'pickup'
+        ? pickupPayableSubtotal * (_pickupDownpaymentPercent / 100)
+        : 0.0;
     final deliveryFee =
         fulfillmentType == 'delivery' ? _deliveryFee : 0.0;
 
