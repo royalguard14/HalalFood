@@ -901,7 +901,6 @@ class _OwnerOrderDetailsScreenState
               const SizedBox(height: 10),
               _SummaryRow(label: 'Cash for Pickup', value: '-₱' + _cashPickupPaid.toStringAsFixed(2)),
               const SizedBox(height: 10),
-              _SummaryRow(label: 'Total Paid', value: '₱' + (_gcashDownpaymentPaid + _cashPickupPaid).toStringAsFixed(2)),
             ] else ...[
               _SummaryRow(
                 label: 'Delivery Fee',
