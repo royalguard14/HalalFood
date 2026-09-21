@@ -1,3 +1,10 @@
+
+### 2026-09-21 — Removed Total Paid from Owner Pickup Summary
+- Owner Pickup payment summary now shows only **Subtotal**, **GCash Downpayment**, **Cash for Pickup**, and **Balance**.
+- Removed the redundant **Total Paid** row as requested.
+- Delivery order summary remains unchanged.
+- File changed: `lib/features/owner/screens/owner_order_details_screen.dart`
+- Commit: f22549c2adfe680acf45d64ce4b97310dc171ff8
 ### 2026-09-21 — Fixed Pickup final payment exact-balance UX + Customer/Owner summaries
 
 - **User requirement:** For Pickup final payment, the customer must pay the remaining balance exactly. Underpayment and overpayment must be rejected; only the exact balance is accepted.
