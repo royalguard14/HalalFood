@@ -1,3 +1,12 @@
+### 2026-09-21 — Fixed Owner receipt loading to refresh receipt path directly
+
+- **User test finding:** Owner still showed `Payment: Receipt Submitted` but no receipt image after the dashboard query was updated.
+- **Root cause:** Owner Order Details was relying on the order map passed from the dashboard. Even though the dashboard now selects receipt metadata, the receipt viewer should not depend on that navigation payload.
+- **Fix:** Owner Order Details now re-queries the order by ID for `pickup_receipt_path` when opening the screen, then creates the signed URL directly from the private `payment-receipts` bucket. It also logs when the database has no receipt path or when signed URL creation fails.
+- **Commit:** `a4efc0f20a9f7065cebbf70cee61c2b5b079e915`
+- **Current stopping point:** Receipt image visibility is the only test being addressed now. Do not Accept/Reject until the image is visible and manually checked.
+- **Next task:** `git pull`, restart the app, open the same Owner pickup order again, and check the receipt image.
+
 ### 2026-09-21 — Fixed Owner pickup receipt image loading
 
 - **User test finding:** Owner Order Details showed `Payment: Receipt Submitted` but no uploaded receipt image, so the Owner could not manually verify the GCash transaction.
