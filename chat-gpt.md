@@ -64,3 +64,13 @@
 - GitHub commits:
   - UI/RPC loading fix: f6045b1fa42102a9fbf450ec093875143d21a41a
   - SQL documentation: c3dab4ef0c1f06e2d3ebcb7b7e9adb7dc62603ae
+
+
+## 2026-09-21 — Owner Dashboard Recent Orders Receipt Filter Corrected
+
+- User clarified that Owner Dashboard > Recent Orders must NOT show Pickup orders whose downpayment receipt has not yet been uploaded/submitted.
+- Root cause: the existing load-order logic already skipped such Pickup orders for counters, but the Recent Orders list incorrectly returned true for every row, so those same orders still appeared in the list.
+- Fixed lib/features/owner/screens/owner_dashboard_screen.dart.
+- Recent Orders now excludes Pickup orders unless pickup_downpayment_status is receipt_submitted or paid.
+- Delivery orders are unaffected.
+- Commit: 06619c24b156b97d7fa821330f46f5360f792fc7.
