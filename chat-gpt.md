@@ -1,3 +1,20 @@
+### 2026-09-21 — Fixed Owner Pickup lifecycle labels/actions and completed-order list
+
+- **User finding:** Owner Pickup orders were still using Delivery-style labels/actions. A Pickup order could show **Delivered** or **Mark as Completed**, and the order tile could remain at **Order Placed** instead of showing the Pickup-specific next step.
+- **Required Pickup flow:** **Order Placed → Confirmed → Preparing → Ready to Pick Up → Payment Complete → Claimed**.
+- **Owner Order Details fix:** Pickup now has its own action buttons:
+  - **Preparing** → **Ready to Pick Up**
+  - **Ready to Pick Up** → **Payment Complete**
+  - **Payment Complete** → **Claimed**
+  - **Claimed** → completed/claimed confirmation card
+- **Receipt gate preserved:** While a Pickup order is still pending and its downpayment receipt is not paid, the generic Delivery action button is no longer shown. The Pickup Payment card remains responsible for receipt approval.
+- **Status labels fixed:** Owner status display now maps Pickup technical states such as `ready_to_pick_up`, `full_payment`, and `claimed` to the required user-facing labels **Ready to Pick Up**, **Payment Complete**, and **Claimed**. Delivery labels remain separate.
+- **Owner Dashboard fix:** Pickup terminal states (**Claimed**) and Delivery terminal states (**Delivered/Completed**) are removed from the active Recent Orders list so completed orders do not remain as active work. The Order Summary label **Completed** is used instead of **Delivered**.
+- **Files changed:** `lib/features/owner/screens/owner_dashboard_screen.dart`, `lib/features/owner/screens/owner_order_details_screen.dart`.
+- **Commits:** Dashboard `55274280a91dc3291f4f356198ddf3438ba5f08c`; Owner Order Details `b1979aaa29a5ec4abaa705a8a1c924661cba7b06`.
+- **Testing status:** Not runtime-tested yet.
+- **Next exact test:** `git pull` → open the current Pickup order on Owner side → verify that after **Preparing**, the button says **Ready to Pick Up**; after that status update, verify the next button says **Payment Complete**; after that, verify the next button says **Claimed**. Then return to Owner Dashboard and verify a **Claimed** Pickup order is no longer in the active Recent Orders list. Test only this flow and report the result before any further edit.
+
 ### 2026-09-21 — Fixed Pickup receipt re-upload RLS and Owner reject red screen
 
 - **User test finding:** Customer successfully uploaded a Pickup GCash receipt. Owner rejected it, but saving the rejection could produce the known Flutter red screen. After rejection, the Customer could not upload a replacement receipt and received: `StorageException(message: new row violates row-level security policy, statusCode: 403, error: Unauthorized)`.
