@@ -1,3 +1,13 @@
+### 2026-09-21 — Fixed Owner Dashboard Pickup completed tile showing Order Placed
+
+- **User finding:** On **Owner Dashboard → Recent Orders → Order Tile**, a Pickup order that was already completed/claimed could still show **Order Placed** and **Track Order**.
+- **Root cause:** The Owner Dashboard Pickup tracking mapper handled `claimed`, `picked_up`, and `pickedup`, but did not treat the database status `completed` as the terminal Pickup state. It therefore fell back to tracking index 0 (**Order Placed**).
+- **Fix:** Pickup status `completed` now maps to the terminal **Claimed** step. Because the tile is at the final tracking step, its button becomes **View** instead of **Track Order**.
+- **File changed:** lib/features/owner/screens/owner_dashboard_screen.dart
+- **Commit:** 0746977f8e936c0b925196731cccb38a35a21f8d
+- **Testing status:** Not runtime-tested yet.
+- **Next exact test:** git pull → Owner Dashboard → Recent Orders → check the completed/claimed Pickup tile. It should show **Claimed** and **View**, not **Order Placed** and **Track Order**.
+
 ### 2026-09-21 — Fixed Owner Dashboard terminal order View not appearing
 
 - **User clarification:** The requested change was specifically on the **Owner Dashboard Recent Orders tiles**. The previous edit changed the button logic to **View** for terminal orders, but terminal Pickup/Delivery orders were still being filtered out of the Recent Orders list, so the user could not see the new **View** button at all.
