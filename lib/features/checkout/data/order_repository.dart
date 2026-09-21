@@ -46,8 +46,35 @@ class OrderRepository {
       throw Exception('A delivery address is required for delivery orders.');
     }
 
+    double effectiveDeliveryFee = deliveryFee;
+
+    if (fulfillmentType == 'delivery') {
+      final addressId = address!.id;
+
+      final serverFee = await _supabase.rpc(
+        'calculate_delivery_fee',
+        params: {
+          'p_restaurant_id': restaurantId,
+          'p_address_id': addressId,
+        },
+      );
+
+      final parsedFee = (serverFee as num?)?.toDouble();
+      if (parsedFee == null ||
+          !parsedFee.isFinite ||
+          parsedFee < 0) {
+        throw Exception('Unable to calculate a valid delivery fee.');
+      }
+
+      // The backend calculation is authoritative. This also enforces
+      // maximum_delivery_distance_km before the order is created.
+      effectiveDeliveryFee = parsedFee;
+    } else {
+      effectiveDeliveryFee = 0;
+    }
+
     final totalAmount =
-        subtotal + deliveryFee;
+        subtotal + effectiveDeliveryFee;
 
     final orderResponse = await _supabase
         .from('orders')
@@ -57,7 +84,7 @@ class OrderRepository {
           'delivery_address_id': address?.id,
           'fulfillment_type': fulfillmentType,
           'subtotal': subtotal,
-          'delivery_fee': deliveryFee,
+          'delivery_fee': effectiveDeliveryFee,
           'total_amount': totalAmount,
           'notes': notes,
         })
