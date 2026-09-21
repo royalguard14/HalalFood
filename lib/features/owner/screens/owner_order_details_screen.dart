@@ -89,12 +89,12 @@ class _OwnerOrderDetailsScreenState
       final orderId = widget.order['id']?.toString();
       if (orderId == null || orderId.isEmpty) throw Exception('Invalid order ID.');
       final data = <String, dynamic>{'pickup_downpayment_status': state};
-      if (state == 'paid') data['payment_status'] = 'paid';
+      if (state == 'paid') { data['payment_status'] = 'paid'; data['status'] = 'preparing'; }
       if (state == 'receipt_rejected') data['pickup_receipt_rejection_reason'] = reason;
       await _supabase.from('orders').update(data).eq('id', orderId);
       if (!mounted) return;
       setState(() {
-        _status = widget.order['status']?.toString() ?? _status;
+        _status = state == 'paid' ? 'preparing' : (widget.order['status']?.toString() ?? _status);
         _isUpdating = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
