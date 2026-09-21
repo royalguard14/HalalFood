@@ -665,32 +665,6 @@ class _HomeContent extends StatelessWidget {
                   const SizedBox(height: 30),
                 ],
 
-                if (customerAddress == null ||
-                    customerAddress!.latitude == null ||
-                    customerAddress!.longitude == null) ...[
-                  const _DeliveryRadiusNotice(
-                    icon: Icons.location_off_outlined,
-                    title: 'Set a delivery address',
-                    message:
-                        'Add a saved address with GPS coordinates to see restaurants within the platform delivery radius.',
-                  ),
-                  const SizedBox(height: 24),
-                ] else if (customerRestaurantRadiusKm != null) ...[
-                  _DeliveryRadiusNotice(
-                    icon: Icons.near_me_rounded,
-                    title: 'Nearby restaurants',
-                    message:
-                        'Showing restaurants within ' +
-                        customerRestaurantRadiusKm!.toStringAsFixed(1) +
-                        ' km of ' +
-                        (customerAddress!.label?.trim().isNotEmpty == true
-                            ? customerAddress!.label!.trim()
-                            : 'your saved address') +
-                        '.',
-                  ),
-                  const SizedBox(height: 24),
-                ],
-
                 const _SectionTitle(
                   title:
                       'Nearby Restaurants',
