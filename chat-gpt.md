@@ -1,3 +1,16 @@
+### 2026-09-21 — Updated Customer Pickup Order Tracking
+
+- **User finding:** The Customer Order Details tracking still used the Delivery tracking sequence, so Pickup did not yet reflect the agreed Pickup lifecycle.
+- **File changed:** `lib/features/order/screens/order_details_screen.dart`
+- **Pickup tracking is now separate from Delivery:** **Order Placed → Confirmed → Preparing → Ready to Pick Up → Full Payment → Claimed**.
+- **Pickup UI:** The tracking card is labeled **Pickup Tracking** and uses Pickup-specific descriptions/icons.
+- **Delivery tracking remains separate:** Delivery continues to use **Order Placed → Confirmed → Preparing → Ready for Pickup → Out for Delivery → Delivered**.
+- **Status support added:** Customer tracking now recognizes `full_payment`, `payment_due`, `claimed`, `picked_up`, and `pickedup` as Pickup lifecycle states.
+- **Important:** This edit changes the Customer tracking UI/state mapping only. It does not yet implement the Owner buttons or database transitions for **Ready to Pick Up → Full Payment → Claimed**.
+- **Commit:** `397b2ec982b717357b7d1438ad6896b90783425b`.
+- **Testing status:** Not runtime-tested yet.
+- **Next exact test:** `git pull` → open the same Customer Pickup order → verify the tracking shows the six Pickup steps and that the current **Preparing** step is highlighted after Owner accepts the receipt. Do not test future Full Payment/Claimed transitions yet.
+
 ### 2026-09-21 — Fixed Owner Pickup Accept/Reject immediate UI state
 
 - **File changed:** `lib/features/owner/screens/owner_order_details_screen.dart`
