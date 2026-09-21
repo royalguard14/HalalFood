@@ -1,3 +1,13 @@
+### 2026-09-21 — Fixed Pickup payment text/enum type mismatch
+
+- **User-reported error:** Owner Pickup → Confirm GCash Downpayment failed with PostgreSQL `42883`: `operator does not exist: text = public.payment_status`.
+- **Root cause:** Live schema verification showed `public.payments.status` and `public.payments.payment_method` are **text**, while `public.orders.payment_status` is the `public.payment_status` enum. The previous fix incorrectly cast values used against the `payments` text columns to enums, causing the comparison operator error.
+- **Supabase fix:** Updated live `public.record_owner_pickup_payment()` so comparisons/assignments against `public.payments.status` and `public.payments.payment_method` use text values. Explicit `public.payment_status` casts remain where assigning the enum-valued `orders.payment_status` column.
+- **Verification:** Re-read the live function after replacement and confirmed payment-table comparisons use text values while order payment status assignments still use the enum casts.
+- **GitHub SQL documentation:** `supabase/owner_pickup_payment_and_gcash_vault.sql` updated to match the live function.
+- **Testing:** Not runtime-tested after this backend fix.
+- **Next exact test:** **No git pull is required for this backend-only fix.** Repeat **Owner Pickup → Confirm GCash Downpayment → enter Amount Received + Reference Number → Accept Payment**. Report **goods** or the exact new error before we make another edit.
+
 ### 2026-09-21 — Hardened Pickup status enum mapping
 
 - **User-reported error:** Owner Pickup status update failed with PostgreSQL 22P02: invalid enum value ready_to_pick_up'.
