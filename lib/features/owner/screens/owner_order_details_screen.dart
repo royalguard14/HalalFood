@@ -16,12 +16,10 @@ class OwnerOrderDetailsScreen extends StatefulWidget {
       _OwnerOrderDetailsScreenState();
 }
 
-class _OwnerOrderDetailsScreenState
-    extends State<OwnerOrderDetailsScreen> {
+class _OwnerOrderDetailsScreenState extends State<OwnerOrderDetailsScreen> {
   final _supabase = Supabase.instance.client;
 
   List<Map<String, dynamic>> _items = [];
-
   bool _isLoading = true;
   bool _isUpdating = false;
   String? _receiptUrl;
@@ -30,22 +28,17 @@ class _OwnerOrderDetailsScreenState
   bool _pickupFinalPaymentPaid = false;
   double _gcashDownpaymentPaid = 0;
   double _cashPickupPaid = 0;
-
   String? _error;
-
   late String _status;
 
   @override
   void initState() {
     super.initState();
-
-    _status =
-        widget.order['status']?.toString() ?? 'pending';
+    _status = widget.order['status']?.toString() ?? 'pending';
     _pickupPaymentState =
         widget.order['pickup_downpayment_status']?.toString() ?? 'pending';
     _pickupFinalPaymentPaid =
         widget.order['payment_status']?.toString() == 'paid';
-
     _loadOrderItems();
     _loadPickupReceipt();
     _loadPickupPayments();
@@ -53,29 +46,47 @@ class _OwnerOrderDetailsScreenState
 
   Future<void> _loadPickupPayments() async {
     try {
-      final orderId=widget.order['id']?.toString(); if(orderId==null||orderId.isEmpty)return;
-      final rows=await _supabase.from('payments').select('amount,payment_method,status,notes,paid_at').eq('order_id',orderId).eq('status','paid');
-      double gcash=0,cash=0;
-      for(final row in rows as List){final amount=(row['amount'] as num?)?.toDouble()??0;final method=row['payment_method']?.toString().toLowerCase();if(method=='gcash')gcash+=amount;if(method=='cash_on_delivery')cash+=amount;}
-      if(mounted)setState((){_gcashDownpaymentPaid=gcash;_cashPickupPaid=cash;});
-    }catch(e){debugPrint('OWNER PICKUP PAYMENTS ERROR: $e');}
+      final orderId = widget.order['id']?.toString();
+      if (orderId == null || orderId.isEmpty) return;
+      final rows = await _supabase
+          .from('payments')
+          .select('amount,payment_method,status,notes,paid_at')
+          .eq('order_id', orderId)
+          .eq('status', 'paid');
+      double gcash = 0;
+      double cash = 0;
+      for (final row in rows as List) {
+        final amount = (row['amount'] as num?)?.toDouble() ?? 0;
+        final method = row['payment_method']?.toString().toLowerCase();
+        if (method == 'gcash') gcash += amount;
+        if (method == 'cash_on_delivery') cash += amount;
+      }
+      if (mounted) {
+        setState(() {
+          _gcashDownpaymentPaid = gcash;
+          _cashPickupPaid = cash;
+        });
+      }
+    } catch (e) {
+      debugPrint('OWNER PICKUP PAYMENTS ERROR: $e');
+    }
   }
 
   Future<void> _loadPickupReceipt() async {
     try {
       final orderId = widget.order['id']?.toString();
       if (orderId == null || orderId.isEmpty) return;
-
       final freshOrder = await _supabase
           .from('orders')
-          .select('pickup_receipt_path,pickup_receipt_submitted_at,pickup_downpayment_status,payment_status')
+          .select(
+            'pickup_receipt_path,pickup_receipt_submitted_at,'
+            'pickup_downpayment_status,payment_status',
+          )
           .eq('id', orderId)
           .maybeSingle();
 
-      final freshState =
-          freshOrder?['pickup_downpayment_status']?.toString();
-      final freshPaymentStatus =
-          freshOrder?['payment_status']?.toString();
+      final freshState = freshOrder?['pickup_downpayment_status']?.toString();
+      final freshPaymentStatus = freshOrder?['payment_status']?.toString();
       if (mounted && freshState != null && freshState.isNotEmpty) {
         setState(() {
           _pickupPaymentState = freshState;
@@ -84,18 +95,11 @@ class _OwnerOrderDetailsScreenState
       }
 
       final path = freshOrder?['pickup_receipt_path']?.toString().trim();
-      if (path == null || path.isEmpty) {
-        debugPrint('OWNER RECEIPT: no pickup_receipt_path for order $orderId');
-        return;
-      }
-
+      if (path == null || path.isEmpty) return;
       final url = await _supabase.storage
           .from('payment-receipts')
           .createSignedUrl(path, 900);
-
-      if (mounted) {
-        setState(() => _receiptUrl = url);
-      }
+      if (mounted) setState(() => _receiptUrl = url);
     } catch (e) {
       debugPrint('OWNER RECEIPT ERROR: $e');
     }
@@ -119,8 +123,7 @@ class _OwnerOrderDetailsScreenState
   }
 
   Future<void> _recordFinalPickupPayment() async {
-    final total =
-        (widget.order['total_amount'] as num?)?.toDouble() ?? 0;
+    final total = (widget.order['total_amount'] as num?)?.toDouble() ?? 0;
     final downpayment =
         (widget.order['pickup_downpayment_amount'] as num?)?.toDouble() ?? 0;
     final remaining =
@@ -164,7 +167,8 @@ class _OwnerOrderDetailsScreenState
             children: [
               TextField(
                 controller: amountController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
                   labelText: amountLabel,
                   prefixText: '₱ ',
@@ -200,7 +204,7 @@ class _OwnerOrderDetailsScreenState
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'Exact remaining balance: ₱' + expectedAmount.toStringAsFixed(2),
+                      'Exact remaining balance: ₱${expectedAmount.toStringAsFixed(2)}',
                       style: const TextStyle(fontWeight: FontWeight.w800),
                     ),
                   ),
@@ -228,7 +232,9 @@ class _OwnerOrderDetailsScreenState
               }
               if (requireReference && reference.isEmpty) {
                 ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(content: Text('Enter the GCash reference number.')),
+                  const SnackBar(
+                    content: Text('Enter the GCash reference number.'),
+                  ),
                 );
                 return;
               }
@@ -237,7 +243,7 @@ class _OwnerOrderDetailsScreenState
                 ScaffoldMessenger.of(dialogContext).showSnackBar(
                   SnackBar(
                     content: Text(
-                      'Payment must be exactly ₱' + expectedAmount.toStringAsFixed(2) + '.',
+                      'Payment must be exactly ₱${expectedAmount.toStringAsFixed(2)}.',
                     ),
                   ),
                 );
@@ -258,14 +264,10 @@ class _OwnerOrderDetailsScreenState
       ),
     );
 
-    // Let the dialog route finish disposing its widgets before disposing
-    // controllers. This avoids controller disposal racing the keyboard/dialog
-    // teardown on Android while the amount field is focused.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       amountController.dispose();
       referenceController.dispose();
     });
-
     return result;
   }
 
@@ -282,7 +284,6 @@ class _OwnerOrderDetailsScreenState
       if (orderId == null || orderId.isEmpty) {
         throw Exception('Invalid order ID.');
       }
-
       await _supabase.rpc(
         'record_owner_pickup_payment',
         params: {
@@ -293,19 +294,20 @@ class _OwnerOrderDetailsScreenState
           'p_payment_method': paymentMethod,
         },
       );
-
       if (!mounted) return;
       setState(() {
         if (stage == 'downpayment') {
           _pickupPaymentState = 'paid';
-          _pickupFinalPaymentPaid = amount >= ((widget.order['total_amount'] as num?)?.toDouble() ?? 0) - 0.005;
+          _pickupFinalPaymentPaid =
+              amount >=
+                  ((widget.order['total_amount'] as num?)?.toDouble() ?? 0) -
+                      0.005;
           _status = 'confirmed';
         } else {
           _pickupFinalPaymentPaid = true;
         }
         _isUpdating = false;
       });
-
       await _loadPickupPayments();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -319,11 +321,9 @@ class _OwnerOrderDetailsScreenState
     } catch (e) {
       if (!mounted) return;
       setState(() => _isUpdating = false);
-
       final message = e is PostgrestException
           ? e.message
           : e.toString().replaceFirst('Exception: ', '');
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
       );
@@ -345,16 +345,20 @@ class _OwnerOrderDetailsScreenState
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: const Text('Reject')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Reject'),
+          ),
         ],
       ),
     );
     if (reason == null || !mounted) return;
     await _updatePickupPayment('receipt_rejected', reason: reason);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      controller.dispose();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
   }
 
   Future<void> _updatePickupPayment(String state, {String? reason}) async {
@@ -362,11 +366,11 @@ class _OwnerOrderDetailsScreenState
     setState(() => _isUpdating = true);
     try {
       final orderId = widget.order['id']?.toString();
-      if (orderId == null || orderId.isEmpty) throw Exception('Invalid order ID.');
-      final data = <String, dynamic>{'pickup_downpayment_status': state};
-      if (state == 'paid') {
-        data['status'] = 'confirmed';
+      if (orderId == null || orderId.isEmpty) {
+        throw Exception('Invalid order ID.');
       }
+      final data = <String, dynamic>{'pickup_downpayment_status': state};
+      if (state == 'paid') data['status'] = 'confirmed';
       if (state == 'receipt_rejected') {
         data['pickup_receipt_rejection_reason'] = reason;
       }
@@ -381,9 +385,7 @@ class _OwnerOrderDetailsScreenState
       if (!mounted) return;
       setState(() {
         _pickupPaymentState = state;
-        if (state == 'paid') {
-          _pickupFinalPaymentPaid = false;
-        }
+        if (state == 'paid') _pickupFinalPaymentPaid = false;
         _status = state == 'paid'
             ? 'confirmed'
             : (widget.order['status']?.toString() ?? _status);
@@ -394,45 +396,43 @@ class _OwnerOrderDetailsScreenState
         _isUpdating = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(state == 'paid' ? 'Receipt accepted. The order can now be processed.' : 'Receipt rejected. Customer can upload another receipt.')),
+        SnackBar(
+          content: Text(
+            state == 'paid'
+                ? 'Receipt accepted. The order can now be processed.'
+                : 'Receipt rejected. Customer can upload another receipt.',
+          ),
+        ),
       );
     } catch (e) {
       if (mounted) {
         setState(() => _isUpdating = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unable to update payment: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to update payment: $e')),
+        );
       }
     }
   }
 
   Future<void> _loadOrderItems() async {
     try {
-      final orderId =
-          widget.order['id']?.toString();
-
+      final orderId = widget.order['id']?.toString();
       if (orderId == null || orderId.isEmpty) {
         throw Exception('Invalid order ID.');
       }
-
       final response = await _supabase
           .from('order_items')
           .select()
           .eq('order_id', orderId);
-
       if (!mounted) return;
-
       setState(() {
         _items = (response as List)
-            .map(
-              (item) =>
-                  Map<String, dynamic>.from(item),
-            )
+            .map((item) => Map<String, dynamic>.from(item))
             .toList();
-
         _isLoading = false;
       });
     } catch (e) {
       if (!mounted) return;
-
       setState(() {
         _isLoading = false;
         _error = e.toString();
@@ -440,75 +440,40 @@ class _OwnerOrderDetailsScreenState
     }
   }
 
-  Future<void> _updateStatus(
-    String newStatus,
-  ) async {
+  Future<void> _updateStatus(String newStatus) async {
     if (_isUpdating) return;
-
-    setState(() {
-      _isUpdating = true;
-    });
-
+    setState(() => _isUpdating = true);
     try {
-      final orderId =
-          widget.order['id']?.toString();
-
+      final orderId = widget.order['id']?.toString();
       if (orderId == null || orderId.isEmpty) {
         throw Exception('Invalid order ID.');
       }
-
       final isPickup =
           widget.order['fulfillment_type']?.toString().toLowerCase() == 'pickup';
-
-      // Normalize UI-only Pickup labels before they ever reach the
-      // order_status enum. This also protects against a stale/malformed
-      // value such as "ready_to_pick_up'".
       newStatus = newStatus.trim().replaceAll("'", '');
-
       if (isPickup && newStatus == 'ready_to_pick_up') {
-        // order_status has no custom pickup value; `ready` is the database state.
         newStatus = 'ready';
       } else if (isPickup && newStatus == 'full_payment') {
         await _recordFinalPickupPayment();
         if (mounted) setState(() => _isUpdating = false);
         return;
       } else if (isPickup && newStatus == 'claimed') {
-        // `delivered` is the terminal order_status used for completed pickup orders.
         newStatus = 'delivered';
       }
-
-      await _supabase
-          .from('orders')
-          .update({'status': newStatus})
-          .eq('id', orderId);
-
+      await _supabase.from('orders').update({'status': newStatus}).eq('id', orderId);
       if (!mounted) return;
-
       setState(() {
         _status = newStatus;
         _isUpdating = false;
       });
-
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Order status updated to ${_displayStatus(newStatus)}.',
-          ),
-        ),
+        SnackBar(content: Text('Order status updated to ${_displayStatus(newStatus)}.')),
       );
     } catch (e) {
       if (!mounted) return;
-
-      setState(() {
-        _isUpdating = false;
-      });
-
+      setState(() => _isUpdating = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Unable to update order: $e',
-          ),
-        ),
+        SnackBar(content: Text('Unable to update order: $e')),
       );
     }
   }
@@ -537,12 +502,9 @@ class _OwnerOrderDetailsScreenState
         return status
             .replaceAll('_', ' ')
             .split(' ')
-            .map(
-              (word) => word.isEmpty
-                  ? word
-                  : '${word[0].toUpperCase()}'
-                      '${word.substring(1)}',
-            )
+            .map((word) => word.isEmpty
+                ? word
+                : '${word[0].toUpperCase()}${word.substring(1)}')
             .join(' ');
     }
   }
@@ -551,72 +513,44 @@ class _OwnerOrderDetailsScreenState
     switch (status.toLowerCase()) {
       case 'pending':
         return Colors.orange;
-
       case 'preparing':
         return Colors.blue;
-
       case 'ready':
       case 'ready_to_pick_up':
         return Colors.deepPurple;
-
       case 'full_payment':
         return Colors.teal;
-
       case 'claimed':
       case 'picked_up':
       case 'pickedup':
         return Colors.green;
-
       case 'out_for_delivery':
       case 'on_the_way':
         return Colors.indigo;
-
       case 'completed':
         return Colors.green;
-
       case 'cancelled':
         return Colors.red;
-
       default:
         return HalalFoodTheme.primaryGreen;
     }
   }
 
-  String _shortOrderId(String id) {
-    if (id.length <= 8) {
-      return id;
-    }
-
-    return id.substring(0, 8);
-  }
+  String _shortOrderId(String id) =>
+      id.length <= 8 ? id : id.substring(0, 8);
 
   @override
   Widget build(BuildContext context) {
-    final orderId =
-        widget.order['id']?.toString() ?? '';
-
-    final total =
-        (widget.order['total_amount'] as num?)
-                ?.toDouble() ??
-            0;
-
-    final subtotal =
-        (widget.order['subtotal'] as num?)
-                ?.toDouble() ??
-            total;
-
+    final orderId = widget.order['id']?.toString() ?? '';
+    final total = (widget.order['total_amount'] as num?)?.toDouble() ?? 0;
+    final subtotal = (widget.order['subtotal'] as num?)?.toDouble() ?? total;
     final deliveryFee =
-        (widget.order['delivery_fee'] as num?)
-                ?.toDouble() ??
-            0;
-
+        (widget.order['delivery_fee'] as num?)?.toDouble() ?? 0;
     return Scaffold(
       appBar: AppBar(
         title: Text(
           '#${_shortOrderId(orderId)}',
-          style: const TextStyle(
-            fontWeight: FontWeight.w800,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.w800),
         ),
       ),
       body: _buildBody(
@@ -632,72 +566,44 @@ class _OwnerOrderDetailsScreenState
     required double deliveryFee,
     required double total,
   }) {
-    if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
-    }
-
+    if (_isLoading) return const Center(child: CircularProgressIndicator());
     if (_error != null) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text(
-            _error!,
-            textAlign: TextAlign.center,
-          ),
+          child: Text(_error!, textAlign: TextAlign.center),
         ),
       );
     }
-
     return ListView(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        20,
-        20,
-        32,
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
       children: [
         _buildStatusCard(),
-
-        if (widget.order['fulfillment_type']?.toString() == 'pickup') _buildPickupPaymentCard(),
-
+        if (widget.order['fulfillment_type']?.toString().toLowerCase() ==
+            'pickup')
+          _buildPickupPaymentCard(),
         const SizedBox(height: 24),
-
         const Text(
           'Order Items',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-          ),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
         ),
-
         const SizedBox(height: 12),
-
         if (_items.isEmpty)
           const Card(
             child: Padding(
               padding: EdgeInsets.all(20),
-              child: Text(
-                'No order items found.',
-              ),
+              child: Text('No order items found.'),
             ),
           )
         else
-          ..._items.map(
-            (item) => _buildItemCard(item),
-          ),
-
+          ..._items.map((item) => _buildItemCard(item)),
         const SizedBox(height: 24),
-
         _buildSummaryCard(
           subtotal: subtotal,
           deliveryFee: deliveryFee,
           total: total,
         ),
-
         const SizedBox(height: 24),
-
         _buildActionButtons(),
       ],
     );
@@ -707,90 +613,120 @@ class _OwnerOrderDetailsScreenState
     final state = _pickupPaymentState ??
         widget.order['pickup_downpayment_status']?.toString() ??
         'pending';
-    final amount = (widget.order['pickup_downpayment_amount'] as num?)?.toDouble() ?? 0;
+    final amount =
+        (widget.order['pickup_downpayment_amount'] as num?)?.toDouble() ?? 0;
     final submitted = state == 'receipt_submitted';
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Pickup Payment', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 6),
-          Text('Downpayment: ₱'+amount.toStringAsFixed(2), style: const TextStyle(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 10),
-          Text('Payment: '+_displayStatus(state), style: const TextStyle(fontWeight: FontWeight.w700)),
-          if (_receiptUrl != null) ...[
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => setState(() => _showReceipt = !_showReceipt),
-                icon: Icon(_showReceipt ? Icons.visibility_off_rounded : Icons.receipt_long_rounded),
-                label: Text(_showReceipt ? 'Hide Receipt' : 'View Receipt'),
-              ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Pickup Payment',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
             ),
-            if (_showReceipt) ...[
-              const SizedBox(height: 10),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  _receiptUrl!,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Text('Unable to load receipt.'),
+            const SizedBox(height: 6),
+            Text(
+              'Downpayment: ₱${amount.toStringAsFixed(2)}',
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Payment: ${_displayStatus(state)}',
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            if (_receiptUrl != null) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () =>
+                      setState(() => _showReceipt = !_showReceipt),
+                  icon: Icon(
+                    _showReceipt
+                        ? Icons.visibility_off_rounded
+                        : Icons.receipt_long_rounded,
+                  ),
+                  label: Text(
+                    _showReceipt ? 'Hide Receipt' : 'View Receipt',
+                  ),
                 ),
               ),
+              if (_showReceipt) ...[
+                const SizedBox(height: 10),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    _receiptUrl!,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) =>
+                        const Text('Unable to load receipt.'),
+                  ),
+                ),
+              ],
             ],
+            if (submitted) ...[
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed:
+                          _isUpdating ? null : _rejectPickupReceipt,
+                      icon: const Icon(Icons.close_rounded),
+                      label: const Text('Reject'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed:
+                          _isUpdating ? null : _confirmPickupReceipt,
+                      icon: const Icon(Icons.check_rounded),
+                      label: const Text('Accept'),
+                    ),
+                  ),
+                ],
+              ),
+            ] else if (state == 'receipt_rejected')
+              const Padding(
+                padding: EdgeInsets.only(top: 10),
+                child: Text(
+                  'Waiting for customer to upload a new receipt.',
+                ),
+              ),
           ],
-          if (submitted) ...[
-            const SizedBox(height: 14),
-            Row(children: [
-              Expanded(child: OutlinedButton.icon(onPressed: _isUpdating ? null : _rejectPickupReceipt, icon: const Icon(Icons.close_rounded), label: const Text('Reject'))),
-              const SizedBox(width: 10),
-              Expanded(child: ElevatedButton.icon(onPressed: _isUpdating ? null : _confirmPickupReceipt, icon: const Icon(Icons.check_rounded), label: const Text('Accept'))),
-            ]),
-          ] else if (state == 'receipt_rejected')
-            const Padding(padding: EdgeInsets.only(top: 10), child: Text('Waiting for customer to upload a new receipt.')),
-        ]),
+        ),
       ),
     );
   }
 
   Widget _buildStatusCard() {
     final color = _statusColor(_status);
-
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
               'Current Status',
               style: TextStyle(
                 fontSize: 13,
-                color:
-                    HalalFoodTheme.textSecondary,
+                color: HalalFoodTheme.textSecondary,
               ),
             ),
             const SizedBox(height: 10),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 9,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
               decoration: BoxDecoration(
-                color:
-                    color.withValues(alpha: 0.10),
-                borderRadius:
-                    BorderRadius.circular(20),
+                color: color.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
                 _displayStatus(_status),
-                style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.w800,
-                ),
+                style: TextStyle(color: color, fontWeight: FontWeight.w800),
               ),
             ),
           ],
@@ -799,28 +735,12 @@ class _OwnerOrderDetailsScreenState
     );
   }
 
-  Widget _buildItemCard(
-    Map<String, dynamic> item,
-  ) {
-    final name =
-        item['item_name']?.toString() ??
-            'Item';
-
-    final quantity =
-        (item['quantity'] as num?)
-                ?.toInt() ??
-            0;
-
-    final unitPrice =
-        (item['unit_price'] as num?)
-                ?.toDouble() ??
-            0;
-
+  Widget _buildItemCard(Map<String, dynamic> item) {
+    final name = item['item_name']?.toString() ?? 'Item';
+    final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
+    final unitPrice = (item['unit_price'] as num?)?.toDouble() ?? 0;
     final itemSubtotal =
-        (item['subtotal'] as num?)
-                ?.toDouble() ??
-            quantity * unitPrice;
-
+        (item['subtotal'] as num?)?.toDouble() ?? quantity * unitPrice;
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       child: Padding(
@@ -831,38 +751,29 @@ class _OwnerOrderDetailsScreenState
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                color:
-                    HalalFoodTheme.primaryGreen
-                        .withValues(alpha: 0.10),
-                borderRadius:
-                    BorderRadius.circular(12),
+                color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(
                 Icons.restaurant_menu_rounded,
-                color:
-                    HalalFoodTheme.primaryGreen,
+                color: HalalFoodTheme.primaryGreen,
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '$quantity × ₱${unitPrice.toStringAsFixed(2)}',
                     style: const TextStyle(
                       fontSize: 12,
-                      color:
-                          HalalFoodTheme
-                              .textSecondary,
+                      color: HalalFoodTheme.textSecondary,
                     ),
                   ),
                 ],
@@ -870,9 +781,7 @@ class _OwnerOrderDetailsScreenState
             ),
             Text(
               '₱${itemSubtotal.toStringAsFixed(2)}',
-              style: const TextStyle(
-                fontWeight: FontWeight.w800,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.w800),
             ),
           ],
         ),
@@ -885,6 +794,15 @@ class _OwnerOrderDetailsScreenState
     required double deliveryFee,
     required double total,
   }) {
+    final isPickup =
+        widget.order['fulfillment_type']?.toString().toLowerCase() == 'pickup';
+    final promoDiscount =
+        (widget.order['promo_discount'] as num?)?.toDouble() ?? 0;
+    final balance =
+        (total - _gcashDownpaymentPaid - _cashPickupPaid)
+            .clamp(0, double.infinity)
+            .toDouble();
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -892,27 +810,41 @@ class _OwnerOrderDetailsScreenState
           children: [
             _SummaryRow(
               label: 'Subtotal',
-              value:
-                  '₱${(widget.order['fulfillment_type']?.toString().toLowerCase() == 'pickup' ? total : subtotal).toStringAsFixed(2)}',
+              value: '₱${subtotal.toStringAsFixed(2)}',
             ),
+            if (promoDiscount > 0) ...[
+              const SizedBox(height: 10),
+              _SummaryRow(
+                label: 'Promo',
+                value: '-₱${promoDiscount.toStringAsFixed(2)}',
+              ),
+            ],
             const SizedBox(height: 10),
-            if (widget.order['fulfillment_type']?.toString().toLowerCase() == 'pickup') ...[
-              _SummaryRow(label: 'GCash Downpayment', value: '-₱' + _gcashDownpaymentPaid.toStringAsFixed(2)),
+            if (isPickup) ...[
+              _SummaryRow(
+                label: 'GCash Downpayment',
+                value: '-₱${_gcashDownpaymentPaid.toStringAsFixed(2)}',
+              ),
               const SizedBox(height: 10),
-              _SummaryRow(label: 'Cash for Pickup', value: '-₱' + _cashPickupPaid.toStringAsFixed(2)),
-              const SizedBox(height: 10),
+              _SummaryRow(
+                label: 'Cash for Pickup',
+                value: '-₱${_cashPickupPaid.toStringAsFixed(2)}',
+              ),
             ] else ...[
               _SummaryRow(
                 label: 'Delivery Fee',
-                value: '₱' + deliveryFee.toStringAsFixed(2),
+                value: '₱${deliveryFee.toStringAsFixed(2)}',
               ),
             ],
             const Padding(
-              padding:
-                  EdgeInsets.symmetric(vertical: 14),
+              padding: EdgeInsets.symmetric(vertical: 14),
               child: Divider(),
             ),
-            _SummaryRow(label: 'Balance', value: '₱' + (total - _gcashDownpaymentPaid - _cashPickupPaid).clamp(0, double.infinity).toStringAsFixed(2), isTotal: true),
+            _SummaryRow(
+              label: 'Balance',
+              value: '₱${balance.toStringAsFixed(2)}',
+              isTotal: true,
+            ),
           ],
         ),
       ),
@@ -922,13 +854,10 @@ class _OwnerOrderDetailsScreenState
   Widget _buildActionButtons() {
     final isPickup =
         widget.order['fulfillment_type']?.toString().toLowerCase() == 'pickup';
-
     if (isPickup) {
-      final pickupPaymentState =
-          _pickupPaymentState ??
+      final pickupPaymentState = _pickupPaymentState ??
           widget.order['pickup_downpayment_status']?.toString() ??
           'pending';
-
       if (pickupPaymentState != 'paid' && _status.toLowerCase() == 'pending') {
         return const Card(
           child: Padding(
@@ -948,14 +877,14 @@ class _OwnerOrderDetailsScreenState
           ),
         );
       }
-
       switch (_status.toLowerCase()) {
         case 'confirmed':
           return SizedBox(
             width: double.infinity,
             height: 54,
             child: ElevatedButton.icon(
-              onPressed: _isUpdating ? null : () => _updateStatus('preparing'),
+              onPressed:
+                  _isUpdating ? null : () => _updateStatus('preparing'),
               icon: const Icon(Icons.restaurant_rounded),
               label: const Text(
                 'Preparing',
@@ -963,7 +892,6 @@ class _OwnerOrderDetailsScreenState
               ),
             ),
           );
-
         case 'preparing':
           return SizedBox(
             width: double.infinity,
@@ -979,7 +907,6 @@ class _OwnerOrderDetailsScreenState
               ),
             ),
           );
-
         case 'ready':
         case 'ready_to_pick_up':
           if (_pickupFinalPaymentPaid) {
@@ -987,9 +914,8 @@ class _OwnerOrderDetailsScreenState
               width: double.infinity,
               height: 54,
               child: ElevatedButton.icon(
-                onPressed: _isUpdating
-                    ? null
-                    : () => _updateStatus('claimed'),
+                onPressed:
+                    _isUpdating ? null : () => _updateStatus('claimed'),
                 icon: const Icon(Icons.done_all_rounded),
                 label: const Text(
                   'Claimed',
@@ -1010,11 +936,9 @@ class _OwnerOrderDetailsScreenState
               ),
             ),
           );
-
         case 'full_payment':
         case 'payment_due':
-          return SizedBox.shrink();
-
+          return const SizedBox.shrink();
         case 'claimed':
         case 'picked_up':
         case 'pickedup':
@@ -1035,7 +959,6 @@ class _OwnerOrderDetailsScreenState
               ),
             ),
           );
-
         default:
           return const SizedBox.shrink();
       }
@@ -1049,122 +972,82 @@ class _OwnerOrderDetailsScreenState
           child: ElevatedButton.icon(
             onPressed: _isUpdating
                 ? null
-                : () => _updateStatus(
-                      'preparing',
-                    ),
+                : () => _updateStatus('preparing'),
             icon: _isUpdating
                 ? const SizedBox(
                     width: 18,
                     height: 18,
-                    child:
-                        CircularProgressIndicator(
-                      strokeWidth: 2,
-                    ),
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(
-                    Icons.restaurant_rounded,
-                  ),
+                : const Icon(Icons.restaurant_rounded),
             label: const Text(
               'Accept & Start Preparing',
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-              ),
+              style: TextStyle(fontWeight: FontWeight.w800),
             ),
           ),
         );
-
       case 'preparing':
         return SizedBox(
           width: double.infinity,
           height: 54,
           child: ElevatedButton.icon(
-            onPressed: _isUpdating
-                ? null
-                : () => _updateStatus(
-                      'ready',
-                    ),
-            icon: const Icon(
-              Icons.check_circle_outline_rounded,
-            ),
+            onPressed: _isUpdating ? null : () => _updateStatus('ready'),
+            icon: const Icon(Icons.check_circle_outline_rounded),
             label: const Text(
               'Mark as Ready',
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-              ),
+              style: TextStyle(fontWeight: FontWeight.w800),
             ),
           ),
         );
-
       case 'ready':
         return SizedBox(
           width: double.infinity,
           height: 54,
           child: ElevatedButton.icon(
-            onPressed: _isUpdating
-                ? null
-                : () => _updateStatus(
-                      'delivered',
-                    ),
-            icon: const Icon(
-              Icons.done_all_rounded,
-            ),
+            onPressed: _isUpdating ? null : () => _updateStatus('delivered'),
+            icon: const Icon(Icons.done_all_rounded),
             label: const Text(
               'Mark as Completed',
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-              ),
+              style: TextStyle(fontWeight: FontWeight.w800),
             ),
           ),
         );
-
       case 'completed':
         return const Card(
           child: Padding(
             padding: EdgeInsets.all(18),
             child: Row(
               children: [
-                Icon(
-                  Icons.check_circle_rounded,
-                  color: Colors.green,
-                ),
+                Icon(Icons.check_circle_rounded, color: Colors.green),
                 SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     'This order has been completed.',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
               ],
             ),
           ),
         );
-
       case 'cancelled':
         return const Card(
           child: Padding(
             padding: EdgeInsets.all(18),
             child: Row(
               children: [
-                Icon(
-                  Icons.cancel_rounded,
-                  color: Colors.red,
-                ),
+                Icon(Icons.cancel_rounded, color: Colors.red),
                 SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     'This order has been cancelled.',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
               ],
             ),
           ),
         );
-
       default:
         return const SizedBox.shrink();
     }
@@ -1203,9 +1086,7 @@ class _SummaryRow extends StatelessWidget {
             label,
             style: TextStyle(
               fontSize: isTotal ? 16 : 13,
-              fontWeight: isTotal
-                  ? FontWeight.w800
-                  : FontWeight.w500,
+              fontWeight: isTotal ? FontWeight.w800 : FontWeight.w500,
               color: isTotal
                   ? HalalFoodTheme.textPrimary
                   : HalalFoodTheme.textSecondary,
