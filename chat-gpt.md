@@ -1,3 +1,13 @@
+### 2026-09-21 — Fixed Pickup Downpayment checkout analyzer error
+
+- **User test:** `flutter analyze` found one blocking error in `lib/features/checkout/screens/checkout_screen.dart`: `pickupDownpayment` was referenced inside `_placeOrder()` but had only been declared in the build scope.
+- **Fix:** Moved/recomputed the pickup downpayment inside `_placeOrder()`, using the cart subtotal after the selected promo discount and the configured pickup percentage.
+- **Other analyzer output:** Existing informational interpolation suggestions in `promo_code_repository.dart` and `home_screen.dart`, plus the pre-existing unused `_NoAddressView` warning, were not changed because they are unrelated to the blocking error.
+- **Testing:** Code fix committed. User should pull and rerun `flutter analyze`; no claim of a clean analyzer result until user confirms.
+- **Commit:** `16700a4e9ab907d00bfc123572c67a6ba0d070f1`.
+- **Current stopping point:** Blocking analyzer error from the pickup downpayment edit is fixed.
+- **Next task:** `git pull`, rerun `flutter analyze`, then report the result before we continue pickup payment testing.
+
 ### 2026-09-21 — Added configurable Pickup Downpayment foundation
 
 - **User requirement:** Pickup orders require a configurable percentage downpayment; current agreed default is **50%** and the downpayment is **non-refundable** under the pickup no-show rule.
