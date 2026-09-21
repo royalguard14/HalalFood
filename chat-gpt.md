@@ -1,3 +1,15 @@
+### 2026-09-21 — Defined Pickup-specific order lifecycle
+
+- **Important business rule:** Pickup orders have a different order-status flow from Delivery orders and must not reuse the Delivery lifecycle blindly.
+- **Pickup order lifecycle:** **Order Placed → Confirmed → Preparing → Ready to Pick Up → Full Payment → Claimed**.
+- **Downpayment/receipt is a payment gate, not the final Pickup lifecycle:** The initial Pickup downpayment is handled through the manual GCash receipt workflow. Owner receipt acceptance makes the downpayment paid and allows the order to proceed into **Preparing**.
+- **Full payment:** After the order reaches **Ready to Pick Up**, the remaining balance must be collected before the customer can claim the order.
+- **Final Pickup state:** After the customer has paid the remaining balance and physically receives the order, the order becomes **Claimed**.
+- **Delivery is different:** Delivery will have its own lifecycle and should not be changed to use Pickup-specific states such as **Ready to Pick Up** or **Claimed**.
+- **Implementation note for next work:** When editing order-status transitions, UI labels, Owner action buttons, Customer order tracking, payment handling, or database status rules, always branch by `fulfillment_type` so Pickup and Delivery workflows remain separate.
+- **Current stopping point:** This lifecycle is now part of the project requirements/documentation. No code change for these final lifecycle states has been made yet.
+- **Next relevant implementation:** Continue the Owner Pickup UI fix first (immediate Accept/Reject state update). After that, implement/test the remaining Pickup lifecycle states according to the sequence above.
+
 ### 2026-09-21 — Owner Pickup Receipt acceptance/rejection test and next UI fix
 
 - **Latest runtime test:** Customer Pickup order → GCash receipt upload → Owner receipt review is working. Owner can see the submitted receipt image.
