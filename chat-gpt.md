@@ -1,3 +1,13 @@
+### 2026-09-21 — Fixed Customer Pickup Tracking final step
+
+- **User finding:** Customer → My Orders → Order Details showed the order header as delivered/completed, but **Pickup Tracking** still highlighted **Order Placed**.
+- **Root cause:** Customer _normalizeStatus() maps database `completed` to the Delivery terminal state `delivered`. The Pickup _statusIndex() then did not recognize that normalized value and fell back to index 0.
+- **Fix:** In `lib/features/order/screens/order_details_screen.dart`, Pickup _statusIndex() now checks the raw order status first. `completed` and `delivered` both map to the final Pickup step **Claimed**.
+- **Result:** A completed Pickup order now highlights **Claimed** in Customer Order Details instead of **Order Placed**.
+- **Commit:** 22e47a88e9e33bab8d3155c9fe2151f369a8ab5d
+- **Testing status:** Not runtime-tested.
+- **Next exact test:** git pull → Customer → My Orders → open the same completed Pickup order → verify **Pickup Tracking** highlights **Claimed**, while the top order status remains correct.
+
 ### 2026-09-21 — Fixed Owner Dashboard Pickup completed tile showing Order Placed
 
 - **User finding:** On **Owner Dashboard → Recent Orders → Order Tile**, a Pickup order that was already completed/claimed could still show **Order Placed** and **Track Order**.
