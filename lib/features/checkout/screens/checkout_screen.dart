@@ -46,6 +46,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   double? _deliveryDistanceKm;
   double? _deliveryFee;
+  double? _maximumDeliveryDistanceKm;
   double _pickupDownpaymentPercent = 50.0;
 
   List<PromoCode> _availablePromos = const [];
@@ -63,6 +64,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         _addressRepository.getAddresses();
 
     _loadRestaurant();
+    _loadMaximumDeliveryDistance();
     _loadPickupDownpaymentPercent();
     _loadPromos();
   }
@@ -135,6 +137,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         _selectDefaultAddress(addresses);
         if (mounted) setState(() {});
       });
+    }
+  }
+
+  Future<void> _loadMaximumDeliveryDistance() async {
+    try {
+      final value = await _restaurantRepository.getCustomerRestaurantRadiusKm();
+      if (!mounted) return;
+      setState(() => _maximumDeliveryDistanceKm = value);
+    } catch (_) {
+      // Keep Delivery unavailable until the configured limit is known.
     }
   }
 
@@ -232,10 +244,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         longitude2: restaurant.longitude!,
       );
 
-      final fee =
-          DistanceUtils.deliveryFee(
-        distanceKm: distance,
-      );      if (!mounted) {
+      final maximumDistance = _maximumDeliveryDistanceKm;
+      final isWithinDeliveryRange = maximumDistance != null &&
+          maximumDistance > 0 &&
+          distance <= maximumDistance;
+
+      final fee = isWithinDeliveryRange
+          ? DistanceUtils.deliveryFee(
+              distanceKm: distance,
+            )
+          : double.infinity;      if (!mounted) {
         return;
       }
 
@@ -413,6 +431,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
+  bool get _deliveryAvailable {
+    final distance = _deliveryDistanceKm;
+    final maximum = _maximumDeliveryDistanceKm;
+    if (distance == null || maximum == null || maximum <= 0) return false;
+    return distance <= maximum;
+  }
+
+  String get _deliveryUnavailableMessage {
+    final distance = _deliveryDistanceKm;
+    final maximum = _maximumDeliveryDistanceKm;
+    if (distance != null && maximum != null && maximum > 0) {
+      return 'This restaurant is ' + distance.toStringAsFixed(2) +
+          ' km away. Delivery is available only within ' +
+          maximum.toStringAsFixed(2) + ' km. Pick-up is available.';
+    }
+    return 'Delivery availability is being checked. Pick-up is available.';
+  }
+
   // ============================================================
   // ADDRESS DISPLAY
   // ============================================================
@@ -528,12 +564,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           value: 'delivery',
                           title: Text(
                             'Delivery',
-                            style: TextStyle(fontWeight: FontWeight.w800),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: _deliveryAvailable ? null : Colors.grey,
+                            ),
                           ),
                           subtitle: Text(
-                            'Have your order delivered to your saved address.',
+                            _deliveryAvailable
+                                ? 'Have your order delivered to your saved address.'
+                                : _deliveryUnavailableMessage,
                           ),
-                          secondary: Icon(Icons.delivery_dining_outlined),
+                          secondary: const Icon(Icons.delivery_dining_outlined),
+                          onChanged: _deliveryAvailable
+                              ? (value) => _selectFulfillment(value)
+                              : null,
                         ),
                       ],
                     ),
