@@ -1,3 +1,14 @@
+### 2026-09-21 — Fixed Promo/Coupon order placement database error
+
+- **User-reported error:** Customer could select a promo, but Place Order failed with PostgreSQL error `42702` because `promo_code_id` was ambiguous inside `public.claim_promo_code()`.
+- **Root cause:** The function returns a column named `promo_code_id`, which is also a column name in `promo_redemptions`; unqualified references could be resolved as either the PL/pgSQL output variable or table column.
+- **Supabase fix:** Updated `public.claim_promo_code(uuid, text)` directly in project `taltqnxhivpfwjqlvxnt`. Qualified `promo_redemptions` references with alias `pr` and qualified `orders` references with alias `o` in the final update.
+- **Verification:** Re-read the live function definition from Supabase after replacement; the corrected qualified references are present and the function compiles successfully.
+- **GitHub documentation:** Updated `supabase/customer_checkout_promo_codes.sql` to match the live function.
+- **No Flutter code change:** The Place Order client flow remains unchanged.
+- **Testing:** User should `git pull` and retry the same Checkout → Place Order flow with the selected promo. Confirm order succeeds and promo redemption is recorded.
+- **Current stopping point:** Promo selection is confirmed working; Place Order was blocked by this backend ambiguity and is now fixed. Do not move to C8.5/C8.6 until the user confirms Place Order succeeds.
+- **Next action:** User runs `git pull`, retries Place Order with the promo, then reports **goods** or the exact new error.
 ### 2026-09-21 — Fixed Promo/Coupon dropdown selection
 
 - **Issue:** User reported that the new Promo/Coupon dropdown was visible but promo options could not be selected.
