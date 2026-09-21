@@ -1,3 +1,14 @@
+### 2026-09-21 — Removed redundant Customer Home nearby notice
+
+- **File changed:** `lib/features/home/screens/home_screen.dart`
+- **Reason:** The Home screen already has the **Nearby Restaurants** section and restaurant list below it, so the separate `Nearby restaurants / Showing restaurants...` notice was redundant.
+- **Fix:** Removed the delivery-radius/address notice block from Customer Home.
+- **Behavior:** The restaurant list remains visible regardless of delivery distance; delivery eligibility is handled separately in Checkout.
+- **Supabase changes:** None.
+- **Testing:** GitHub change committed; runtime verification pending.
+- **Commit:** `e8e7460ae06233d25772c7cd28331e71ee5a8d35`
+- **Next task:** `git pull` and visually verify Customer Home now goes directly to the restaurant list without the redundant notice.
+
 ### 2026-09-21 — Fixed Checkout analyzer error after Delivery disabling edit
 
 - **User test:** `flutter analyze` found 1 blocking error in `checkout_screen.dart` plus non-blocking infos/warnings.
