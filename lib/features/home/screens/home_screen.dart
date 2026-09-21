@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme.dart';
-import '../../../core/utils/distance_utils.dart';
 import '../../address/data/address_model.dart';
 import '../../address/data/address_repository.dart';
 import '../../category/data/food_category_model.dart';
