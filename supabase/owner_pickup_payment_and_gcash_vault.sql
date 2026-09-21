@@ -77,7 +77,7 @@ begin
 
   select coalesce(sum(p.amount), 0) into v_paid
   from public.payments p
-  where p.order_id = p_order_id and p.status = 'paid';
+  where p.order_id = p_order_id and p.status = 'paid'::public.payment_status;
 
   if p_stage = 'downpayment' then
     if v_order.status <> 'pending' then raise exception 'Downpayment can only be confirmed while the order is awaiting confirmation.'; end if;
@@ -89,8 +89,8 @@ begin
     select p.* into v_existing_payment
     from public.payments p
     where p.order_id = p_order_id
-      and p.status = 'pending'
-      and p.payment_method = 'online'
+      and p.status = 'pending'::public.payment_status
+      and p.payment_method = 'online'::public.payment_method
     order by p.created_at asc
     limit 1
     for update;
@@ -99,8 +99,8 @@ begin
 
     update public.payments
     set amount = p_amount,
-        payment_method = 'gcash',
-        status = 'paid',
+        payment_method = 'gcash'::public.payment_method,
+        status = 'paid'::public.payment_status,
         transaction_reference = nullif(trim(coalesce(p_reference, '')), ''),
         paid_at = now(),
         updated_at = now()
@@ -111,7 +111,10 @@ begin
         pickup_downpayment_amount = p_amount,
         pickup_downpayment_percent = case when v_order.total_amount > 0 then round((p_amount / v_order.total_amount) * 100, 2) else 100 end,
         status = 'confirmed',
-        payment_status = case when p_amount >= v_order.total_amount - 0.005 then 'paid' else 'pending' end,
+        payment_status = case
+          when p_amount >= v_order.total_amount - 0.005 then 'paid'::public.payment_status
+          else 'pending'::public.payment_status
+        end,
         updated_at = now()
     where id = p_order_id;
 
@@ -120,7 +123,7 @@ begin
 
   elsif p_stage = 'final' then
     if v_order.status <> 'ready' then raise exception 'Final payment can only be recorded when the order is Ready to Pick Up.'; end if;
-    if p_payment_method not in ('cash', 'gcash') then raise exception 'Final payment method must be cash or gcash.'; end if;
+    if p_payment_method <> 'cash_on_delivery' then raise exception 'Final pickup payment must be cash.'; end if;
 
     v_new_total := v_paid + p_amount;
 
@@ -132,10 +135,18 @@ begin
     end if;
 
     insert into public.payments (order_id,customer_id,amount,payment_method,status,paid_at,notes)
-    values (p_order_id,v_order.customer_id,p_amount,p_payment_method,'paid',now(),'Pickup final payment');
+    values (
+      p_order_id,
+      v_order.customer_id,
+      p_amount,
+      'cash_on_delivery'::public.payment_method,
+      'paid'::public.payment_status,
+      now(),
+      'Pickup final cash payment'
+    );
 
     update public.orders
-    set payment_status = 'paid', updated_at = now()
+    set payment_status = 'paid'::public.payment_status, updated_at = now()
     where id = p_order_id;
 
     v_remaining := 0;
@@ -146,7 +157,6 @@ begin
   return jsonb_build_object('order_id',p_order_id,'stage',p_stage,'paid_total',v_new_total,'order_total',v_order.total_amount,'remaining',v_remaining);
 end;
 $$;
-
 revoke execute on function public.record_owner_pickup_payment(uuid,text,numeric,text,text) from public, anon;
 grant execute on function public.record_owner_pickup_payment(uuid,text,numeric,text,text) to authenticated;
 
