@@ -1,3 +1,13 @@
+### 2026-09-21 — Fixed Supabase Storage policy blocking Owner receipt image
+
+- **User test finding:** Owner still showed `Payment: Receipt Submitted` but no receipt photo.
+- **Verified database:** The submitted order has a valid `pickup_receipt_path`, and the corresponding JPG exists in the private `payment-receipts` Storage bucket.
+- **Root cause:** The Storage SELECT policy `Owners view pickup receipts` used the wrong folder expression: it checked `storage.foldername(r.name)[1]` instead of the uploaded object's path `storage.foldername(objects.name)[1]`. Therefore the Owner could not create a signed URL for the receipt even though the file existed.
+- **Supabase fix:** Replaced the Owner receipt SELECT policy so it matches the order ID from the Storage object's folder and verifies that the restaurant belongs to the authenticated Owner.
+- **Migration:** `fix_owner_pickup_receipt_storage_policy` applied successfully.
+- **Current stopping point:** Backend Storage access is now corrected. Do not Accept/Reject yet.
+- **Next task:** `git pull`, restart the app, open the same Owner pickup order, and check whether the receipt photo is now visible.
+
 ### 2026-09-21 — Fixed Owner receipt loading to refresh receipt path directly
 
 - **User test finding:** Owner still showed `Payment: Receipt Submitted` but no receipt image after the dashboard query was updated.
