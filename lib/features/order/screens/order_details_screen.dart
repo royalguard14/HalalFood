@@ -305,9 +305,17 @@ class _OrderDetailsScreenState
   }
 
   int _statusIndex() {
+    final rawStatus = _currentOrder.status.trim().toLowerCase();
+    final isPickup = _currentOrder.fulfillmentType == 'pickup';
     final status = _normalizeStatus(_currentOrder.status);
 
-    if (_currentOrder.fulfillmentType == 'pickup') {
+    if (isPickup) {
+      // Pickup uses "claimed" as its terminal tracking step.
+      // Final records may be stored as "completed" or "delivered".
+      if (rawStatus == 'completed' || rawStatus == 'delivered') {
+        return 5;
+      }
+
       switch (status) {
         case 'placed':
           return 0;
