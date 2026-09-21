@@ -140,8 +140,8 @@ begin
 
   select count(*)::integer
   into v_usage_count
-  from public.promo_redemptions
-  where promo_code_id = v_promo.id;
+  from public.promo_redemptions pr
+  where pr.promo_code_id = v_promo.id;
 
   if v_promo.usage_limit is not null and v_usage_count >= v_promo.usage_limit then
     raise exception 'This promo code has reached its usage limit.';
@@ -149,9 +149,9 @@ begin
 
   if exists (
     select 1
-    from public.promo_redemptions
-    where promo_code_id = v_promo.id
-      and customer_id = v_user_id
+    from public.promo_redemptions pr
+    where pr.promo_code_id = v_promo.id
+      and pr.customer_id = v_user_id
   ) then
     raise exception 'You have already used this promo code.';
   end if;
@@ -185,12 +185,12 @@ begin
     v_discount
   );
 
-  update public.orders
+  update public.orders o
   set promo_code_id = v_promo.id,
       promo_discount = v_discount,
-      total_amount = greatest(0, subtotal + delivery_fee - v_discount),
+      total_amount = greatest(0, o.subtotal + o.delivery_fee - v_discount),
       updated_at = now()
-  where id = v_order.id;
+  where o.id = v_order.id;
 
   return query
   select v_promo.id, v_discount;
