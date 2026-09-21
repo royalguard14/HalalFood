@@ -16,3 +16,10 @@
 - Downpayment is based on actual approved/paid GCash payment.
 - Ready to Pick Up shows the remaining Cash Balance.
 - File: `lib/features/order/screens/order_details_screen.dart`
+
+
+## 2026-09-21 — Owner Dashboard Pickup Recent Orders Filter
+- Owner Dashboard > Recent Orders keeps Pickup orders hidden while no receipt has been uploaded/requested for approval.
+- Pickup orders are shown once `pickup_downpayment_status` is `receipt_submitted` or `paid`.
+- Dashboard order query now also passes `subtotal`, `promo_discount`, and `delivery_fee` to Owner Order Details so the payment summary has the original order breakdown available.
+- Code commit: `dccf27aa52ce11d30ff336efefccee60af705c4d`.
