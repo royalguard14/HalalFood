@@ -1,3 +1,16 @@
+### 2026-09-21 — Fixed Customer restaurant visibility beyond delivery radius
+
+- **User finding:** With Maximum Delivery Distance set to 10 km, Customer Home showed no restaurants. This conflicted with the required fulfillment rule.
+- **Required behavior:** Restaurants must remain visible regardless of distance. Restaurants within the configured maximum support Delivery + Pickup; restaurants beyond it remain visible for Pickup only.
+- **File changed:** `lib/features/home/screens/home_screen.dart`
+- **Fix:** Removed the Customer Home distance-based restaurant filtering. Search and category filtering remain unchanged. Distance/radius data is no longer used to exclude restaurants from discovery.
+- **Delivery enforcement:** Existing server-side delivery-distance validation in checkout remains authoritative, so Delivery cannot bypass the configured maximum. Pickup remains available without the delivery-distance restriction.
+- **Supabase changes:** None.
+- **Testing:** Code change committed. Runtime verification pending.
+- **Commit:** `0967bf6707aef234cd6cc89f7220b7894bab70bb`
+- **Current stopping point:** Customer Home now keeps restaurants visible beyond the maximum delivery distance.
+- **Next task:** User should `git pull`, open Customer Home with Maximum Delivery Distance = 10 km, and confirm restaurants beyond 10 km are visible. Then test that a far restaurant offers Pickup while Delivery is unavailable.
+
 ### 2026-09-21 — Fixed Pickup Downpayment checkout analyzer error
 
 - **User test:** `flutter analyze` found one blocking error in `lib/features/checkout/screens/checkout_screen.dart`: `pickupDownpayment` was referenced inside `_placeOrder()` but had only been declared in the build scope.
