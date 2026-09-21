@@ -104,9 +104,11 @@ class _OwnerOrderDetailsScreenState
         ],
       ),
     );
-    controller.dispose();
     if (reason == null || !mounted) return;
     await _updatePickupPayment('receipt_rejected', reason: reason);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.dispose();
+    });
   }
 
   Future<void> _updatePickupPayment(String state, {String? reason}) async {
