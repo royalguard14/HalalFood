@@ -1,3 +1,17 @@
+### 2026-09-21 — Pickup realtime + payment corrections
+
+- Fixed **Owner Dashboard realtime order updates**: new/submitted restaurant orders now trigger an automatic dashboard reload; no manual refresh should be required.
+- Fixed **Customer Orders tile realtime updates**: changes to the customer's orders, including pickup receipt submission/status changes, trigger an automatic list reload.
+- Final Pickup payment is now **Cash only**. Removed the GCash choice from the Owner Full Payment dialog and the database RPC rejects non-cash final payments.
+- Final cash payment uses the existing database-supported payment method value **cash_on_delivery** instead of invalid `cash`, fixing the `payments_method_check` error.
+- Pickup downpayment acceptance now allows the Owner to record **any amount above 0 up to 100% of the order total**, rather than forcing exactly the configured 50% amount.
+- If the Owner records **100% of the order total** as the initial GCash downpayment, the order is immediately marked fully paid; the later Ready to Pick Up step can proceed directly to Claimed without another payment.
+- The actual accepted downpayment amount and percentage are saved back to the same order. Final payment remains linked to the same `order_id`, and under/over-payment validation remains enforced.
+- Live Supabase function `record_owner_pickup_payment` updated and repo SQL documentation updated.
+- Commits: Owner details `b715849055424b91e757df889220910a69fe0387`; Owner realtime `a6726cd600a44e545c0ef8f75224ea719ae57996`; Customer realtime `ac9e74414a319a7d9e152f2bc7425f6a7b1a5b8d`; SQL `1b3283472f75be365ce3e61b79391b1ee8080426`.
+- **Testing status:** not runtime-tested after these edits.
+- **Next exact test:** `git pull` → create one fresh Pickup order → submit receipt → verify Customer Orders tile updates without refresh AND Owner Dashboard shows the submitted order without refresh. Then Owner Accept → enter an amount up to the full order total + reference → verify status becomes Confirmed and Preparing button appears. For final payment, verify dialog shows **Cash only**, then enter exactly the remaining balance and confirm it succeeds.
+
 ### 2026-09-21 — Pickup payment recording + Owner GCash Vault
 
 - **User-required Pickup flow:** **For Confirmation → Accept → Confirmed → Preparing → Ready to Pick Up → Full Payment → Claimed**.
