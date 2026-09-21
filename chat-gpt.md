@@ -1,27 +1,18 @@
-### 2026-09-21 — Fixed Owner Pickup Promo and Balance Breakdown
-- **User-reported issue:** Owner Pickup Order Details showed the discounted total directly as **₱700**, instead of showing the full breakdown.
-- **Required display for a ₱1,400 order with ₱700 promo:**
-  - Subtotal: **₱1,400**
-  - Promo: **-₱700**
-  - GCash Downpayment: **-₱0** until the receipt/payment is approved
-  - Cash for Pickup: **-₱0** until final pickup payment is recorded
-  - Balance: **₱700**
-- **Fix:** Owner Order Details now reads `promo_discount` separately and displays a **Promo** row. Pickup Subtotal uses the original `subtotal` instead of the already-discounted `total_amount`.
-- Pickup Balance is calculated from the final `total_amount` minus the actual paid GCash and cash payments, so unpaid promo orders correctly show the remaining discounted balance.
-- Delivery summary also now shows the Promo row when a promo discount exists.
-- **File changed:** `lib/features/owner/screens/owner_order_details_screen.dart`
-- **GitHub commit:** a3d94badeb887e8f7b876aaceb4548fbf8d2adcb
-- **Testing status:** Code change committed; runtime test not yet performed.
-- **Next exact test:** `git pull origin main` → open the Owner Order Details for the ₱1,400 / ₱700 promo Pickup order → verify the summary shows **Subtotal ₱1,400 → Promo -₱700 → GCash Downpayment -₱0 → Cash for Pickup -₱0 → Balance ₱700**.
+### 2026-09-21 — Owner Pickup Payment Summary Fixed
+- User reported that the Owner Desktop **Recent Orders** status/tracking and the opened **Payment Summary** were not showing the intended Pickup flow.
+- `lib/features/owner/screens/owner_order_details_screen.dart` was updated directly on `main`.
+- Pickup payment summary now shows: **Subtotal (original)** → **Promo** → **GCash Downpayment (actual paid)** → **Cash for Pickup (actual paid)** → remaining **Balance**.
+- When Pickup status is `Ready to Pick Up` (`orders.status = ready`), the remaining amount is labeled **Cash Balance**.
+- Final cash-payment amount is calculated from the actual paid GCash and actual paid cash records, not from the requested `pickup_downpayment_amount`.
+- The server RPC `record_owner_pickup_payment` remains the final authority and requires the exact remaining balance for final cash payment.
+- Owner Recent Orders tracking code is present in `lib/features/owner/screens/owner_dashboard_screen.dart` with Pickup steps: **For Confirmation → Confirmed → Preparing → Ready to Pick Up → Full Payment → Claimed**. The local app must pull the latest `main` to receive the current dashboard code.
+- **Commit:** `5938b800029a18c3d8983084003c8efc75cbdc95`
+- **Testing status:** Code updated; runtime test still pending.
+- **Next:** `git pull origin main`, run the Owner Desktop, open Recent Orders, verify the Pickup status timeline, then open the order and verify the payment summary and final Cash Balance.
 
-"+"
-### 2026-09-21 — Fixed Customer Pickup Order Summary
-- **Customer-first correction:** Pickup Order Summary now uses the original `subtotal` as **Subtotal**, instead of the discounted `total_amount`.
-- When a pickup promo is applied, the summary shows **Promo** as the difference between original subtotal and discounted `total_amount`.
-- **Downpayment** is shown as ₱0 until `pickup_downpayment_status` is `paid`; only the Owner-approved amount is deducted.
-- When the Pickup order reaches **Ready to Pick Up** (`orders.status = ready`), the summary shows the remaining **Cash Balance**.
-- Cash Balance uses the discounted order total minus the approved GCash downpayment. Once `payment_status = paid`, Cash Balance becomes ₱0.
-- Delivery summary behavior remains unchanged.
-- **File changed:** `lib/features/order/screens/order_details_screen.dart`
-- **Testing status:** Code committed by GitHub Actions; local runtime test still pending.
-- **Next:** `git pull origin main`, run the app, then test the ₱1,400 Pickup order with ₱700 promo through receipt approval and Ready to Pick Up.
+### 2026-09-21 — Previous Customer Pickup Summary Fix
+- Customer Pickup Order Summary uses original `subtotal` as **Subtotal**, not discounted `total_amount`.
+- Promo is shown separately as a negative amount.
+- Downpayment is based on actual approved/paid GCash payment.
+- Ready to Pick Up shows the remaining Cash Balance.
+- File: `lib/features/order/screens/order_details_screen.dart`
