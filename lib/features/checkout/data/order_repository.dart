@@ -7,6 +7,15 @@ class OrderRepository {
   final SupabaseClient _supabase =
       Supabase.instance.client;
 
+  Future<double> getPickupDownpaymentPercent() async {
+    final response = await _supabase.rpc('get_pickup_downpayment_percent');
+    final value = (response as num?)?.toDouble();
+    if (value == null || !value.isFinite || value < 0 || value > 100) {
+      return 50.0;
+    }
+    return value;
+  }
+
   Future<String> createOrder({
     Address? address,
     required String restaurantId,
@@ -16,6 +25,8 @@ class OrderRepository {
     String? notes,
     String fulfillmentType = 'delivery',
     String? promoCode,
+    double pickupDownpaymentPercent = 0,
+    double pickupDownpaymentAmount = 0,
   }) async {
     final user =
         _supabase.auth.currentUser;
@@ -73,6 +84,13 @@ class OrderRepository {
       effectiveDeliveryFee = 0;
     }
 
+    final effectivePickupPercent = fulfillmentType == 'pickup'
+        ? pickupDownpaymentPercent.clamp(0, 100).toDouble()
+        : 0.0;
+    final effectivePickupAmount = fulfillmentType == 'pickup'
+        ? pickupDownpaymentAmount.clamp(0, subtotal).toDouble()
+        : 0.0;
+
     final totalAmount =
         subtotal + effectiveDeliveryFee;
 
@@ -86,6 +104,9 @@ class OrderRepository {
           'subtotal': subtotal,
           'delivery_fee': effectiveDeliveryFee,
           'total_amount': totalAmount,
+          'pickup_downpayment_percent': effectivePickupPercent == 0 ? null : effectivePickupPercent,
+          'pickup_downpayment_amount': effectivePickupAmount,
+          'pickup_downpayment_status': fulfillmentType == 'pickup' ? 'pending' : 'not_required',
           'notes': notes,
         })
         .select('id')
@@ -118,6 +139,17 @@ class OrderRepository {
             'p_code': promoCode.trim(),
           },
         );
+      }
+
+      if (fulfillmentType == 'pickup' && effectivePickupAmount > 0) {
+        await _supabase.from('payments').insert({
+          'order_id': orderId,
+          'customer_id': user.id,
+          'amount': effectivePickupAmount,
+          'payment_method': 'online',
+          'status': 'pending',
+          'notes': 'Pickup downpayment required before restaurant processing. Non-refundable under pickup no-show rule.',
+        });
       }
 
       return orderId;
