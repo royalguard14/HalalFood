@@ -1,3 +1,13 @@
+### 2026-09-21 — Fixed Owner pickup receipt image loading
+
+- **User test finding:** Owner Order Details showed `Payment: Receipt Submitted` but no uploaded receipt image, so the Owner could not manually verify the GCash transaction.
+- **Root cause:** Owner Dashboard loaded recent orders without selecting `pickup_receipt_path`. The order map passed into `OwnerOrderDetailsScreen` therefore had no receipt path, so the private Storage signed URL could not be created.
+- **Fix:** Owner Dashboard order query now includes `pickup_receipt_path`, `pickup_receipt_submitted_at`, and `pickup_receipt_rejection_reason`. This allows Owner Order Details to load the submitted receipt from the private `payment-receipts` bucket.
+- **Supabase changes:** None; existing private Storage/signed-URL workflow is reused.
+- **Commit:** `c05d0ceb445d63b26ad290c885724daa62745970`
+- **Current stopping point:** Owner receipt status is already reaching `Receipt Submitted`; the missing receipt path has been fixed in the dashboard query.
+- **Next task:** `git pull`, run the app, open the same Owner pickup order, and verify the uploaded receipt image is visible. Do not Accept/Reject yet until the image can be manually checked.
+
 ### 2026-09-21 — Removed duplicate checkout implementation
 
 - **Issue:** `checkout_screen.dart` still contained a second copy of the entire checkout implementation beginning at line 2043 (`port 'package:flutter/material.dart';`), causing the 76 analyzer issues.
