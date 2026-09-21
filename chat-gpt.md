@@ -493,3 +493,17 @@
 - **Testing:** Not runtime-tested by ChatGPT. User must pull and test the exact GCash amount-entry flow.
 - **Current stopping point:** The immediate target is the Flutter framework exception while typing the GCash Amount Received.
 - **Next action:** `git pull`, open Owner Pickup → Confirm GCash Downpayment, tap **Amount Received**, type an amount (do not submit yet), and confirm the framework exception no longer appears. Report **goods** or the exact new error before any further edit.
+
+
+### 2026-09-21 — Fixed Owner Pickup GCash payment_status enum error
+
+- **User-reported error:** Owner Pickup → Confirm GCash Downpayment failed with PostgreSQL `42804`: `column "payment_status" is of type public.payment_status but expression is of type text`.
+- **Root cause:** `record_owner_pickup_payment()` used a text `CASE` expression when assigning the `orders.payment_status` enum. The payment fields also relied on implicit enum conversion.
+- **Supabase fix:** Updated the live `public.record_owner_pickup_payment()` function to explicitly cast payment enum values to `public.payment_status` and payment method values to `public.payment_method`.
+- **Behavior preserved:** Flexible GCash downpayment remains allowed up to 100% of the order total; partial payment leaves `payment_status = pending`; full payment sets `payment_status = paid`; final pickup payment remains cash-only.
+- **Verification:** Re-read the live function after the update and confirmed the explicit enum casts are present.
+- **GitHub SQL documentation:** `supabase/owner_pickup_payment_and_gcash_vault.sql` updated to match the live function.
+- **Supabase migration:** `fix_owner_pickup_payment_status_enum_cast`.
+- **GitHub documentation commit:** `34f3a00fd1666db88f09728b87cc8116fdfdbe16`.
+- **Testing:** Not runtime-tested after the database fix.
+- **Next action:** No Flutter code pull is required for this backend-only fix. Repeat **Owner Pickup → Confirm GCash Downpayment → enter Amount Received + Reference Number → Accept Payment**. Report **goods** or the exact new error.
