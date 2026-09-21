@@ -567,39 +567,11 @@ class _HomeContent extends StatelessWidget {
                 customerAddress!.latitude! >= -90 &&
                 customerAddress!.latitude! <= 90 &&
                 customerAddress!.longitude! >= -180 &&
-                customerAddress!.longitude! <= 180 &&
-                customerRestaurantRadiusKm != null &&
-                customerRestaurantRadiusKm! > 0;
+                customerAddress!.longitude! <= 180;
 
             final filtered =
                 restaurantMenus.where(
               (entry) {
-                if (!hasValidCustomerLocation) {
-                  return false;
-                }
-
-                final restaurantLat = entry.restaurant.latitude;
-                final restaurantLng = entry.restaurant.longitude;
-
-                if (restaurantLat == null ||
-                    restaurantLng == null ||
-                    !restaurantLat.isFinite ||
-                    !restaurantLng.isFinite ||
-                    restaurantLat < -90 ||
-                    restaurantLat > 90 ||
-                    restaurantLng < -180 ||
-                    restaurantLng > 180) {
-                  return false;
-                }
-
-                final distanceKm =
-                    DistanceUtils.distanceInKm(
-                  latitude1: customerAddress!.latitude!,
-                  longitude1: customerAddress!.longitude!,
-                  latitude2: restaurantLat,
-                  longitude2: restaurantLng,
-                );
-
                 final searchMatch =
                     matchesSearch(
                   entry.restaurant,
@@ -613,10 +585,10 @@ class _HomeContent extends StatelessWidget {
                           entry.menuItems,
                         );
 
-                return distanceKm <=
-                        customerRestaurantRadiusKm! &&
-                    searchMatch &&
-                    categoryMatch;
+                // The maximum delivery distance must not hide restaurants.
+                // Restaurants beyond the limit remain visible for Pickup;
+                // Delivery eligibility is enforced separately at checkout/server.
+                return searchMatch && categoryMatch;
               },
             ).toList();
 
