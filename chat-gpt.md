@@ -1,3 +1,15 @@
+### 2026-09-21 — Added customer distance to restaurant tiles
+
+- **File changed:** `lib/features/home/screens/home_screen.dart`
+- **Reason:** Customer requested each restaurant tile to show the distance from the customer's saved/default location, e.g. `10.2 km away`, alongside the restaurant name, rating/review count, and address.
+- **Fix:** Added Haversine distance calculation using the customer's saved/default address coordinates and each restaurant's latitude/longitude.
+- **UI:** Added `X.X km away` to both Featured Restaurant cards and the regular restaurant cards. If valid coordinates are unavailable, the distance label is omitted.
+- **Supabase changes:** None.
+- **Testing:** GitHub change committed; runtime verification pending.
+- **Commit:** `d99fa50b37d3dccf170a2f87a17af8903e0a6fa2`.
+- **Current stopping point:** Restaurant tiles now have customer-distance display support.
+- **Next task:** `git pull`, open Customer Home, and verify the restaurant cards show the expected `X.X km away` value.
+
 ### 2026-09-21 — Removed redundant Customer Home nearby notice
 
 - **File changed:** `lib/features/home/screens/home_screen.dart`
