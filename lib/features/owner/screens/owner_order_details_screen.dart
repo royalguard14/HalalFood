@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -26,6 +25,7 @@ class _OwnerOrderDetailsScreenState
   bool _isLoading = true;
   bool _isUpdating = false;
   String? _receiptUrl;
+  String? _pickupPaymentState;
 
   String? _error;
 
@@ -37,6 +37,8 @@ class _OwnerOrderDetailsScreenState
 
     _status =
         widget.order['status']?.toString() ?? 'pending';
+    _pickupPaymentState =
+        widget.order['pickup_downpayment_status']?.toString() ?? 'pending';
 
     _loadOrderItems();
     _loadPickupReceipt();
@@ -47,13 +49,17 @@ class _OwnerOrderDetailsScreenState
       final orderId = widget.order['id']?.toString();
       if (orderId == null || orderId.isEmpty) return;
 
-      // Refresh the order directly so receipt_path is not dependent on
-      // whichever columns were included by the previous Owner query.
       final freshOrder = await _supabase
           .from('orders')
           .select('pickup_receipt_path,pickup_receipt_submitted_at,pickup_downpayment_status')
           .eq('id', orderId)
           .maybeSingle();
+
+      final freshState =
+          freshOrder?['pickup_downpayment_status']?.toString();
+      if (mounted && freshState != null && freshState.isNotEmpty) {
+        setState(() => _pickupPaymentState = freshState);
+      }
 
       final path = freshOrder?['pickup_receipt_path']?.toString().trim();
       if (path == null || path.isEmpty) {
@@ -109,15 +115,30 @@ class _OwnerOrderDetailsScreenState
       final orderId = widget.order['id']?.toString();
       if (orderId == null || orderId.isEmpty) throw Exception('Invalid order ID.');
       final data = <String, dynamic>{'pickup_downpayment_status': state};
-      if (state == 'paid') { data['payment_status'] = 'paid'; data['status'] = 'preparing'; }
-      if (state == 'receipt_rejected') data['pickup_receipt_rejection_reason'] = reason;
+      if (state == 'paid') {
+        data['payment_status'] = 'paid';
+        data['status'] = 'preparing';
+      }
+      if (state == 'receipt_rejected') {
+        data['pickup_receipt_rejection_reason'] = reason;
+      }
       await _supabase.from('orders').update(data).eq('id', orderId);
       if (state == 'paid') {
-        await _supabase.from('payments').update({'status': 'paid'}).eq('order_id', orderId).eq('payment_method', 'online');
+        await _supabase
+            .from('payments')
+            .update({'status': 'paid'})
+            .eq('order_id', orderId)
+            .eq('payment_method', 'online');
       }
       if (!mounted) return;
       setState(() {
-        _status = state == 'paid' ? 'preparing' : (widget.order['status']?.toString() ?? _status);
+        _pickupPaymentState = state;
+        _status = state == 'paid'
+            ? 'preparing'
+            : (widget.order['status']?.toString() ?? _status);
+        if (state == 'receipt_rejected') {
+          _receiptUrl = null;
+        }
         _isUpdating = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
@@ -383,7 +404,9 @@ class _OwnerOrderDetailsScreenState
   }
 
   Widget _buildPickupPaymentCard() {
-    final state = widget.order['pickup_downpayment_status']?.toString() ?? 'pending';
+    final state = _pickupPaymentState ??
+        widget.order['pickup_downpayment_status']?.toString() ??
+        'pending';
     final amount = (widget.order['pickup_downpayment_amount'] as num?)?.toDouble() ?? 0;
     final submitted = state == 'receipt_submitted';
     return Card(
@@ -751,4 +774,3 @@ class _SummaryRow extends StatelessWidget {
     );
   }
 }
-
