@@ -576,3 +576,13 @@
 - Removed the redundant `Total Paid` row because the `Balance` row already communicates the remaining amount.
 - Expected example: Subtotal ₱1,000; GCash Downpayment -₱800; Cash for Pickup -₱200; Balance ₱0.
 - Commit: a82ef3c3cb77e8d9524b0b81ffa1cb58f515b00c
+
+
+### 2026-09-21 — Fixed Customer Order Summary RenderFlex Overflow
+
+- **User-reported error:** Customer Order Details showed `A RenderFlex overflowed by 86 pixels on the right` (and a larger overflow) around `order_details_screen.dart` line 1197.
+- **Root cause:** The recent Pickup summary edit accidentally escaped Dart string interpolation as `₱\\${...}` instead of `₱${...}`. This caused the literal interpolation expression to render as text, making the summary value extremely wide and overflowing the Row.
+- **Flutter fix:** Restored the five affected currency interpolations in `lib/features/order/screens/order_details_screen.dart` to normal Dart interpolation.
+- **Behavior:** Pickup summary structure remains Subtotal, Downpayment, Cash for Pickup, Balance; Delivery summary remains unchanged.
+- **Commit:** `1600ef4c9dbabb845a5a6867231a5b81f2bd1dc9`.
+- **Testing:** Not runtime-tested by ChatGPT. User should pull and hot reload/restart, then reopen Customer Order Details and confirm the yellow/black overflow indicators are gone.
