@@ -22,6 +22,7 @@ class _OwnerGcashVaultScreenState extends State<OwnerGcashVaultScreen> {
   bool _loading = true;
   double _received = 0;
   double _cashouts = 0;
+  double _adjustments = 0;
   List<Map<String, dynamic>> _cashoutRows = [];
 
   double get _balance => _received - _cashouts;
@@ -48,6 +49,12 @@ class _OwnerGcashVaultScreenState extends State<OwnerGcashVaultScreen> {
           .eq('restaurant_id', widget.restaurantId)
           .order('created_at', ascending: false);
 
+      final adjustments = await _supabase
+          .from('developer_restaurant_vault_adjustments')
+          .select('amount')
+          .eq('restaurant_id', widget.restaurantId)
+          .eq('vault_type', 'gcash');
+
       double received = 0;
       for (final row in payments as List) {
         final orderId = row['order_id']?.toString();
@@ -68,6 +75,7 @@ class _OwnerGcashVaultScreenState extends State<OwnerGcashVaultScreen> {
         _cashoutRows = (cashouts as List)
             .map((row) => Map<String, dynamic>.from(row))
             .toList();
+        _adjustments = (adjustments as List).fold<double>(0, (sum, row) => sum + ((row['amount'] as num?)?.toDouble() ?? 0));
         _cashouts = _cashoutRows.fold<double>(
           0,
           (sum, row) => sum + ((row['amount'] as num?)?.toDouble() ?? 0),
@@ -220,9 +228,8 @@ class _OwnerGcashVaultScreenState extends State<OwnerGcashVaultScreen> {
                           Text(
                             'GCash received: ₱' + _received.toStringAsFixed(2),
                           ),
-                          Text(
-                            'Cashed out: ₱' + _cashouts.toStringAsFixed(2),
-                          ),
+                          Text('Developer adjustments: ₱' + _adjustments.toStringAsFixed(2)),
+                          Text('Cashed out: ₱' + _cashouts.toStringAsFixed(2)),
                           const SizedBox(height: 16),
                           SizedBox(
                             width: double.infinity,
