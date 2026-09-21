@@ -77,7 +77,7 @@ begin
 
   select coalesce(sum(p.amount), 0) into v_paid
   from public.payments p
-  where p.order_id = p_order_id and p.status = 'paid'::public.payment_status;
+  where p.order_id = p_order_id and p.status = 'paid';
 
   if p_stage = 'downpayment' then
     if v_order.status <> 'pending' then raise exception 'Downpayment can only be confirmed while the order is awaiting confirmation.'; end if;
@@ -89,8 +89,8 @@ begin
     select p.* into v_existing_payment
     from public.payments p
     where p.order_id = p_order_id
-      and p.status = 'pending'::public.payment_status
-      and p.payment_method = 'online'::public.payment_method
+      and p.status = 'pending'
+      and p.payment_method = 'online'
     order by p.created_at asc
     limit 1
     for update;
@@ -99,8 +99,8 @@ begin
 
     update public.payments
     set amount = p_amount,
-        payment_method = 'gcash'::public.payment_method,
-        status = 'paid'::public.payment_status,
+        payment_method = 'gcash',
+        status = 'paid',
         transaction_reference = nullif(trim(coalesce(p_reference, '')), ''),
         paid_at = now(),
         updated_at = now()
@@ -146,7 +146,7 @@ begin
     );
 
     update public.orders
-    set payment_status = 'paid'::public.payment_status, updated_at = now()
+    set payment_status = 'paid', updated_at = now()
     where id = p_order_id;
 
     v_remaining := 0;
