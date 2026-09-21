@@ -92,6 +92,9 @@ class _OwnerOrderDetailsScreenState
       if (state == 'paid') { data['payment_status'] = 'paid'; data['status'] = 'preparing'; }
       if (state == 'receipt_rejected') data['pickup_receipt_rejection_reason'] = reason;
       await _supabase.from('orders').update(data).eq('id', orderId);
+      if (state == 'paid') {
+        await _supabase.from('payments').update({'status': 'paid'}).eq('order_id', orderId).eq('payment_method', 'online');
+      }
       if (!mounted) return;
       setState(() {
         _status = state == 'paid' ? 'preparing' : (widget.order['status']?.toString() ?? _status);
