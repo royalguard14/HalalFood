@@ -106,10 +106,19 @@ class _OwnerOrderDetailsScreenState
   }
 
   Future<void> _recordFinalPickupPayment() async {
+    final total =
+        (widget.order['total_amount'] as num?)?.toDouble() ?? 0;
+    final downpayment =
+        (widget.order['pickup_downpayment_amount'] as num?)?.toDouble() ?? 0;
+    final remaining =
+        (total - downpayment).clamp(0, double.infinity).toDouble();
+
     final result = await _showPickupPaymentDialog(
       title: 'Record Remaining Payment',
       amountLabel: 'Amount Received',
       requireReference: false,
+      initialAmount: remaining,
+      expectedAmount: remaining,
     );
     if (result == null) return;
     await _recordPickupPayment(
@@ -124,6 +133,7 @@ class _OwnerOrderDetailsScreenState
     required String amountLabel,
     required bool requireReference,
     double? initialAmount,
+    double? expectedAmount,
   }) async {
     final amountController = TextEditingController(
       text: initialAmount == null ? '' : initialAmount.toStringAsFixed(2),
@@ -172,6 +182,16 @@ class _OwnerOrderDetailsScreenState
                     style: TextStyle(fontSize: 12),
                   ),
                 ),
+                if (expectedAmount != null) ...[
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Exact remaining balance: ₱' + expectedAmount.toStringAsFixed(2),
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ],
               ],
             ],
           ),
@@ -196,6 +216,17 @@ class _OwnerOrderDetailsScreenState
               if (requireReference && reference.isEmpty) {
                 ScaffoldMessenger.of(dialogContext).showSnackBar(
                   const SnackBar(content: Text('Enter the GCash reference number.')),
+                );
+                return;
+              }
+              if (expectedAmount != null &&
+                  (amount - expectedAmount).abs() > 0.005) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Payment must be exactly ₱' + expectedAmount.toStringAsFixed(2) + '.',
+                    ),
+                  ),
                 );
                 return;
               }
@@ -274,8 +305,13 @@ class _OwnerOrderDetailsScreenState
     } catch (e) {
       if (!mounted) return;
       setState(() => _isUpdating = false);
+
+      final message = e is PostgrestException
+          ? e.message
+          : e.toString().replaceFirst('Exception: ', '');
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to record payment: $e')),
+        SnackBar(content: Text(message)),
       );
     }
   }
