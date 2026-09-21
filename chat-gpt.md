@@ -1,3 +1,14 @@
+### 2026-09-21 — Fixed Owner Pickup first-step wording to For Confirmation
+
+- **User finding:** On **Owner Dashboard → Recent Orders**, a Pickup order whose GCash downpayment receipt has already been uploaded for Owner review was still labeled **Order Placed**.
+- **Required Owner-side meaning:** At this point the order is already submitted and is waiting for the Owner to review/confirm the downpayment receipt, so the Owner-facing step should be **For Confirmation**.
+- **Fix:** Pickup Recent Order tiles now use **For Confirmation → Confirmed → Preparing → Ready to Pick Up → Full Payment → Claimed**. Delivery tracking remains unchanged.
+- **Customer-side tracking:** No change; Customer can continue seeing **Order Placed** for the initial lifecycle step.
+- **File changed:** `lib/features/owner/screens/owner_dashboard_screen.dart`
+- **Commit:** `0fc0f2b06d7643f14421bc0b619640d55d23523f`
+- **Testing status:** Not runtime-tested yet.
+- **Next exact test:** `git pull` → create/use a Pickup order with the downpayment receipt submitted → Owner Dashboard → Recent Orders → verify the first highlighted step says **For Confirmation**, not **Order Placed**.
+
 ### 2026-09-21 — Differentiated Owner Recent Orders completed tiles
 
 - **User request:** Owner Dashboard → Recent Orders should visually distinguish new/active orders from completed orders; they should no longer look identical.
