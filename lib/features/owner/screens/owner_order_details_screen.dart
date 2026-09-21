@@ -882,11 +882,22 @@ class _OwnerOrderDetailsScreenState
                   '₱${subtotal.toStringAsFixed(2)}',
             ),
             const SizedBox(height: 10),
-            _SummaryRow(
-              label: 'Delivery Fee',
-              value:
-                  '₱${deliveryFee.toStringAsFixed(2)}',
-            ),
+            if (widget.order['fulfillment_type']?.toString().toLowerCase() == 'pickup') ...[
+              _SummaryRow(
+                label: 'Downpayment',
+                value: '₱' + ((widget.order['pickup_downpayment_amount'] as num?)?.toDouble() ?? 0).toStringAsFixed(2),
+              ),
+              const SizedBox(height: 10),
+              _SummaryRow(
+                label: 'Cash Payment (Balance)',
+                value: '₱' + (((widget.order['total_amount'] as num?)?.toDouble() ?? total) - ((widget.order['pickup_downpayment_amount'] as num?)?.toDouble() ?? 0)).clamp(0, double.infinity).toStringAsFixed(2),
+              ),
+            ] else ...[
+              _SummaryRow(
+                label: 'Delivery Fee',
+                value: '₱' + deliveryFee.toStringAsFixed(2),
+              ),
+            ],
             const Padding(
               padding:
                   EdgeInsets.symmetric(vertical: 14),
