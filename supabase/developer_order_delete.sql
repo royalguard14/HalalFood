@@ -58,3 +58,28 @@ $$;
 revoke execute on function public.developer_delete_order(uuid) from public;
 revoke execute on function public.developer_delete_order(uuid) from anon;
 grant execute on function public.developer_delete_order(uuid) to authenticated;
+
+
+-- Developer-only order listing for the permanent deletion screen.
+-- SECURITY DEFINER bypasses normal orders RLS, but the function itself requires Developer access.
+create or replace function public.developer_list_orders()
+returns setof public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_developer() then
+    raise exception 'Only a Developer can view developer order management';
+  end if;
+
+  return query
+    select o.*
+    from public.orders o
+    order by o.created_at desc;
+end;
+$$;
+
+revoke execute on function public.developer_list_orders() from public;
+revoke execute on function public.developer_list_orders() from anon;
+grant execute on function public.developer_list_orders() to authenticated;
