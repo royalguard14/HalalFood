@@ -1,3 +1,12 @@
+### 2026-09-21 — Fixed checkout file corruption after pickup workflow edit
+
+- **Issue:** `flutter analyze` reported 76 issues because `lib/features/checkout/screens/checkout_screen.dart` had accidentally been duplicated from line 2043 onward. This caused duplicate classes/imports and the syntax error at line 2043.
+- **Fix:** Removed the duplicated second copy and retained the intended pickup payment success flow and receipt-upload navigation in the original checkout file.
+- **Verification:** GitHub file now ends at the intended `OrderDetailsScreenById` helper and no longer contains the duplicate second `CheckoutScreen` declaration.
+- **Current stopping point:** Checkout source corruption fixed. Local analyzer must be rerun after pulling the commit.
+- **Next task:** `git pull` → `flutter analyze`. If analyzer reports remaining issues, fix those before runtime testing.
+- **Commit:** `059f4dd39df8ec5e8ab8a4b2f8ec5356648b5f65`
+
 ### 2026-09-21 — Implemented manual GCash pickup receipt workflow
 
 - **Concept finalized:** Customer places a Pickup order first, but the Owner does not receive/start it yet. Customer gets two actions while waiting: **Cancel Order** or **Upload Receipt**. Customer pays directly to the restaurant's GCash account.
