@@ -97,3 +97,12 @@
 - Live policy verified in `pg_policies` after creation.
 - Customer UI code commit remains: `3a579747932ce6e8edbbeb1562b23ef2d0bde6ab`.
 - **Next:** pull `origin/main` if needed, restart the app, open the same Full Payment Pickup Order, and verify the **Cash** row now shows the actual cash payment.
+
+
+## 2026-09-21 — Customer Pickup Downpayment Tile Hidden After Confirmation
+
+- User requested that on the Customer Order Details screen, once the Pickup downpayment is confirmed (`pickup_downpayment_status = paid`), the bottom **Pickup Downpayment / payment confirmation** tile should disappear.
+- Updated `lib/features/order/screens/order_details_screen.dart` so `_buildPaymentStatus()` returns `SizedBox.shrink()` when the Pickup downpayment status is `paid`.
+- The **Order Summary** remains visible and continues to show the confirmed Downpayment, actual Cash paid, and Balance.
+- Delivery payment display is unchanged.
+- Commit: a1fdb8e6d4f24f4ef397a9bd5b3b5b18dfa44bff.
