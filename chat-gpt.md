@@ -1,3 +1,14 @@
+### 2026-09-21 — Hardened Pickup status enum mapping
+
+- **User-reported error:** Owner Pickup status update failed with PostgreSQL 22P02: invalid enum value ready_to_pick_up'.
+- **Verified live Supabase enum:** order_status supports only pending, confirmed, preparing, ready, out_for_delivery, delivered, cancelled, and refunded.
+- **Fix:** lib/features/owner/screens/owner_order_details_screen.dart now normalizes the status string before any database update by trimming whitespace and removing stray apostrophes. Pickup UI-only ready_to_pick_up is then mapped to the real database value ready; claimed remains mapped to delivered.
+- **Reason:** A stale/malformed UI value such as ready_to_pick_up' must never reach the PostgreSQL enum.
+- **Supabase schema:** No database enum change was made.
+- **Commit:** cdebeca3924b491ddbe383257e3939e29b8927af.
+- **Testing status:** Not runtime-tested yet.
+- **Next exact test:** git pull → open the Pickup order → Preparing → press Ready to Pick Up → verify it updates successfully to Ready to Pick Up with no PostgREST enum error. Stop there and report the result.
+
 ### 2026-09-21 — Pickup realtime + payment corrections
 
 - Fixed **Owner Dashboard realtime order updates**: new/submitted restaurant orders now trigger an automatic dashboard reload; no manual refresh should be required.
