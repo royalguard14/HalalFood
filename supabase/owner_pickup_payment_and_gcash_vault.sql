@@ -48,7 +48,7 @@ create or replace function public.record_owner_pickup_payment(
   p_stage text,
   p_amount numeric,
   p_reference text default null,
-  p_payment_method text default 'cash'
+  p_payment_method text default 'cash_on_delivery'
 )
 returns jsonb
 language plpgsql
@@ -82,8 +82,8 @@ begin
   if p_stage = 'downpayment' then
     if v_order.status <> 'pending' then raise exception 'Downpayment can only be confirmed while the order is awaiting confirmation.'; end if;
     if v_order.pickup_downpayment_status <> 'receipt_submitted' then raise exception 'The pickup receipt is not awaiting confirmation.'; end if;
-    if abs(p_amount - coalesce(v_order.pickup_downpayment_amount, 0)) > 0.005 then
-      raise exception 'Downpayment must match the required amount of ₱%.', to_char(v_order.pickup_downpayment_amount, 'FM999999990.00');
+    if p_amount > v_order.total_amount + 0.005 then
+      raise exception 'Downpayment cannot exceed the order total of ₱%.', to_char(v_order.total_amount, 'FM999999990.00');
     end if;
 
     select p.* into v_existing_payment
@@ -108,8 +108,10 @@ begin
 
     update public.orders
     set pickup_downpayment_status = 'paid',
+        pickup_downpayment_amount = p_amount,
+        pickup_downpayment_percent = case when v_order.total_amount > 0 then round((p_amount / v_order.total_amount) * 100, 2) else 100 end,
         status = 'confirmed',
-        payment_status = 'pending',
+        payment_status = case when p_amount >= v_order.total_amount - 0.005 then 'paid' else 'pending' end,
         updated_at = now()
     where id = p_order_id;
 
