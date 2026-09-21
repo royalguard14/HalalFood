@@ -700,20 +700,50 @@ class _HomeContent extends StatelessWidget {
   }
 
   double? _distanceFromCustomer(Restaurant restaurant) {
+    // Distance is shown only when the customer has a GPS-derived location.
+    // Do not fall back to address text, city/province, or approximate location.
     final customerLatitude = customerAddress?.latitude;
     final customerLongitude = customerAddress?.longitude;
     final restaurantLatitude = restaurant.latitude;
     final restaurantLongitude = restaurant.longitude;
-    if (customerLatitude == null || customerLongitude == null || restaurantLatitude == null || restaurantLongitude == null) return null;
-    if (!customerLatitude.isFinite || !customerLongitude.isFinite || !restaurantLatitude.isFinite || !restaurantLongitude.isFinite) return null;
-    if (customerLatitude < -90 || customerLatitude > 90 || restaurantLatitude < -90 || restaurantLatitude > 90 || customerLongitude < -180 || customerLongitude > 180 || restaurantLongitude < -180 || restaurantLongitude > 180) return null;
+
+    if (customerAddress == null ||
+        customerLatitude == null ||
+        customerLongitude == null ||
+        restaurantLatitude == null ||
+        restaurantLongitude == null) {
+      return null;
+    }
+
+    if (!customerLatitude.isFinite ||
+        !customerLongitude.isFinite ||
+        !restaurantLatitude.isFinite ||
+        !restaurantLongitude.isFinite ||
+        customerLatitude < -90 ||
+        customerLatitude > 90 ||
+        restaurantLatitude < -90 ||
+        restaurantLatitude > 90 ||
+        customerLongitude < -180 ||
+        customerLongitude > 180 ||
+        restaurantLongitude < -180 ||
+        restaurantLongitude > 180) {
+      return null;
+    }
+
     const earthRadiusKm = 6371.0;
     final lat1 = customerLatitude * math.pi / 180;
     final lat2 = restaurantLatitude * math.pi / 180;
     final dLat = (restaurantLatitude - customerLatitude) * math.pi / 180;
     final dLon = (restaurantLongitude - customerLongitude) * math.pi / 180;
-    final a = math.pow(math.sin(dLat / 2), 2) + math.cos(lat1) * math.cos(lat2) * math.pow(math.sin(dLon / 2), 2);
-    return earthRadiusKm * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    final a =
+        math.pow(math.sin(dLat / 2), 2) +
+        math.cos(lat1) *
+            math.cos(lat2) *
+            math.pow(math.sin(dLon / 2), 2);
+
+    return earthRadiusKm *
+        2 *
+        math.atan2(math.sqrt(a), math.sqrt(1 - a));
   }
 
   Future<List<_RestaurantWithMenu>>
