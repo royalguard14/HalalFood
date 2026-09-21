@@ -1,3 +1,14 @@
+### 2026-09-21 — Fixed Promo/Coupon dropdown selection
+
+- **Issue:** User reported that the new Promo/Coupon dropdown was visible but promo options could not be selected.
+- **File changed:** `lib/features/checkout/screens/checkout_screen.dart`
+- **Fix:** Replaced the nullable dropdown item value used for “No promo” with the explicit sentinel value `__none__`, and updated `initialValue` and `onChanged` handling accordingly. Actual promo IDs remain unchanged.
+- **Backend/Supabase:** No changes.
+- **Commit:** `e9788cbaab2edc4439dc86bdd3181eba36b534dd`
+- **Testing:** Pending user `git pull` + runtime verification.
+- **Stopping point:** Do not continue to C8.5/C8.6 until Promo dropdown selection is confirmed working.
+- **Next action:** User runs `git pull`, then tests Checkout → Promo/Coupon → opens dropdown → selects an actual promo → verifies description and discount update.
+
 ### 2026-09-18 — End-of-session handoff updated for next ChatGPT session
 
 - **Purpose:** Updated this handoff so the next ChatGPT can continue the HALAL Food project without asking the user to repeat the project history.
