@@ -481,3 +481,15 @@
 - **Commit:** `11ed198f2bb3235b1b7da0af554104ed0df30e9f`.
 - **Testing:** Pending user runtime test.
 - **Next action:** User should `git pull`, open Owner Dashboard → Recent Orders, and compare one active/new order with one completed Pickup order. The completed Pickup tile should now visibly use the completed/neutral style and `View` button.
+
+
+### 2026-09-21 — Fixed Owner Pickup GCash amount-input Flutter framework exception
+
+- **User-reported runtime error:** When the Owner starts entering the **Amount Received** in the **Confirm GCash Downpayment** dialog, Flutter throws framework exceptions including `'_dependents.isEmpty': is not true` and `Tried to build dirty widget in the wrong build scope.`
+- **Likely trigger in the affected dialog:** The payment dialog used a `StatefulBuilder` even though it had no dialog-local state, while the dialog's TextEditingControllers were disposed immediately after `showDialog()` returned. This can race Android keyboard/dialog teardown while the amount field is focused.
+- **Flutter fix:** Removed the unnecessary `StatefulBuilder` from the Pickup payment dialog. Validation SnackBars now use the dialog's own `dialogContext`. Controller disposal is deferred with `WidgetsBinding.instance.addPostFrameCallback` so disposal does not race the dialog/keyboard teardown.
+- **Supabase changes:** None.
+- **Commit:** `5ae1494bc49d3416e335357c5e9775db706bbb2f`.
+- **Testing:** Not runtime-tested by ChatGPT. User must pull and test the exact GCash amount-entry flow.
+- **Current stopping point:** The immediate target is the Flutter framework exception while typing the GCash Amount Received.
+- **Next action:** `git pull`, open Owner Pickup → Confirm GCash Downpayment, tap **Amount Received**, type an amount (do not submit yet), and confirm the framework exception no longer appears. Report **goods** or the exact new error before any further edit.
