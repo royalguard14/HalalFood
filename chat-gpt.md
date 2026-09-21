@@ -1,3 +1,20 @@
+### 2026-09-21 — Owner Pickup Receipt acceptance/rejection test and next UI fix
+
+- **Latest runtime test:** Customer Pickup order → GCash receipt upload → Owner receipt review is working. Owner can see the submitted receipt image.
+- **Reject test:** Owner rejected the submitted receipt successfully. Supabase changed the order to `receipt_rejected`, and the customer side correctly reached the rejected state.
+- **Rejected receipt rule:** A Supabase trigger named `trg_clear_rejected_pickup_receipt_path` clears `orders.pickup_receipt_path` whenever the downpayment status becomes `receipt_rejected`. This is intended so the rejected receipt is no longer treated as the active receipt.
+- **Replacement rule:** When the customer uploads a new receipt after rejection, it must reuse the same order ID/order number and replace the active receipt rather than creating a new order. Approved receipts must remain available after Owner acceptance.
+- **Downpayment display fix:** Owner Dashboard was updated to select `pickup_downpayment_amount` and `pickup_downpayment_percent`, so Owner Order Details can display the actual configured/stored downpayment instead of defaulting to ₱0.
+- **Commit for downpayment display:** `c1a48d92d61cbb50eff49cfa00404e78cf2e8f25`.
+- **Known Flutter UI issue:** After Owner Accept or Reject, the database update succeeds, but the Owner screen still shows the Accept/Reject buttons until the screen is refreshed because `_buildPickupPaymentCard()` reads the original `widget.order['pickup_downpayment_status']` instead of local state.
+- **Required next fix:** Add a local pickup payment state (for example `_pickupPaymentState`) in `owner_order_details_screen.dart`. Initialize it from the order, use it in `_buildPickupPaymentCard()`, and update it immediately after a successful Accept/Reject.
+- **Immediate UI behavior required after Accept:** buttons disappear immediately, payment state becomes Paid, order status becomes **Preparing** without refresh, and the approved receipt remains visible.
+- **Immediate UI behavior required after Reject:** buttons disappear immediately, rejected receipt image disappears immediately, and the screen shows **Waiting for customer to upload a new receipt** without refresh.
+- **Flutter error seen during Reject:** `_dependents.isEmpty` assertion occurred once, but the Reject database update itself succeeded. Do not treat this as a business-logic failure unless it reproduces after the local-state UI fix; if it reproduces, inspect the full Flutter stack trace.
+- **Current stopping point:** Receipt image, Owner review, Reject flow, rejected-state trigger, and downpayment amount loading have been tested. The remaining immediate task is the Owner Order Details local-state UI update described above.
+- **Next workflow:** User will pull the next code edit, test **one time only**, and report the result before we proceed.
+- **Project workflow rule:** Every meaningful development action must be recorded in this file. After code edits: commit/push → user `git pull` → one exact test → wait for result.
+
 ### 2026-09-21 — Fixed Supabase Storage policy blocking Owner receipt image
 
 - **User test finding:** Owner still showed `Payment: Receipt Submitted` but no receipt photo.
