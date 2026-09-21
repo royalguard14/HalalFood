@@ -1,13 +1,14 @@
-### 2026-09-21 — Reset Pickup Test Orders for Fresh Workflow Test
+### 2026-09-21 — Reset All Order Test Data for Fresh Testing
 
-- **User request:** Clear the existing test order data so a fresh Pickup order can be created and the Pickup lifecycle can be tested from the beginning.
-- **Scope:** Pickup orders only. Delivery orders were not touched.
-- **Deleted from Supabase:** the existing Pickup order(s), their cascaded order items, and their associated payment records.
-- **Verification:** Pickup order count is now **0** and Pickup payment count is **0**.
+- **User request:** Delete all existing order-related test data so we can restart testing from a clean order state.
+- **Scope:** All orders — Pickup and Delivery.
+- **Deleted from Supabase:** all rows from payments that had an order_id, then all rows from orders. Because order_items and promo_redemptions reference orders with cascade deletion, their connected rows were removed automatically.
+- **Verification:** orders = 0, order_items = 0, payments = 0, and promo_redemptions = 0.
+- **Important:** This reset did not delete restaurants, users, addresses, menus, promos, or other non-order data.
 - **Pickup lifecycle to test next:** **Order Placed → Confirmed → Preparing → Ready to Pick Up → Full Payment → Claimed**.
 - **Owner tile wording:** Use the proper customer-facing step names exactly as written above, including **Ready to Pick Up**, **Full Payment**, and **Claimed** — not technical/database-style wording.
-- **Current stopping point:** Database is cleared for a fresh Pickup test. Do not create another test order until the user pulls/refreshes and is ready to start the new Pickup flow.
-- **Testing status:** Fresh Pickup order not created yet.
+- **Current stopping point:** Database order data is cleared for a fresh test. No new order has been created yet.
+- **Testing status:** Fresh order not created yet.
 
 ### 2026-09-21 — Improved Owner Order Tiles + Collapsed Receipt Viewer
 
