@@ -1139,28 +1139,40 @@ class _OrderDetailsScreenState
 
             _summaryRow(
               'Subtotal',
-              _currentOrder.fulfillmentType == 'pickup'
-                  ? '₱${_currentOrder.totalAmount.toStringAsFixed(2)}'
-                  : '₱${_currentOrder.subtotal.toStringAsFixed(2)}',
+              '₱${_currentOrder.subtotal.toStringAsFixed(2)}',
             ),
 
             const SizedBox(height: 10),
 
             if (_currentOrder.fulfillmentType == 'pickup') ...[
+              if ((_currentOrder.subtotal - _currentOrder.totalAmount) > 0.005) ...[
+                _summaryRow(
+                  'Promo',
+                  '-₱${(_currentOrder.subtotal - _currentOrder.totalAmount).toStringAsFixed(2)}',
+                ),
+                const SizedBox(height: 10),
+              ],
+
               _summaryRow(
                 'Downpayment',
-                '-₱${_currentOrder.pickupDownpaymentAmount.toStringAsFixed(2)}',
+                '-₱${(_currentOrder.pickupDownpaymentStatus.toLowerCase() == 'paid' ? _currentOrder.pickupDownpaymentAmount : 0).toStringAsFixed(2)}',
               ),
-              const SizedBox(height: 10),
-              _summaryRow(
-                'Cash for Pickup',
-                '-₱${(_currentOrder.totalAmount - _currentOrder.pickupDownpaymentAmount).clamp(0, double.infinity).toStringAsFixed(2)}',
-              ),
-              const SizedBox(height: 10),
-              _summaryRow(
-                'Balance',
-                '₱0.00',
-              ),
+
+              if (_normalizeStatus(_currentOrder.status) == 'ready') ...[
+                const SizedBox(height: 10),
+                _summaryRow(
+                  'Cash Balance',
+                  '₱${(_currentOrder.paymentStatus.toLowerCase() == 'paid'
+                          ? 0
+                          : (_currentOrder.totalAmount -
+                                  (_currentOrder.pickupDownpaymentStatus.toLowerCase() == 'paid'
+                                      ? _currentOrder.pickupDownpaymentAmount
+                                      : 0))
+                              .clamp(0, double.infinity))
+                      .toStringAsFixed(2)}',
+                  isTotal: true,
+                ),
+              ],
             ] else ...[
               _summaryRow(
                 'Delivery Fee',
