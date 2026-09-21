@@ -1139,7 +1139,9 @@ class _OrderDetailsScreenState
 
             _summaryRow(
               'Subtotal',
-              '₱${_currentOrder.subtotal.toStringAsFixed(2)}',
+              _currentOrder.fulfillmentType == 'pickup'
+                  ? '₱\${_currentOrder.totalAmount.toStringAsFixed(2)}'
+                  : '₱\${_currentOrder.subtotal.toStringAsFixed(2)}',
             ),
 
             const SizedBox(height: 10),
@@ -1147,12 +1149,17 @@ class _OrderDetailsScreenState
             if (_currentOrder.fulfillmentType == 'pickup') ...[
               _summaryRow(
                 'Downpayment',
-                '₱${_currentOrder.pickupDownpaymentAmount.toStringAsFixed(2)}',
+                '-₱\${_currentOrder.pickupDownpaymentAmount.toStringAsFixed(2)}',
               ),
               const SizedBox(height: 10),
               _summaryRow(
-                'Cash Payment (Balance)',
-                '₱${(_currentOrder.totalAmount - _currentOrder.pickupDownpaymentAmount).clamp(0, double.infinity).toStringAsFixed(2)}',
+                'Cash for Pickup',
+                '-₱\${(_currentOrder.totalAmount - _currentOrder.pickupDownpaymentAmount).clamp(0, double.infinity).toStringAsFixed(2)}',
+              ),
+              const SizedBox(height: 10),
+              _summaryRow(
+                'Balance',
+                '₱0.00',
               ),
             ] else ...[
               _summaryRow(
@@ -1161,19 +1168,21 @@ class _OrderDetailsScreenState
               ),
             ],
 
-            const Padding(
-              padding:
-                  EdgeInsets.symmetric(
-                vertical: 14,
+            if (_currentOrder.fulfillmentType != 'pickup') ...[
+              const Padding(
+                padding:
+                    EdgeInsets.symmetric(
+                  vertical: 14,
+                ),
+                child: Divider(),
               ),
-              child: Divider(),
-            ),
 
-            _summaryRow(
-              'Total',
-              '₱${_currentOrder.totalAmount.toStringAsFixed(2)}',
-              isTotal: true,
-            ),
+              _summaryRow(
+                'Total',
+                '₱\${_currentOrder.totalAmount.toStringAsFixed(2)}',
+                isTotal: true,
+              ),
+            ],
           ],
         ),
       ),
