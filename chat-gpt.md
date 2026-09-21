@@ -402,3 +402,15 @@
 - **Commit:** `7d6623961864694fe86b7606f1d9c9ad59521f22`.
 - **Verification:** Live enum was queried directly before the code fix. Flutter runtime test is still pending.
 - **Next action:** User should `git pull`, open the Owner Pickup order, advance it from Preparing → Ready to Pick Up, and confirm there is no enum error. Then mark final payment paid and confirm the next button becomes Claimed. Report the first result/error before any further edit.
+
+
+### 2026-09-21 — Fixed Owner Dashboard Recent Orders Pickup tile completion detection
+
+- **Issue:** Completed Pickup orders could still appear like active/new orders in Owner Dashboard → Recent Orders because the tile tracker did not map the real database terminal status `delivered` to the final Pickup step.
+- **Root cause:** The Pickup `_trackingIndex()` handled UI-only values such as `claimed`, but the database now correctly stores the completed Pickup order as `delivered` because `order_status` has no `claimed` enum value.
+- **Additional fix:** Pickup orders with database status `ready` now use `payment_status = paid` to show the `Full Payment` tracker step instead of remaining at `Ready to Pick Up`.
+- **Query fix:** Recent Orders now also selects `payment_status` so the tile can determine the Pickup payment step.
+- **Result:** A completed Pickup order stored as `delivered` now gets `current = 5`, which activates the existing completed-tile styling: neutral appearance, check icon, `COMPLETED` badge, and `View` button.
+- **Commit:** `11ed198f2bb3235b1b7da0af554104ed0df30e9f`.
+- **Testing:** Pending user runtime test.
+- **Next action:** User should `git pull`, open Owner Dashboard → Recent Orders, and compare one active/new order with one completed Pickup order. The completed Pickup tile should now visibly use the completed/neutral style and `View` button.
