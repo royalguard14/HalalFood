@@ -1,0 +1,4 @@
+-- HALAL Food - Pickup Downpayment Foundation
+-- Database foundation for configurable pickup downpayment percentage.
+-- Default is 50 percent. Applied to Supabase project taltqnxhivpfwjqlvxnt.
+-- Actual online payment gateway verification is a separate next milestone.
