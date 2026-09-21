@@ -1,3 +1,11 @@
+### 2026-09-21 — Removed duplicate checkout implementation
+
+- **Issue:** `checkout_screen.dart` still contained a second copy of the entire checkout implementation beginning at line 2043 (`port 'package:flutter/material.dart';`), causing the 76 analyzer issues.
+- **Fix:** Kept the original first 2042 lines, which contain the intended checkout and pickup workflow, and removed the duplicated second implementation.
+- **Commit:** `1416d086b70efb8bf4e3458265cb166317f3ce22`
+- **Current stopping point:** Duplicate source removed. Local analyzer has not yet been rerun after this exact fix.
+- **Next task:** `git pull` → `flutter analyze`.
+
 ### 2026-09-21 — Restored checkout screen after accidental deletion
 
 - **Issue found:** The previous cleanup commit accidentally replaced `lib/features/checkout/screens/checkout_screen.dart` with an empty file. The local analyzer then showed 26 issues because the checkout implementation was missing, while the remaining 26 messages were existing infos/warnings.
