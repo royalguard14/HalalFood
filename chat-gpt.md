@@ -1,3 +1,17 @@
+### 2026-09-21 — Improved Owner Order Tiles + Collapsed Receipt Viewer
+
+- **Owner Dashboard order tiles:** Recent Order tiles are now compact and no longer dominated by large content.
+- **Track Order:** Each Owner order tile now shows a compact progress tracker. The steps branch by fulfillment type:
+  - Pickup: **Order Placed → Confirmed → Preparing → Ready to Pick Up → Full Payment → Claimed**
+  - Delivery: **Order Placed → Confirmed → Preparing → Ready for Pickup → Out for Delivery → Delivered**
+- **Status updates:** The tile maps the current database status to the correct tracking step. When the Owner opens Track Order, updates the order, and returns, the Dashboard reloads so the tile reflects the next step without requiring a separate manual refresh.
+- **Receipt UI:** Owner Order Details now keeps the receipt image **hidden by default**. A **View Receipt** button opens it only when needed; **Hide Receipt** collapses it again. This prevents the receipt image from taking over the screen.
+- **Files changed:** `lib/features/owner/screens/owner_dashboard_screen.dart`, `lib/features/owner/screens/owner_order_details_screen.dart`.
+- **Commits:** Dashboard `a9ae1d0fb2b65e54339396e9497b7f5c3dd4b58b`; Receipt viewer `02792e2704734c4230028eac5e726b27f5a8622d`.
+- **Testing status:** Not runtime-tested yet.
+- **Next exact test:** `git pull` → Owner Dashboard → open Recent Orders. Verify each tile is compact, shows the Track Order progress, and the receipt is hidden until **View Receipt** is tapped. Open one order, change its next status, return to Dashboard, and verify the tile shows the updated step.
+- **Project workflow rule:** Every meaningful development action must be recorded here. After code edits: commit/push → user `git pull` → one exact test → wait for result.
+
 ### 2026-09-21 — Updated Customer Pickup Order Tracking
 
 - **User finding:** The Customer Order Details tracking still used the Delivery tracking sequence, so Pickup did not yet reflect the agreed Pickup lifecycle.
