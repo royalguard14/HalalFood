@@ -542,3 +542,14 @@
 - Vault values are filtered to paid payments belonging to the selected restaurant.
 - Files changed: lib/features/owner/screens/owner_order_details_screen.dart and lib/features/owner/screens/owner_dashboard_screen.dart.
 - Testing: not runtime-tested by ChatGPT; user should pull and verify a Pickup order with GCash downpayment and final cash payment, then verify dashboard vault amounts.
+
+
+### 2026-09-21 — Fixed Owner Vault Supabase Relationship Error
+- Runtime error found in Owner Dashboard: PostgREST PGRST200 because payments has an order_id column but no foreign-key relationship to orders in the live schema.
+- Verified live Supabase schema for project taltqnxhivpfwjqlvxnt.
+- payments columns include order_id, amount, payment_method, status, paid_at, etc., but there is no payments.order_id -> orders.id FK.
+- Updated lib/features/owner/screens/owner_dashboard_screen.dart to avoid nested payments -> orders PostgREST relation queries.
+- New vault flow: first load the selected restaurant's order IDs from orders, then query paid payments using inFilter('order_id', orderIds).
+- Cash Vault still sums paid cash_on_delivery; GCash Vault still sums paid gcash and subtracts owner_gcash_cashouts.
+- Commit: 57192476e6528881f7d4565fe6e2a51e1a5bc535
+- Runtime testing pending after git pull.
