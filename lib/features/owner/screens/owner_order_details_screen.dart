@@ -248,16 +248,37 @@ class _OwnerOrderDetailsScreenState
   }
 
   String _displayStatus(String status) {
-    return status
-        .replaceAll('_', ' ')
-        .split(' ')
-        .map(
-          (word) => word.isEmpty
-              ? word
-              : '${word[0].toUpperCase()}'
-                  '${word.substring(1)}',
-        )
-        .join(' ');
+    switch (status.toLowerCase()) {
+      case 'ready_to_pick_up':
+      case 'ready_to_pickup':
+        return 'Ready to Pick Up';
+      case 'full_payment':
+      case 'payment_due':
+        return 'Payment Complete';
+      case 'claimed':
+      case 'picked_up':
+      case 'pickedup':
+        return 'Claimed';
+      case 'ready_for_pickup':
+        return 'Ready for Pickup';
+      case 'out_for_delivery':
+      case 'on_the_way':
+        return 'Out for Delivery';
+      case 'completed':
+      case 'delivered':
+        return 'Completed';
+      default:
+        return status
+            .replaceAll('_', ' ')
+            .split(' ')
+            .map(
+              (word) => word.isEmpty
+                  ? word
+                  : '${word[0].toUpperCase()}'
+                      '${word.substring(1)}',
+            )
+            .join(' ');
+    }
   }
 
   Color _statusColor(String status) {
@@ -269,7 +290,16 @@ class _OwnerOrderDetailsScreenState
         return Colors.blue;
 
       case 'ready':
+      case 'ready_to_pick_up':
         return Colors.deepPurple;
+
+      case 'full_payment':
+        return Colors.teal;
+
+      case 'claimed':
+      case 'picked_up':
+      case 'pickedup':
+        return Colors.green;
 
       case 'out_for_delivery':
       case 'on_the_way':
@@ -623,6 +653,112 @@ class _OwnerOrderDetailsScreenState
   }
 
   Widget _buildActionButtons() {
+    final isPickup =
+        widget.order['fulfillment_type']?.toString().toLowerCase() == 'pickup';
+
+    if (isPickup) {
+      final pickupPaymentState =
+          _pickupPaymentState ??
+          widget.order['pickup_downpayment_status']?.toString() ??
+          'pending';
+
+      if (pickupPaymentState != 'paid' && _status.toLowerCase() == 'pending') {
+        return const Card(
+          child: Padding(
+            padding: EdgeInsets.all(18),
+            child: Row(
+              children: [
+                Icon(Icons.hourglass_top_rounded, color: Colors.orange),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Waiting for pickup payment receipt approval.',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
+      switch (_status.toLowerCase()) {
+        case 'preparing':
+          return SizedBox(
+            width: double.infinity,
+            height: 54,
+            child: ElevatedButton.icon(
+              onPressed: _isUpdating
+                  ? null
+                  : () => _updateStatus('ready_to_pick_up'),
+              icon: const Icon(Icons.shopping_bag_outlined),
+              label: const Text(
+                'Ready to Pick Up',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+          );
+
+        case 'ready':
+        case 'ready_to_pick_up':
+          return SizedBox(
+            width: double.infinity,
+            height: 54,
+            child: ElevatedButton.icon(
+              onPressed: _isUpdating
+                  ? null
+                  : () => _updateStatus('full_payment'),
+              icon: const Icon(Icons.payments_outlined),
+              label: const Text(
+                'Payment Complete',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+          );
+
+        case 'full_payment':
+        case 'payment_due':
+          return SizedBox(
+            width: double.infinity,
+            height: 54,
+            child: ElevatedButton.icon(
+              onPressed: _isUpdating
+                  ? null
+                  : () => _updateStatus('claimed'),
+              icon: const Icon(Icons.done_all_rounded),
+              label: const Text(
+                'Claimed',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+          );
+
+        case 'claimed':
+        case 'picked_up':
+        case 'pickedup':
+          return const Card(
+            child: Padding(
+              padding: EdgeInsets.all(18),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle_rounded, color: Colors.green),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Pickup order completed — Claimed.',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+
+        default:
+          return const SizedBox.shrink();
+      }
+    }
+
     switch (_status.toLowerCase()) {
       case 'pending':
         return SizedBox(
