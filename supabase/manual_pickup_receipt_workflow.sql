@@ -1,0 +1,4 @@
+-- Manual Pickup GCash Receipt Workflow
+-- Applied directly to Supabase. Kept here as repository documentation.
+-- Adds restaurant GCash destination fields, pickup receipt metadata,
+-- private payment-receipts storage, owner/customer policies, and 7-day cleanup.
