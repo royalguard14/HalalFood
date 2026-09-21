@@ -1,3 +1,15 @@
+### 2026-09-21 — Added configurable Pickup Downpayment foundation
+
+- **User requirement:** Pickup orders require a configurable percentage downpayment; current agreed default is **50%** and the downpayment is **non-refundable** under the pickup no-show rule.
+- **Supabase changes:** Added `delivery_pricing_settings.pickup_downpayment_percent` with default 50.00 and 0–100 validation. Added `orders.pickup_downpayment_percent`, `orders.pickup_downpayment_amount`, and `orders.pickup_downpayment_status`. Added authenticated RPC `get_pickup_downpayment_percent()` and a customer INSERT policy for pending pickup downpayment payment records.
+- **Flutter changes:** Admin Delivery Pricing now exposes a Pickup Downpayment percentage field. Checkout loads the configured percentage, calculates the pickup downpayment from the discounted pickup subtotal, and displays the amount plus the non-refundable rule. Pickup order creation stores the configured percentage/amount and creates a pending online payment record.
+- **Important limitation:** The payment record is currently **pending**. No customer online payment gateway/verification has been implemented yet, so this change establishes the amount, database state, and checkout presentation but must not be treated as completed payment processing.
+- **Verification:** Supabase migration succeeded. Database value and RPC both return **50.00%**. Flutter runtime/analyzer has not been run after this edit.
+- **GitHub commits:** Admin repository `0a32827280cd949fd4ef5e8e3ec9d81ffece1a9a`; Admin pricing screen `cbf8ed61cb4e3851652f1cb81bbf66288b68c137`; Checkout `f5b820320bc2d967163a6328185ffe343ee9bb33`; Order repository `5881e9d16d6819b2463d981639f09e82da6804e3`; migration documentation `342c05e19523a88697f8649e553c58ac7549c12`.
+- **Current stopping point:** Pickup downpayment configuration/calculation/storage foundation is implemented.
+- **Next test:** User should `git pull`, run the app, open Admin → Delivery Pricing and verify Pickup Downpayment shows **50%**. Then open Customer Checkout, choose Pick-up, and verify the downpayment card shows 50% and the calculated amount. Do not treat the order as paid yet.
+- **Next development milestone after this test:** Implement the actual customer payment method/gateway and server-side payment verification before allowing a pickup order to move into restaurant processing.
+
 ### 2026-09-21 — Fixed Admin access to Delivery Pricing settings
 
 - **User-reported issue:** Delivery Pricing screen displayed all values as `₱0`, and saving failed with PostgreSQL RLS error `42501` on `delivery_pricing_settings`.
