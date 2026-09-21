@@ -45,10 +45,12 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     try {
       final orders=await _supabase.from('orders').select('id').eq('restaurant_id',widget.restaurantId); final orderIds=(orders as List).map((row)=>row['id']?.toString()).whereType<String>().toList(); final payments=orderIds.isEmpty?<Map<String,dynamic>>[]:await _supabase.from('payments').select('amount,payment_method,status,paid_at').eq('status','paid').inFilter('order_id',orderIds);
       final cashouts=await _supabase.from('owner_gcash_cashouts').select('amount').eq('restaurant_id',widget.restaurantId);
-      double cash=0,gcash=0;
+      final adjustments=await _supabase.from('developer_restaurant_vault_adjustments').select('vault_type,amount').eq('restaurant_id',widget.restaurantId);
+      double cash=0,gcash=0,cashAdjustments=0,gcashAdjustments=0;
       for(final row in payments as List){final amount=(row['amount'] as num?)?.toDouble()??0;final method=row['payment_method']?.toString().toLowerCase();if(method=='cash_on_delivery')cash+=amount;if(method=='gcash')gcash+=amount;}
       final cashoutTotal=(cashouts as List).fold<double>(0,(sum,row)=>sum+((row['amount'] as num?)?.toDouble()??0));
-      if(mounted)setState((){_cashVault=cash;_gcashVault=gcash-cashoutTotal;_gcashCashouts=cashoutTotal;});
+      for(final row in adjustments as List){final amount=(row['amount'] as num?)?.toDouble()??0; if(row['vault_type']=='cash') cashAdjustments+=amount; if(row['vault_type']=='gcash') gcashAdjustments+=amount;}
+      if(mounted)setState((){_cashVault=cash+cashAdjustments;_gcashVault=gcash+gcashAdjustments-cashoutTotal;_gcashCashouts=cashoutTotal;});
     }catch(e){debugPrint('OWNER VAULT SUMMARY ERROR: $e');}
   }
   Future<void> _loadSubscription() async{try{final s=await _supabase.from('restaurant_subscriptions').select('status,current_period_end,billing_cycle,subscription_plans(name)').eq('restaurant_id',widget.restaurantId).order('created_at',ascending:false).limit(1).maybeSingle();if(!mounted)return;final p=s?['subscription_plans'];setState((){_subscriptionStatus=s?['status']?.toString();_subscriptionPlan=p is Map?p['name']?.toString():null;_subscriptionExpiry=s?['current_period_end']?.toString();});}catch(e){debugPrint('OWNER SUBSCRIPTION ERROR: $e');}}
