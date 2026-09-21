@@ -241,8 +241,7 @@ class _OrderDetailsScreenState
   // ============================================================
 
   String _normalizeStatus(String status) {
-    final value =
-        status.trim().toLowerCase();
+    final value = status.trim().toLowerCase();
 
     switch (value) {
       case 'pending':
@@ -261,6 +260,15 @@ class _OrderDetailsScreenState
       case 'ready':
       case 'ready_for_pickup':
         return 'ready';
+
+      case 'full_payment':
+      case 'payment_due':
+        return 'full_payment';
+
+      case 'claimed':
+      case 'picked_up':
+      case 'pickedup':
+        return 'claimed';
 
       case 'on_the_way':
       case 'out_for_delivery':
@@ -297,30 +305,40 @@ class _OrderDetailsScreenState
   }
 
   int _statusIndex() {
-    final status =
-        _normalizeStatus(
-      _currentOrder.status,
-    );
+    final status = _normalizeStatus(_currentOrder.status);
+
+    if (_currentOrder.fulfillmentType == 'pickup') {
+      switch (status) {
+        case 'placed':
+          return 0;
+        case 'confirmed':
+          return 1;
+        case 'preparing':
+          return 2;
+        case 'ready':
+          return 3;
+        case 'full_payment':
+          return 4;
+        case 'claimed':
+          return 5;
+        default:
+          return 0;
+      }
+    }
 
     switch (status) {
       case 'placed':
         return 0;
-
       case 'confirmed':
         return 1;
-
       case 'preparing':
         return 2;
-
       case 'ready':
         return 3;
-
       case 'out_for_delivery':
         return 4;
-
       case 'delivered':
         return 5;
-
       default:
         return 0;
     }
@@ -654,132 +672,134 @@ class _OrderDetailsScreenState
       return _buildCancelledTracking();
     }
 
-    final currentIndex =
-        _statusIndex();
+    final currentIndex = _statusIndex();
+    final isPickup = _currentOrder.fulfillmentType == 'pickup';
 
-    final steps = [
-      _TrackingStep(
-        title: 'Order Placed',
-        subtitle:
-            'Your order has been received.',
-        icon: Icons.receipt_long_rounded,
-      ),
-      _TrackingStep(
-        title: 'Confirmed',
-        subtitle:
-            'The restaurant confirmed your order.',
-        icon: Icons.check_circle_outline_rounded,
-      ),
-      _TrackingStep(
-        title: 'Preparing',
-        subtitle:
-            'Your food is being prepared.',
-        icon: Icons.restaurant_rounded,
-      ),
-      _TrackingStep(
-        title: 'Ready for Pickup',
-        subtitle:
-            'Your order is ready for the rider.',
-        icon: Icons.shopping_bag_outlined,
-      ),
-      _TrackingStep(
-        title: 'Out for Delivery',
-        subtitle:
-            'Your rider is on the way.',
-        icon: Icons.delivery_dining_rounded,
-      ),
-      _TrackingStep(
-        title: 'Delivered',
-        subtitle:
-            'Enjoy your halal meal!',
-        icon: Icons.home_rounded,
-      ),
-    ];
+    final steps = isPickup
+        ? [
+            _TrackingStep(
+              title: 'Order Placed',
+              subtitle: 'Your pickup order has been received.',
+              icon: Icons.receipt_long_rounded,
+            ),
+            _TrackingStep(
+              title: 'Confirmed',
+              subtitle: 'The restaurant confirmed your order.',
+              icon: Icons.check_circle_outline_rounded,
+            ),
+            _TrackingStep(
+              title: 'Preparing',
+              subtitle: 'Your food is being prepared.',
+              icon: Icons.restaurant_rounded,
+            ),
+            _TrackingStep(
+              title: 'Ready to Pick Up',
+              subtitle: 'Your order is ready at the restaurant.',
+              icon: Icons.shopping_bag_outlined,
+            ),
+            _TrackingStep(
+              title: 'Full Payment',
+              subtitle: 'Pay the remaining balance before claiming your order.',
+              icon: Icons.payments_outlined,
+            ),
+            _TrackingStep(
+              title: 'Claimed',
+              subtitle: 'Your order has been paid and claimed. Enjoy your halal meal!',
+              icon: Icons.check_circle_rounded,
+            ),
+          ]
+        : [
+            _TrackingStep(
+              title: 'Order Placed',
+              subtitle: 'Your order has been received.',
+              icon: Icons.receipt_long_rounded,
+            ),
+            _TrackingStep(
+              title: 'Confirmed',
+              subtitle: 'The restaurant confirmed your order.',
+              icon: Icons.check_circle_outline_rounded,
+            ),
+            _TrackingStep(
+              title: 'Preparing',
+              subtitle: 'Your food is being prepared.',
+              icon: Icons.restaurant_rounded,
+            ),
+            _TrackingStep(
+              title: 'Ready for Pickup',
+              subtitle: 'Your order is ready for the rider.',
+              icon: Icons.shopping_bag_outlined,
+            ),
+            _TrackingStep(
+              title: 'Out for Delivery',
+              subtitle: 'Your rider is on the way.',
+              icon: Icons.delivery_dining_rounded,
+            ),
+            _TrackingStep(
+              title: 'Delivered',
+              subtitle: 'Enjoy your halal meal!',
+              icon: Icons.home_rounded,
+            ),
+          ];
 
     return Card(
       clipBehavior: Clip.antiAlias,
       child: Padding(
-        padding:
-            const EdgeInsets.fromLTRB(
-          18,
-          20,
-          18,
-          20,
-        ),
+        padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
                 Icon(
-                  Icons
-                      .local_shipping_outlined,
-                  color:
-                      HalalFoodTheme
-                          .primaryGreen,
+                  isPickup
+                      ? Icons.shopping_bag_outlined
+                      : Icons.local_shipping_outlined,
+                  color: HalalFoodTheme.primaryGreen,
                 ),
-                SizedBox(width: 10),
+                const SizedBox(width: 10),
                 Text(
-                  'Order Tracking',
-                  style: TextStyle(
+                  isPickup ? 'Pickup Tracking' : 'Order Tracking',
+                  style: const TextStyle(
                     fontSize: 18,
-                    fontWeight:
-                        FontWeight.w800,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ],
             ),
-
             const SizedBox(height: 20),
+            ...steps.asMap().entries.map((entry) {
+              final index = entry.key;
+              final step = entry.value;
+              final isCompleted = index < currentIndex;
+              final isCurrent = index == currentIndex;
+              final isLast = index == steps.length - 1;
 
-            ...steps.asMap().entries.map(
-              (entry) {
-                final index =
-                    entry.key;
-                final step =
-                    entry.value;
-
-                final isCompleted =
-                    index < currentIndex;
-
-                final isCurrent =
-                    index == currentIndex;
-
-                final isLast =
-                    index ==
-                        steps.length - 1;
-
-                return _TrackingStepWidget(
-                  step: step,
-                  isCompleted:
-                      isCompleted,
-                  isCurrent:
-                      isCurrent,
-                  isLast: isLast,
-                );
-              },
-            ),
-
+              return _TrackingStepWidget(
+                step: step,
+                isCompleted: isCompleted,
+                isCurrent: isCurrent,
+                isLast: isLast,
+              );
+            }),
             const SizedBox(height: 4),
-
             Row(
               children: [
-                const Icon(
-                  Icons.wifi_rounded,
-                  size: 15,
-                  color:
-                      HalalFoodTheme
-                          .primaryGreen,
+                Icon(
+                  Icons.circle,
+                  size: 8,
+                  color: HalalFoodTheme.primaryGreen,
                 ),
-                const SizedBox(width: 6),
-                Text(
-                  'Status updates automatically',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color:
-                        HalalFoodTheme
-                            .textSecondary,
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Text(
+                    isPickup
+                        ? 'Live pickup order tracking'
+                        : 'Live order tracking',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: HalalFoodTheme.textSecondary,
+                    ),
                   ),
                 ),
               ],
