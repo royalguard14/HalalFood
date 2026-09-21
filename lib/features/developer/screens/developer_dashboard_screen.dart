@@ -5,7 +5,7 @@ import '../../../app/theme.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../admin/screens/admin_action_center_screen.dart';
 import '../../admin/screens/admin_menu_management_screen.dart';
-import '../../admin/screens/admin_order_management_screen.dart';
+import 'developer_order_management_screen.dart';
 import '../../admin/screens/admin_profile_screen.dart';
 import '../../admin/screens/admin_settings_screen.dart';
 import '../../admin/screens/admin_saas_subscription_hub_screen.dart';
@@ -89,7 +89,7 @@ class DeveloperDashboardScreen extends StatelessWidget {
             Icons.receipt_long_outlined,
             'Orders',
             'Monitor orders and payments.',
-            const AdminOrderManagementScreen(),
+            const DeveloperOrderManagementScreen(),
           ),
           _DeveloperModule(
             Icons.workspace_premium_outlined,
