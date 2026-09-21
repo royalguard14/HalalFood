@@ -74,3 +74,15 @@
 - Recent Orders now excludes Pickup orders unless pickup_downpayment_status is receipt_submitted or paid.
 - Delivery orders are unaffected.
 - Commit: 06619c24b156b97d7fa821330f46f5360f792fc7.
+
+
+## 2026-09-21 — Customer Pickup Order Summary Cash/Balance Fix
+
+- User reported that after Pickup reached **Full Payment**, Customer Order Summary still showed a green **Cash Balance** instead of the actual cash paid.
+- Fixed `lib/features/order/screens/order_details_screen.dart`.
+- Customer Order Summary now loads actual paid `cash_on_delivery` payments from `payments` and displays them as **Cash**.
+- The final **Balance** is calculated as total amount minus approved GCash downpayment minus actual cash paid; when `payment_status = paid`, it is explicitly **₱0.00**.
+- The old **Cash Balance** row is no longer used for the Pickup summary.
+- Cash amount is refreshed after realtime order updates so the summary reflects the owner's final cash payment.
+- GitHub commit: `3a579747932ce6e8edbbeb1562b23ef2d0bde6ab`.
+- **Next:** pull `origin/main`, open the Customer Pickup Order Details, and verify **Cash = actual cash paid** and **Balance = ₱0.00** after Full Payment.
