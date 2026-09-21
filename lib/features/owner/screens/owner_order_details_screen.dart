@@ -43,11 +43,31 @@ class _OwnerOrderDetailsScreenState
   }
 
   Future<void> _loadPickupReceipt() async {
-    final path = widget.order['pickup_receipt_path']?.toString();
-    if (path == null || path.isEmpty) return;
     try {
-      final url = await _supabase.storage.from('payment-receipts').createSignedUrl(path, 900);
-      if (mounted) setState(() => _receiptUrl = url);
+      final orderId = widget.order['id']?.toString();
+      if (orderId == null || orderId.isEmpty) return;
+
+      // Refresh the order directly so receipt_path is not dependent on
+      // whichever columns were included by the previous Owner query.
+      final freshOrder = await _supabase
+          .from('orders')
+          .select('pickup_receipt_path,pickup_receipt_submitted_at,pickup_downpayment_status')
+          .eq('id', orderId)
+          .maybeSingle();
+
+      final path = freshOrder?['pickup_receipt_path']?.toString().trim();
+      if (path == null || path.isEmpty) {
+        debugPrint('OWNER RECEIPT: no pickup_receipt_path for order $orderId');
+        return;
+      }
+
+      final url = await _supabase.storage
+          .from('payment-receipts')
+          .createSignedUrl(path, 900);
+
+      if (mounted) {
+        setState(() => _receiptUrl = url);
+      }
     } catch (e) {
       debugPrint('OWNER RECEIPT ERROR: $e');
     }
