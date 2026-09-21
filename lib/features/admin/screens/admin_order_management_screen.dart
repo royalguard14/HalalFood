@@ -165,91 +165,6 @@ class _AdminOrderManagementScreenState
     return '${months[date.month - 1]} ${date.day}, ${date.year} • ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 
-  Future<bool> _isDeveloper() async {
-    try {
-      final result = await _supabase.rpc('is_developer');
-      return result == true;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  Future<void> _deleteOrder(Map<String, dynamic> order) async {
-    final id = order['id']?.toString();
-    if (id == null || id.isEmpty) return;
-    if (!await _isDeveloper() || !mounted) return;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Row(children: [
-          Icon(Icons.delete_forever_rounded, color: Colors.red),
-          SizedBox(width: 10),
-          Expanded(child: Text('Permanently Delete Order')),
-        ]),
-        content: const Text(
-          'This will permanently delete the order, its order items, payments, promo redemption and uploaded payment receipt file. This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton.icon(
-            style: ButtonStyle(
-              backgroundColor: WidgetStatePropertyAll(Colors.red),
-            ),
-            onPressed: () => Navigator.pop(dialogContext, true),
-            icon: const Icon(Icons.delete_forever_rounded),
-            label: const Text('Delete Permanently'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-
-    try {
-      final result = await _supabase.rpc(
-        'developer_delete_order',
-        params: {'p_order_id': id},
-      );
-      final deleted = result is Map
-          ? Map<String, dynamic>.from(result)
-          : <String, dynamic>{};
-      final receiptPaths = (deleted['receipt_paths'] as List?)
-              ?.map((value) => value.toString())
-              .where((value) => value.trim().isNotEmpty)
-              .toList() ??
-          <String>[];
-
-      var receiptDeleted = 0;
-      for (final path in receiptPaths) {
-        try {
-          await _supabase.storage.from('payment-receipts').remove([path]);
-          receiptDeleted++;
-        } catch (_) {}
-      }
-
-      await _loadOrders();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Order deleted. Items: ${deleted['order_items'] ?? 0} • Payments: ${deleted['payments'] ?? 0} • Promo: ${deleted['promo_redemptions'] ?? 0} • Receipts: $receiptDeleted/${receiptPaths.length}',
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: Colors.red.shade700,
-          content: Text('Delete failed: $e'),
-        ),
-      );
-    }
-  }
-
   void _showOrder(Map<String, dynamic> order) {
     final status = order['status']?.toString() ?? 'pending';
     showModalBottomSheet<void>(
@@ -298,30 +213,6 @@ class _AdminOrderManagementScreenState
                 const SizedBox(height: 8),
                 _MoneyRow('Total', _money(order['total_amount']), isTotal: true),
                 const SizedBox(height: 12),
-                FutureBuilder<bool>(
-                  future: _isDeveloper(),
-                  builder: (context, snapshot) {
-                    if (snapshot.data != true) return const SizedBox.shrink();
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () async {
-                            Navigator.pop(sheetContext);
-                            await _deleteOrder(order);
-                          },
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.red.shade700,
-                            side: BorderSide(color: Colors.red.shade300),
-                          ),
-                          icon: const Icon(Icons.delete_forever_rounded),
-                          label: const Text('Delete Order Permanently'),
-                        ),
-                      ),
-                    );
-                  },
-                ),
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
