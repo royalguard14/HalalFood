@@ -59,6 +59,21 @@ class RestaurantRepository {
         .toList();
   }
 
+  Future<double> getCustomerRestaurantRadiusKm() async {
+    final response = await _supabase.rpc(
+      'get_customer_restaurant_radius_km',
+    );
+
+    final value = (response as num?)?.toDouble() ?? 0;
+    if (!value.isFinite || value <= 0) {
+      throw Exception(
+        'Customer restaurant delivery radius is not configured.',
+      );
+    }
+
+    return value;
+  }
+
   Future<Restaurant> getRestaurantById(
     String restaurantId,
   ) async {
