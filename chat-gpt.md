@@ -1,3 +1,17 @@
+### 2026-09-21 — Fixed Pickup final payment exact-balance UX + Customer/Owner summaries
+
+- **User requirement:** For Pickup final payment, the customer must pay the remaining balance exactly. Underpayment and overpayment must be rejected; only the exact balance is accepted.
+- **Backend fix:** Updated live `public.record_owner_pickup_payment()` final-payment validation to compare `p_amount` directly against the calculated remaining balance and reject anything that is not exact within the existing 0.005 tolerance. Error is now a clear message: **Payment must be exactly the remaining balance of ₱X.**
+- **Owner final-payment dialog:** Now pre-fills the exact remaining balance, displays the exact amount required, blocks mismatched amounts before submitting, and no longer shows the raw `PostgrestException(...)` wrapper in the SnackBar.
+- **Customer Order Details:** Pickup tracking now uses `orders.payment_status = paid` to highlight **Full Payment** at the Ready-to-Pick-Up stage, before **Claimed**. Claimed remains the terminal step.
+- **Pickup Order Summary:** Delivery Fee is removed. Summary now shows **Subtotal → Downpayment → Cash Payment (Balance) → Total**.
+- **Owner Order Details Summary:** Same Pickup-specific breakdown; Delivery orders keep the Delivery Fee line.
+- **Files changed:** `lib/features/order/screens/order_details_screen.dart`, `lib/features/owner/screens/owner_order_details_screen.dart`, `supabase/owner_pickup_payment_and_gcash_vault.sql`.
+- **GitHub commits:** Customer Order Details `e435f3f9564138cc1d7fe0f5c92b7311bdb6e86e`; Owner Order Details `e6fe45f3a5938600fda0e86828f26bece6073f40` then summary `15257b3ba7724bfaa792fd0877eb54bd779db1b2`; SQL documentation `5b12499aa36c059d47645c0c57badd55632e50d0`.
+- **Supabase:** Live function updated by migration `fix_pickup_final_payment_exact_balance_message`; verified with `pg_get_functiondef`.
+- **Testing status:** Code/backend changes are not runtime-tested yet.
+- **Next exact test:** `git pull` → use a fresh Pickup order → complete downpayment and move it to **Ready to Pick Up** → verify Customer Order Details highlights **Ready to Pick Up** before final payment → Owner opens **Full Payment**, verify the dialog shows the exact remaining balance → test wrong amount (under/over) is blocked with the friendly exact-balance message → enter exact amount and confirm **Full Payment** becomes highlighted on Customer and Owner dashboard, while **Claimed** remains the next action.
+
 ### 2026-09-21 — Fixed Pickup payment text/enum type mismatch
 
 - **User-reported error:** Owner Pickup → Confirm GCash Downpayment failed with PostgreSQL `42883`: `operator does not exist: text = public.payment_status`.
