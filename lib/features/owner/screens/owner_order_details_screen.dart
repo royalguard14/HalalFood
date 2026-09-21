@@ -133,91 +133,95 @@ class _OwnerOrderDetailsScreenState
 
     final result = await showDialog<_PickupPaymentInput>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) => AlertDialog(
-          title: Text(title),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: amountController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: amountLabel,
+                  prefixText: '₱ ',
+                ),
+              ),
+              if (requireReference) ...[
+                const SizedBox(height: 12),
                 TextField(
-                  controller: amountController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(
-                    labelText: amountLabel,
-                    prefixText: '₱ ',
+                  controller: referenceController,
+                  decoration: const InputDecoration(
+                    labelText: 'Reference Number',
                   ),
                 ),
-                if (requireReference) ...[
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: referenceController,
-                    decoration: const InputDecoration(
-                      labelText: 'Reference Number',
-                    ),
+              ] else ...[
+                const SizedBox(height: 12),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Payment Method: Cash',
+                    style: TextStyle(fontWeight: FontWeight.w700),
                   ),
-                ] else ...[
-                  const SizedBox(height: 12),
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Payment Method: Cash',
-                      style: TextStyle(fontWeight: FontWeight.w700),
-                    ),
+                ),
+                const SizedBox(height: 8),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Date & time are recorded automatically.',
+                    style: TextStyle(fontSize: 12),
                   ),
-                  const SizedBox(height: 8),
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Date & time are recorded automatically.',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                  ),
-                ],
+                ),
               ],
-            ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final amount = double.tryParse(
-                  amountController.text.trim().replaceAll(',', ''),
-                );
-                final reference = referenceController.text.trim();
-                if (amount == null || amount <= 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Enter a valid payment amount.')),
-                  );
-                  return;
-                }
-                if (requireReference && reference.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Enter the GCash reference number.')),
-                  );
-                  return;
-                }
-                Navigator.pop(
-                  dialogContext,
-                  _PickupPaymentInput(
-                    amount: amount,
-                    reference: requireReference ? reference : null,
-                    paymentMethod: paymentMethod,
-                  ),
-                );
-              },
-              child: const Text('Accept Payment'),
-            ),
-          ],
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final amount = double.tryParse(
+                amountController.text.trim().replaceAll(',', ''),
+              );
+              final reference = referenceController.text.trim();
+              if (amount == null || amount <= 0) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(content: Text('Enter a valid payment amount.')),
+                );
+                return;
+              }
+              if (requireReference && reference.isEmpty) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(content: Text('Enter the GCash reference number.')),
+                );
+                return;
+              }
+              Navigator.pop(
+                dialogContext,
+                _PickupPaymentInput(
+                  amount: amount,
+                  reference: requireReference ? reference : null,
+                  paymentMethod: paymentMethod,
+                ),
+              );
+            },
+            child: const Text('Accept Payment'),
+          ),
+        ],
       ),
     );
 
-    amountController.dispose();
-    referenceController.dispose();
+    // Let the dialog route finish disposing its widgets before disposing
+    // controllers. This avoids controller disposal racing the keyboard/dialog
+    // teardown on Android while the amount field is focused.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      amountController.dispose();
+      referenceController.dispose();
+    });
+
     return result;
   }
 
