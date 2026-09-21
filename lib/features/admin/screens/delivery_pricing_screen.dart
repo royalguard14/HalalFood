@@ -20,6 +20,7 @@ class _DeliveryPricingScreenState extends State<DeliveryPricingScreen> {
   final _fuelAdjustment = TextEditingController();
   final _minimumFee = TextEditingController();
   final _maximumDistance = TextEditingController();
+  final _pickupDownpaymentPercent = TextEditingController();
   final _rainSurcharge = TextEditingController();
   final _peakHourSurcharge = TextEditingController();
   final _nightSurcharge = TextEditingController();
@@ -43,6 +44,7 @@ class _DeliveryPricingScreenState extends State<DeliveryPricingScreen> {
       _fuelAdjustment,
       _minimumFee,
       _maximumDistance,
+      _pickupDownpaymentPercent,
       _rainSurcharge,
       _peakHourSurcharge,
       _nightSurcharge,
@@ -70,6 +72,7 @@ class _DeliveryPricingScreenState extends State<DeliveryPricingScreen> {
       _fuelAdjustment.text = _numberText(pricing?['fuel_adjustment']);
       _minimumFee.text = _numberText(pricing?['minimum_fee']);
       _maximumDistance.text = _numberText(pricing?['maximum_delivery_distance_km']);
+      _pickupDownpaymentPercent.text = _numberText(pricing?['pickup_downpayment_percent'] ?? 50);
       _rainSurcharge.text = _numberText(pricing?['rain_surcharge']);
       _peakHourSurcharge.text = _numberText(pricing?['peak_hour_surcharge']);
       _nightSurcharge.text = _numberText(pricing?['night_surcharge']);
@@ -106,6 +109,7 @@ class _DeliveryPricingScreenState extends State<DeliveryPricingScreen> {
         fuelAdjustment: _value(_fuelAdjustment),
         minimumFee: _value(_minimumFee),
         maximumDeliveryDistanceKm: _value(_maximumDistance),
+        pickupDownpaymentPercent: _value(_pickupDownpaymentPercent),
         rainSurcharge: _value(_rainSurcharge),
         peakHourSurcharge: _value(_peakHourSurcharge),
         nightSurcharge: _value(_nightSurcharge),
@@ -165,6 +169,11 @@ class _DeliveryPricingScreenState extends State<DeliveryPricingScreen> {
                             _maximumDistance,
                             'Maximum Customer & Delivery Distance',
                           ),
+                          _percentageField(
+                            _pickupDownpaymentPercent,
+                            'Pickup Downpayment',
+                            'Percentage of the pickup order subtotal required before processing. This downpayment is non-refundable under the pickup no-show rule.',
+                          ),
                         ],
                       ),
                       const SizedBox(height: 14),
@@ -218,6 +227,36 @@ class _DeliveryPricingScreenState extends State<DeliveryPricingScreen> {
           prefixIcon: const Icon(Icons.payments_outlined),
         ),
         validator: _numberValidator,
+        onChanged: (_) => setState(() {}),
+      ),
+    );
+  }
+
+  Widget _percentageField(
+    TextEditingController controller,
+    String label,
+    String helper,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextFormField(
+        controller: controller,
+        enabled: !_saving,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: InputDecoration(
+          labelText: label,
+          suffixText: '%',
+          helperText: helper,
+          prefixIcon: const Icon(Icons.percent_rounded),
+        ),
+        validator: (value) {
+          final number = double.tryParse(value?.trim() ?? '');
+          if (number == null) return 'Enter a valid percentage.';
+          if (number < 0 || number > 100) {
+            return 'Percentage must be between 0 and 100.';
+          }
+          return null;
+        },
         onChanged: (_) => setState(() {}),
       ),
     );
