@@ -23,3 +23,17 @@
 - Pickup orders are shown once `pickup_downpayment_status` is `receipt_submitted` or `paid`.
 - Dashboard order query now also passes `subtotal`, `promo_discount`, and `delivery_fee` to Owner Order Details so the payment summary has the original order breakdown available.
 - Code commit: `dccf27aa52ce11d30ff336efefccee60af705c4d`.
+
+
+## 2026-09-21 — Developer: Permanent Order Deletion
+
+- Added live Supabase function: `public.developer_delete_order(uuid)`.
+- Developer-only backend guard via `public.is_developer()`.
+- Deletes connected `payments`, `promo_redemptions`, `order_items`, then the `orders` row.
+- Collects `orders.pickup_receipt_path` before deletion so the app can remove the uploaded receipt from Storage bucket `payment-receipts`.
+- Added `supabase/developer_order_delete.sql` to GitHub.
+- Updated Developer Console → Platform Operations → Orders (existing `AdminOrderManagementScreen`) with a Developer-only **Delete Order Permanently** action and confirmation dialog.
+- After the RPC deletes database records, the app removes each returned receipt path from `payment-receipts` and refreshes the order list.
+- UI/backend deletion commit: `26c49a158c9923d41e6087da1d0f4d8bbdfc6c65`.
+- SQL documentation commit: `32a64be1e7f1f33e1079bd1604708a3c643b328a`.
+- Live Supabase function was applied directly to project `taltqnxhivpfwjqlvxnt`.
