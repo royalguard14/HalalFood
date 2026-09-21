@@ -749,7 +749,7 @@ class _PromoSection extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
               child: DropdownButtonFormField<String>(
-                initialValue: selected?.id,
+                initialValue: selected?.id ?? '__none__',
                 isExpanded: true,
                 decoration: const InputDecoration(
                   labelText: 'Select Promo / Coupon',
@@ -758,7 +758,7 @@ class _PromoSection extends StatelessWidget {
                 ),
                 items: [
                   const DropdownMenuItem<String>(
-                    value: null,
+                    value: '__none__',
                     child: Text('No promo'),
                   ),
                   ...promos.map((promo) {
@@ -774,7 +774,7 @@ class _PromoSection extends StatelessWidget {
                   }),
                 ],
                 onChanged: (id) {
-                  if (id == null) {
+                  if (id == '__none__') {
                     onSelect(null);
                     return;
                   }
