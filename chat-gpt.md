@@ -106,3 +106,29 @@
 - The **Order Summary** remains visible and continues to show the confirmed Downpayment, actual Cash paid, and Balance.
 - Delivery payment display is unchanged.
 - Commit: a1fdb8e6d4f24f4ef397a9bd5b3b5b18dfa44bff.
+
+### 2026-09-21 — Developer Restaurant Control + Cash/GCash Vault Manipulation
+
+- Developer Console → Platform Operations → Restaurants now has a **Restaurant Control • Cash & GCash Vault** entry for each restaurant.
+- Added `lib/features/developer/screens/developer_restaurant_control_screen.dart`.
+- The selected restaurant control screen shows two vaults:
+  - **Cash Vault** = paid cash-on-delivery payments + developer adjustments.
+  - **GCash Vault** = paid GCash payments + developer adjustments − existing GCash cashouts.
+- Developer can manipulate either vault using a signed adjustment:
+  - positive amount = add funds
+  - negative amount = subtract funds
+  - a reason/notes field is recorded
+- Added live Supabase table `public.developer_restaurant_vault_adjustments`.
+- Added protected RPC `public.developer_record_vault_adjustment(uuid,text,numeric,text)`, guarded by `public.is_developer()`.
+- RLS/grants were added so Developers can view adjustment history and restaurant Owners can view adjustments belonging to their own restaurant.
+- Added a Developer SELECT policy for existing `owner_gcash_cashouts` so the Developer Restaurant Control screen can display existing GCash cashouts.
+- Owner Dashboard vault summary now includes Developer vault adjustments.
+- Owner GCash Vault balance now includes Developer GCash adjustments.
+- Existing `record_owner_gcash_cashout` remains Owner-only; Developer manipulation uses the separate audited adjustment table/RPC.
+- Updated `developer_delete_restaurant(uuid)` so permanent restaurant deletion also removes `owner_gcash_cashouts` and developer vault adjustments.
+- GitHub commits:
+  - `0592cdc595c92317bd2d301bfca63ee9e2cb88bc` — Developer Restaurant Control screen
+  - `ef8e0f1b7ae494ea9d1d2eaf68f63202574eeb4b` — Restaurants list entry point
+  - `69169e50c4c11c51e7cbad5a1a1acf5895a0f5d5` — Owner GCash Vault balance update
+- Live Supabase changes were applied and verified by querying the new RPC/table and RLS policies.
+- **Next:** pull `origin/main`, open Developer Console → Platform Operations → Restaurants, select a restaurant's **Restaurant Control • Cash & GCash Vault**, and test a small positive/negative adjustment. Verify the Owner Dashboard/GCash Vault reflects the adjustment.
