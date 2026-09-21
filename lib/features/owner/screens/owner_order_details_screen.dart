@@ -603,7 +603,7 @@ class _OwnerOrderDetailsScreenState
     final subtotal =
         (widget.order['subtotal'] as num?)
                 ?.toDouble() ??
-            0;
+            total;
 
     final deliveryFee =
         (widget.order['delivery_fee'] as num?)
@@ -893,7 +893,7 @@ class _OwnerOrderDetailsScreenState
             _SummaryRow(
               label: 'Subtotal',
               value:
-                  '₱${subtotal.toStringAsFixed(2)}',
+                  '₱${(widget.order['fulfillment_type']?.toString().toLowerCase() == 'pickup' ? total : subtotal).toStringAsFixed(2)}',
             ),
             const SizedBox(height: 10),
             if (widget.order['fulfillment_type']?.toString().toLowerCase() == 'pickup') ...[
