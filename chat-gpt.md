@@ -49,3 +49,18 @@
 - No Owner/Customer order or payment flow was changed.
 - **Previous incorrect UI commit:** `26c49a158c9923d41e6087da1d0f4d8bbdfc6c65`.
 - **This correction:** Developer-only order management screen + Admin cleanup + Developer Console routing.
+
+
+## 2026-09-21 — Developer Permanent Deletion Order List Fixed
+
+- Root cause: DeveloperOrderManagementScreen was querying public.orders directly. Developer users can still be blocked by the table's normal RLS policies, so the screen could show no orders even though orders exist.
+- Added live Supabase function public.developer_list_orders() as SECURITY DEFINER.
+- The function independently checks public.is_developer() and returns all current public.orders ordered by created_at desc.
+- public and anon execution are revoked; only authenticated can execute the RPC.
+- Updated lib/features/developer/screens/developer_order_management_screen.dart to load orders through developer_list_orders() instead of direct table select.
+- Renamed the Developer screen heading to Permanent Order Deletion and clarified that the displayed orders are available for permanent deletion.
+- Existing developer_delete_order(uuid) remains the actual destructive backend operation and remains Developer-only.
+- Live Supabase migration applied successfully.
+- GitHub commits:
+  - UI/RPC loading fix: f6045b1fa42102a9fbf450ec093875143d21a41a
+  - SQL documentation: c3dab4ef0c1f06e2d3ebcb7b7e9adb7dc62603ae
