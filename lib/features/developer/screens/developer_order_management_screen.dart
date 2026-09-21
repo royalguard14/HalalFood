@@ -288,29 +288,23 @@ class _AdminOrderManagementScreenState
                 const SizedBox(height: 8),
                 _MoneyRow('Total', _money(order['total_amount']), isTotal: true),
                 const SizedBox(height: 12),
-                FutureBuilder<bool>(
-                  future: _isDeveloper(),
-                  builder: (context, snapshot) {
-                    if (snapshot.data != true) return const SizedBox.shrink();
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () async {
-                            Navigator.pop(sheetContext);
-                            await _deleteOrder(order);
-                          },
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.red.shade700,
-                            side: BorderSide(color: Colors.red.shade300),
-                          ),
-                          icon: const Icon(Icons.delete_forever_rounded),
-                          label: const Text('Delete Order Permanently'),
-                        ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        Navigator.pop(sheetContext);
+                        await _deleteOrder(order);
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red.shade700,
+                        side: BorderSide(color: Colors.red.shade300),
                       ),
-                    );
-                  },
+                      icon: const Icon(Icons.delete_forever_rounded),
+                      label: const Text('Delete Order Permanently'),
+                    ),
+                  ),
                 ),
                 SizedBox(
                   width: double.infinity,
