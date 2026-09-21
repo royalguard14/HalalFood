@@ -1,3 +1,11 @@
+### 2026-09-21 — Restored checkout screen after accidental deletion
+
+- **Issue found:** The previous cleanup commit accidentally replaced `lib/features/checkout/screens/checkout_screen.dart` with an empty file. The local analyzer then showed 26 issues because the checkout implementation was missing, while the remaining 26 messages were existing infos/warnings.
+- **Fix:** Restored the complete checkout screen from the known-good parent commit `da0cb69`. This preserves the pickup/downpayment workflow that existed before the accidental deletion.
+- **Commit:** `a68281893803ce9bdf5d75b1c8f07b66069beb50`
+- **Current stopping point:** Checkout source restored. The local analyzer has not yet been rerun after this restoration.
+- **Next task:** `git pull` → `flutter analyze`. Goal is to eliminate all remaining analyzer issues, including infos/warnings, not only errors.
+
 ### 2026-09-21 — Fixed checkout file corruption after pickup workflow edit
 
 - **Issue:** `flutter analyze` reported 76 issues because `lib/features/checkout/screens/checkout_screen.dart` had accidentally been duplicated from line 2043 onward. This caused duplicate classes/imports and the syntax error at line 2043.
