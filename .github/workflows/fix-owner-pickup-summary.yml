@@ -1,0 +1,88 @@
+name: Apply Owner Pickup Summary Fix
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-owner-pickup-summary.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Patch owner pickup payment calculations
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('lib/features/owner/screens/owner_order_details_screen.dart')
+          text = path.read_text(encoding='utf-8')
+
+          old = '''  Future<void> _recordFinalPickupPayment() async {
+    final total = (widget.order['total_amount'] as num?)?.toDouble() ?? 0;
+    final downpayment =
+        (widget.order['pickup_downpayment_amount'] as num?)?.toDouble() ?? 0;
+    final remaining =
+        (total - downpayment).clamp(0, double.infinity).toDouble();
+'''
+          new = '''  Future<void> _recordFinalPickupPayment() async {
+    final total = (widget.order['total_amount'] as num?)?.toDouble() ?? 0;
+    final remaining =
+        (total - _gcashDownpaymentPaid - _cashPickupPaid)
+            .clamp(0, double.infinity)
+            .toDouble();
+'''
+          if old not in text:
+              raise SystemExit('Final pickup payment block not found.')
+          text = text.replace(old, new, 1)
+
+          old2 = '''            _SummaryRow(
+              label: 'Balance',
+              value: '₱${balance.toStringAsFixed(2)}',
+              isTotal: true,
+            ),
+'''
+          new2 = '''            _SummaryRow(
+              label: isPickup && _status.toLowerCase() == 'ready'
+                  ? 'Cash Balance'
+                  : 'Balance',
+              value: '₱${balance.toStringAsFixed(2)}',
+              isTotal: true,
+            ),
+'''
+          if old2 not in text:
+              raise SystemExit('Owner balance summary block not found.')
+          text = text.replace(old2, new2, 1)
+
+          path.write_text(text, encoding='utf-8')
+
+      - name: Update handoff log
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('chat-gpt.md')
+          entry = '''
+### 2026-09-21 — Fixed Owner Pickup Summary and Final Cash Calculation
+- **Owner Pickup Order Summary:** keeps the original **Subtotal**, **Promo**, actual paid **GCash Downpayment**, actual paid **Cash for Pickup**, and remaining **Balance**.
+- When Pickup status is **Ready to Pick Up** (`orders.status = ready`), the final summary label becomes **Cash Balance** so the Owner sees the amount that must be collected from the customer.
+- Final cash-payment dialog now calculates the expected remaining amount from the actual paid GCash and actual paid cash recorded in `payments`, instead of relying on the original requested downpayment field.
+- This keeps the Owner side aligned with the Customer-side payment flow and the server-side exact-balance validation.
+- **File changed:** `lib/features/owner/screens/owner_order_details_screen.dart`
+- **Testing status:** Code committed automatically; runtime test still pending.
+- **Next:** `git pull origin main`, then test Owner Pickup flow: approve actual GCash amount → Preparing → Ready to Pick Up → record exact Cash Balance → Claimed.
+'''
+          path.write_text(path.read_text(encoding='utf-8') + entry, encoding='utf-8')
+
+      - name: Commit changes and remove temporary workflow
+        run: |
+          rm -f .github/workflows/fix-owner-pickup-summary.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/features/owner/screens/owner_order_details_screen.dart chat-gpt.md .github/workflows/fix-owner-pickup-summary.yml
+          git commit -m "fix: align owner pickup payment summary"
+          git push
