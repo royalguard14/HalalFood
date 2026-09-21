@@ -28,6 +28,8 @@ class _OwnerOrderDetailsScreenState
   String? _pickupPaymentState;
   bool _showReceipt = false;
   bool _pickupFinalPaymentPaid = false;
+  double _gcashDownpaymentPaid = 0;
+  double _cashPickupPaid = 0;
 
   String? _error;
 
@@ -46,6 +48,17 @@ class _OwnerOrderDetailsScreenState
 
     _loadOrderItems();
     _loadPickupReceipt();
+    _loadPickupPayments();
+  }
+
+  Future<void> _loadPickupPayments() async {
+    try {
+      final orderId=widget.order['id']?.toString(); if(orderId==null||orderId.isEmpty)return;
+      final rows=await _supabase.from('payments').select('amount,payment_method,status,notes,paid_at').eq('order_id',orderId).eq('status','paid');
+      double gcash=0,cash=0;
+      for(final row in rows as List){final amount=(row['amount'] as num?)?.toDouble()??0;final method=row['payment_method']?.toString().toLowerCase();if(method=='gcash')gcash+=amount;if(method=='cash_on_delivery')cash+=amount;}
+      if(mounted)setState((){_gcashDownpaymentPaid=gcash;_cashPickupPaid=cash;});
+    }catch(e){debugPrint('OWNER PICKUP PAYMENTS ERROR: $e');}
   }
 
   Future<void> _loadPickupReceipt() async {
@@ -293,6 +306,7 @@ class _OwnerOrderDetailsScreenState
         _isUpdating = false;
       });
 
+      await _loadPickupPayments();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -883,15 +897,11 @@ class _OwnerOrderDetailsScreenState
             ),
             const SizedBox(height: 10),
             if (widget.order['fulfillment_type']?.toString().toLowerCase() == 'pickup') ...[
-              _SummaryRow(
-                label: 'Downpayment',
-                value: '₱' + ((widget.order['pickup_downpayment_amount'] as num?)?.toDouble() ?? 0).toStringAsFixed(2),
-              ),
+              _SummaryRow(label: 'GCash Downpayment', value: '-₱' + _gcashDownpaymentPaid.toStringAsFixed(2)),
               const SizedBox(height: 10),
-              _SummaryRow(
-                label: 'Cash Payment (Balance)',
-                value: '₱' + (((widget.order['total_amount'] as num?)?.toDouble() ?? total) - ((widget.order['pickup_downpayment_amount'] as num?)?.toDouble() ?? 0)).clamp(0, double.infinity).toStringAsFixed(2),
-              ),
+              _SummaryRow(label: 'Cash for Pickup', value: '-₱' + _cashPickupPaid.toStringAsFixed(2)),
+              const SizedBox(height: 10),
+              _SummaryRow(label: 'Total Paid', value: '₱' + (_gcashDownpaymentPaid + _cashPickupPaid).toStringAsFixed(2)),
             ] else ...[
               _SummaryRow(
                 label: 'Delivery Fee',
@@ -903,12 +913,7 @@ class _OwnerOrderDetailsScreenState
                   EdgeInsets.symmetric(vertical: 14),
               child: Divider(),
             ),
-            _SummaryRow(
-              label: 'Total',
-              value:
-                  '₱${total.toStringAsFixed(2)}',
-              isTotal: true,
-            ),
+            _SummaryRow(label: 'Balance', value: '₱' + (total - _gcashDownpaymentPaid - _cashPickupPaid).clamp(0, double.infinity).toStringAsFixed(2), isTotal: true),
           ],
         ),
       ),
