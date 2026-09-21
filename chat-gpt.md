@@ -1,3 +1,15 @@
+### 2026-09-21 — Made restaurant distance display GPS-only
+
+- **File changed:** `lib/features/home/screens/home_screen.dart`
+- **Reason:** Customer confirmed distance must be based on actual customer GPS location; if GPS/location is not accepted, no distance should be shown.
+- **Fix:** Tightened the restaurant distance helper so it requires valid customer address coordinates and valid restaurant coordinates. It explicitly does not fall back to address text, city/province, or approximate location.
+- **Behavior:** If the customer has no valid GPS coordinates, the restaurant tile still appears but the `X.X km away` label is omitted. With valid GPS coordinates, the distance is calculated and displayed.
+- **Supabase changes:** None.
+- **Testing:** GitHub change committed; runtime verification pending.
+- **Commit:** `3f8edcec22d226fd2f76249bf17efa0513325050`.
+- **Current stopping point:** Restaurant distance display is now GPS-only.
+- **Next task:** `git pull`, then test Customer Home once with GPS/location accepted and once with GPS/location not accepted.
+
 ### 2026-09-21 — Added customer distance to restaurant tiles
 
 - **File changed:** `lib/features/home/screens/home_screen.dart`
