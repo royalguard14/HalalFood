@@ -1140,8 +1140,8 @@ class _OrderDetailsScreenState
             _summaryRow(
               'Subtotal',
               _currentOrder.fulfillmentType == 'pickup'
-                  ? '₱\${_currentOrder.totalAmount.toStringAsFixed(2)}'
-                  : '₱\${_currentOrder.subtotal.toStringAsFixed(2)}',
+                  ? '₱${_currentOrder.totalAmount.toStringAsFixed(2)}'
+                  : '₱${_currentOrder.subtotal.toStringAsFixed(2)}',
             ),
 
             const SizedBox(height: 10),
@@ -1149,12 +1149,12 @@ class _OrderDetailsScreenState
             if (_currentOrder.fulfillmentType == 'pickup') ...[
               _summaryRow(
                 'Downpayment',
-                '-₱\${_currentOrder.pickupDownpaymentAmount.toStringAsFixed(2)}',
+                '-₱${_currentOrder.pickupDownpaymentAmount.toStringAsFixed(2)}',
               ),
               const SizedBox(height: 10),
               _summaryRow(
                 'Cash for Pickup',
-                '-₱\${(_currentOrder.totalAmount - _currentOrder.pickupDownpaymentAmount).clamp(0, double.infinity).toStringAsFixed(2)}',
+                '-₱${(_currentOrder.totalAmount - _currentOrder.pickupDownpaymentAmount).clamp(0, double.infinity).toStringAsFixed(2)}',
               ),
               const SizedBox(height: 10),
               _summaryRow(
@@ -1179,7 +1179,7 @@ class _OrderDetailsScreenState
 
               _summaryRow(
                 'Total',
-                '₱\${_currentOrder.totalAmount.toStringAsFixed(2)}',
+                '₱${_currentOrder.totalAmount.toStringAsFixed(2)}',
                 isTotal: true,
               ),
             ],
