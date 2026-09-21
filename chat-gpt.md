@@ -1,3 +1,18 @@
+### 2026-09-21 — Pickup payment recording + Owner GCash Vault
+
+- **User-required Pickup flow:** **For Confirmation → Accept → Confirmed → Preparing → Ready to Pick Up → Full Payment → Claimed**.
+- **Initial downpayment:** Owner must not auto-start Preparing when accepting the receipt. After Accept, Owner records the actual GCash downpayment **Amount Received** and **Reference Number**. Date/time is recorded automatically. The order then becomes **Confirmed**.
+- **Final payment:** At **Ready to Pick Up**, Owner records the customer's remaining payment. The form records **Amount Received** and lets Owner choose **Cash or GCash**; there is **no Reference Number** for this second payment. Date/time is automatic.
+- **Payment integrity:** Both payments are stored against the same order_id. The database validates that the final paid total equals the order bill exactly. Underpayment and overpayment block the transition to full payment/Claimed.
+- **Database:** Added payments.paid_at, owner_gcash_cashouts, Owner-only payment visibility, atomic record_owner_pickup_payment(...), and record_owner_gcash_cashout(...) with owner authorization and balance validation.
+- **Owner GCash Vault:** Added **GCash Vault** to Owner Dashboard. It shows GCash received, cashouts, available balance, and recorded cashout history. Cashouts reduce the available balance but remain permanently recorded.
+- **Files changed:** lib/features/owner/screens/owner_order_details_screen.dart, lib/features/owner/screens/owner_dashboard_screen.dart, lib/features/owner/screens/owner_gcash_vault_screen.dart, supabase/owner_pickup_payment_and_gcash_vault.sql.
+- **Commits:** Owner Order Details 3c302756bb74e8e8f4bde0834ac17a773035c627; GCash Vault d292bda89fb1f2dc3187e85acb97534d73fb978e; Owner Dashboard 2fb2d89c501f176d66091cc30f9ea6880661f890; SQL documentation 64f46d6dcd5c1d638f7698370cd1f6295d65d630.
+- **Test data reset:** orders=0, order_items=0, payments=0, promo_redemptions=0, owner_gcash_cashouts=0.
+- **Storage note:** Existing payment-receipts objects were inspected before the reset. Supabase requires deleting Storage files through the Storage API, not direct SQL; the available database tool cannot safely perform physical Storage deletion. Do not delete storage.objects rows directly because that can orphan the underlying files. Physical receipt-object cleanup remains a separate Storage API operation.
+- **Testing status:** Not runtime-tested after this edit.
+- **Next exact test:** git pull → create one fresh Pickup order → Owner opens **For Confirmation** → press **Accept** → enter the required downpayment amount and reference → verify the order becomes **Confirmed** and the next button is **Preparing**, not Preparing automatically. Do only this first test and report the result before the next edit.
+
 ### 2026-09-21 — Fixed Pickup final-payment gate before Claimed
 
 - **User finding:** After Owner accepted the Pickup downpayment receipt, the order correctly moved to **Preparing** and then **Ready to Pick Up**, but the Owner could see **Claimed** immediately instead of requiring the remaining **Full Payment** first.
