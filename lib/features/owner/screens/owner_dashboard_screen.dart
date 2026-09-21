@@ -43,7 +43,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   Future<void> _loadDashboard() async {if(mounted)setState(()=>_loading=true);await Future.wait([_loadSubscription(),_loadBusinessStats(),_loadOrderStats(),_loadRestaurantName(),_loadVaultSummary()]);if(mounted)setState(()=>_loading=false);}
   Future<void> _loadVaultSummary() async {
     try {
-      final payments=await _supabase.from('payments').select('amount,payment_method,status,paid_at,orders!inner(restaurant_id)').eq('status','paid').eq('orders.restaurant_id',widget.restaurantId);
+      final orders=await _supabase.from('orders').select('id').eq('restaurant_id',widget.restaurantId); final orderIds=(orders as List).map((row)=>row['id']?.toString()).whereType<String>().toList(); final payments=orderIds.isEmpty?<Map<String,dynamic>>[]:await _supabase.from('payments').select('amount,payment_method,status,paid_at').eq('status','paid').inFilter('order_id',orderIds);
       final cashouts=await _supabase.from('owner_gcash_cashouts').select('amount').eq('restaurant_id',widget.restaurantId);
       double cash=0,gcash=0;
       for(final row in payments as List){final amount=(row['amount'] as num?)?.toDouble()??0;final method=row['payment_method']?.toString().toLowerCase();if(method=='cash_on_delivery')cash+=amount;if(method=='gcash')gcash+=amount;}
