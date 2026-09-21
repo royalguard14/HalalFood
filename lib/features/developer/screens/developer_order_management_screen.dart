@@ -54,14 +54,7 @@ class _DeveloperOrderManagementScreenState
     }
 
     try {
-      final response = await _supabase
-          .from('orders')
-          .select(
-            'id, customer_id, restaurant_id, delivery_address_id, status, '
-            'payment_status, subtotal, delivery_fee, total_amount, notes, '
-            'created_at, updated_at',
-          )
-          .order('created_at', ascending: false);
+      final response = await _supabase.rpc('developer_list_orders');
 
       if (!mounted) return;
       setState(() {
@@ -328,7 +321,7 @@ class _DeveloperOrderManagementScreenState
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8F7),
       appBar: AppBar(
-        title: const Text('Developer Order Management', style: TextStyle(fontWeight: FontWeight.w800)),
+        title: const Text('Permanent Order Deletion', style: TextStyle(fontWeight: FontWeight.w800)),
         actions: [
           IconButton(
             tooltip: 'Refresh orders',
@@ -426,9 +419,9 @@ class _OverviewCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Order Overview', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            const Text('Orders Available for Permanent Deletion', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
             const SizedBox(height: 4),
-            const Text('Monitor incoming orders from one place.', style: TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary)),
+            const Text('These orders can be permanently removed by the Developer.', style: TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary)),
             const SizedBox(height: 16),
             Row(
               children: [
