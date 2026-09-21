@@ -1,3 +1,15 @@
+### 2026-09-21 — Fixed Admin access to Delivery Pricing settings
+
+- **User-reported issue:** Delivery Pricing screen displayed all values as `₱0`, and saving failed with PostgreSQL RLS error `42501` on `delivery_pricing_settings`.
+- **Root cause:** The existing table policy allowed only Developers to manage `delivery_pricing_settings`. Admin users could not read the existing row or insert/update it through the Flutter client. The row itself was NOT deleted or reset.
+- **Verified existing values in Supabase:** Base Fee `₱30`, Included Distance `2 km`, Additional Fee Per KM `₱10`, Fuel Adjustment `₱5`, Minimum Fee `₱25`, Maximum Delivery Distance `15 km`, Rain/Peak/Night Surcharge `₱0`.
+- **Supabase fix:** Replaced the Developer-only management policy with separate SELECT/INSERT/UPDATE/DELETE policies allowing both `public.is_admin()` and `public.is_developer()`.
+- **Flutter pricing values:** No pricing values were changed by this fix. The previous edit only changed the Maximum Distance label/description.
+- **Testing:** Pending user refresh/pull and runtime verification as Admin.
+- **Migration:** Applied directly to Supabase as `fix_delivery_pricing_admin_access`.
+- **Current stopping point:** Delivery Pricing values remain intact and Admin access is restored at the RLS level.
+- **Next action:** User should `git pull` (for the previously pushed Home/radius changes), reopen Admin → Delivery Pricing, and verify the original prices appear. Do not change/save values yet unless they appear correctly.
+
 ### 2026-09-21 — Made server-side delivery distance authoritative at Place Order
 
 - **Reason:** The existing `public.calculate_delivery_fee()` already enforces `maximum_delivery_distance_km`, but Customer Checkout was previously using only the Flutter-side fee calculation when creating the order.
