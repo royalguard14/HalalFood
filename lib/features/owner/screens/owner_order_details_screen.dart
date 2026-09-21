@@ -406,6 +406,11 @@ class _OwnerOrderDetailsScreenState
       final isPickup =
           widget.order['fulfillment_type']?.toString().toLowerCase() == 'pickup';
 
+      // Normalize UI-only Pickup labels before they ever reach the
+      // order_status enum. This also protects against a stale/malformed
+      // value such as "ready_to_pick_up'".
+      newStatus = newStatus.trim().replaceAll("'", '');
+
       if (isPickup && newStatus == 'ready_to_pick_up') {
         // order_status has no custom pickup value; `ready` is the database state.
         newStatus = 'ready';
