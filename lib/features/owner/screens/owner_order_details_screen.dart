@@ -89,7 +89,199 @@ class _OwnerOrderDetailsScreenState
   }
 
   Future<void> _confirmPickupReceipt() async {
-    await _updatePickupPayment('paid');
+    final result = await _showPickupPaymentDialog(
+      title: 'Confirm GCash Downpayment',
+      amountLabel: 'Amount Received',
+      requireReference: true,
+      initialAmount:
+          (widget.order['pickup_downpayment_amount'] as num?)?.toDouble(),
+    );
+    if (result == null) return;
+    await _recordPickupPayment(
+      stage: 'downpayment',
+      amount: result.amount,
+      reference: result.reference,
+      paymentMethod: 'gcash',
+    );
+  }
+
+  Future<void> _recordFinalPickupPayment() async {
+    final result = await _showPickupPaymentDialog(
+      title: 'Record Remaining Payment',
+      amountLabel: 'Amount Received',
+      requireReference: false,
+    );
+    if (result == null) return;
+    await _recordPickupPayment(
+      stage: 'final',
+      amount: result.amount,
+      paymentMethod: result.paymentMethod,
+    );
+  }
+
+  Future<_PickupPaymentInput?> _showPickupPaymentDialog({
+    required String title,
+    required String amountLabel,
+    required bool requireReference,
+    double? initialAmount,
+  }) async {
+    final amountController = TextEditingController(
+      text: initialAmount == null ? '' : initialAmount.toStringAsFixed(2),
+    );
+    final referenceController = TextEditingController();
+    var paymentMethod = 'cash';
+
+    final result = await showDialog<_PickupPaymentInput>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: Text(title),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: amountController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    labelText: amountLabel,
+                    prefixText: '₱ ',
+                  ),
+                ),
+                if (requireReference) ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: referenceController,
+                    decoration: const InputDecoration(
+                      labelText: 'Reference Number',
+                    ),
+                  ),
+                ] else ...[
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: paymentMethod,
+                    decoration: const InputDecoration(
+                      labelText: 'Payment Method',
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'cash', child: Text('Cash')),
+                      DropdownMenuItem(value: 'gcash', child: Text('GCash')),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        setDialogState(() => paymentMethod = value);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Date & time are recorded automatically.',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final amount = double.tryParse(
+                  amountController.text.trim().replaceAll(',', ''),
+                );
+                final reference = referenceController.text.trim();
+                if (amount == null || amount <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Enter a valid payment amount.')),
+                  );
+                  return;
+                }
+                if (requireReference && reference.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Enter the GCash reference number.')),
+                  );
+                  return;
+                }
+                Navigator.pop(
+                  dialogContext,
+                  _PickupPaymentInput(
+                    amount: amount,
+                    reference: requireReference ? reference : null,
+                    paymentMethod: paymentMethod,
+                  ),
+                );
+              },
+              child: const Text('Accept Payment'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    amountController.dispose();
+    referenceController.dispose();
+    return result;
+  }
+
+  Future<void> _recordPickupPayment({
+    required String stage,
+    required double amount,
+    String? reference,
+    required String paymentMethod,
+  }) async {
+    if (_isUpdating) return;
+    setState(() => _isUpdating = true);
+    try {
+      final orderId = widget.order['id']?.toString();
+      if (orderId == null || orderId.isEmpty) {
+        throw Exception('Invalid order ID.');
+      }
+
+      await _supabase.rpc(
+        'record_owner_pickup_payment',
+        params: {
+          'p_order_id': orderId,
+          'p_stage': stage,
+          'p_amount': amount,
+          'p_reference': reference,
+          'p_payment_method': paymentMethod,
+        },
+      );
+
+      if (!mounted) return;
+      setState(() {
+        if (stage == 'downpayment') {
+          _pickupPaymentState = 'paid';
+          _pickupFinalPaymentPaid = false;
+          _status = 'confirmed';
+        } else {
+          _pickupFinalPaymentPaid = true;
+        }
+        _isUpdating = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            stage == 'downpayment'
+                ? 'Downpayment accepted. Order is now Confirmed.'
+                : 'Remaining payment accepted. Order is fully paid.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isUpdating = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to record payment: $e')),
+      );
+    }
   }
 
   Future<void> _rejectPickupReceipt() async {
@@ -127,7 +319,7 @@ class _OwnerOrderDetailsScreenState
       if (orderId == null || orderId.isEmpty) throw Exception('Invalid order ID.');
       final data = <String, dynamic>{'pickup_downpayment_status': state};
       if (state == 'paid') {
-        data['status'] = 'preparing';
+        data['status'] = 'confirmed';
       }
       if (state == 'receipt_rejected') {
         data['pickup_receipt_rejection_reason'] = reason;
@@ -147,7 +339,7 @@ class _OwnerOrderDetailsScreenState
           _pickupFinalPaymentPaid = false;
         }
         _status = state == 'paid'
-            ? 'preparing'
+            ? 'confirmed'
             : (widget.order['status']?.toString() ?? _status);
         if (state == 'receipt_rejected') {
           _receiptUrl = null;
@@ -226,19 +418,8 @@ class _OwnerOrderDetailsScreenState
         // order_status has no custom pickup value; `ready` is the database state.
         newStatus = 'ready';
       } else if (isPickup && newStatus == 'full_payment') {
-        // Final pickup payment is represented by payment_status, not order_status.
-        await _supabase
-            .from('orders')
-            .update({'payment_status': 'paid'})
-            .eq('id', orderId);
-        if (!mounted) return;
-        setState(() {
-          _pickupFinalPaymentPaid = true;
-          _isUpdating = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Final payment marked as paid. Order is ready to be claimed.')),
-        );
+        await _recordFinalPickupPayment();
+        if (mounted) setState(() => _isUpdating = false);
         return;
       } else if (isPickup && newStatus == 'claimed') {
         // `delivered` is the terminal order_status used for completed pickup orders.
@@ -717,6 +898,20 @@ class _OwnerOrderDetailsScreenState
       }
 
       switch (_status.toLowerCase()) {
+        case 'confirmed':
+          return SizedBox(
+            width: double.infinity,
+            height: 54,
+            child: ElevatedButton.icon(
+              onPressed: _isUpdating ? null : () => _updateStatus('preparing'),
+              icon: const Icon(Icons.restaurant_rounded),
+              label: const Text(
+                'Preparing',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+          );
+
         case 'preparing':
           return SizedBox(
             width: double.infinity,
@@ -755,9 +950,7 @@ class _OwnerOrderDetailsScreenState
             width: double.infinity,
             height: 54,
             child: ElevatedButton.icon(
-              onPressed: _isUpdating
-                  ? null
-                  : () => _updateStatus('full_payment'),
+              onPressed: _isUpdating ? null : _recordFinalPickupPayment,
               icon: const Icon(Icons.payments_outlined),
               label: const Text(
                 'Full Payment',
@@ -924,6 +1117,18 @@ class _OwnerOrderDetailsScreenState
         return const SizedBox.shrink();
     }
   }
+}
+
+class _PickupPaymentInput {
+  final double amount;
+  final String? reference;
+  final String paymentMethod;
+
+  const _PickupPaymentInput({
+    required this.amount,
+    required this.reference,
+    required this.paymentMethod,
+  });
 }
 
 class _SummaryRow extends StatelessWidget {
