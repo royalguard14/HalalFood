@@ -1,3 +1,13 @@
+### 2026-09-21 — Owner Recent Orders completed tile button changed to View
+
+- **User request:** If an order is already completed, the Recent Order tile should not show **Track Order** because there is no next step to track.
+- **Fix:** Owner Dashboard Recent Order tiles now show **View** with a visibility icon when the order is at its terminal tracking step. Active/in-progress orders continue to show **Track Order**.
+- **Pickup terminal:** **Claimed** → View.
+- **Delivery terminal:** **Delivered/Completed** → View.
+- **Commit:** `77fd32f640f23957069c89e5dca3da766fcc7d99`.
+- **Testing status:** Not runtime-tested yet.
+- **Next exact test:** `git pull` → Owner Dashboard → check a completed/Claimed order tile shows **View**, while an active order still shows **Track Order**.
+
 ### 2026-09-21 — Fixed Owner Pickup lifecycle labels/actions and completed-order list
 
 - **User finding:** Owner Pickup orders were still using Delivery-style labels/actions. A Pickup order could show **Delivered** or **Mark as Completed**, and the order tile could remain at **Order Placed** instead of showing the Pickup-specific next step.
