@@ -1,3 +1,14 @@
+### 2026-09-21 — Fixed Owner Dashboard terminal order View not appearing
+
+- **User clarification:** The requested change was specifically on the **Owner Dashboard Recent Orders tiles**. The previous edit changed the button logic to **View** for terminal orders, but terminal Pickup/Delivery orders were still being filtered out of the Recent Orders list, so the user could not see the new **View** button at all.
+- **Fix:** Owner Dashboard now keeps completed/terminal orders in the Recent Orders tile list. Terminal orders show **View** with the visibility icon; active/in-progress orders show **Track Order**.
+- **Pickup terminal:** **Claimed** remains visible and shows **View**.
+- **Delivery terminal:** **Delivered/Completed** remains visible and shows **View**.
+- **File changed:** lib/features/owner/screens/owner_dashboard_screen.dart
+- **Commit:** 872a946129d2a7890933f7de9c8dbf9ce54513f5
+- **Testing status:** Not runtime-tested yet.
+- **Next exact test:** git pull → Owner Dashboard → check a Claimed Pickup or Delivered/Completed Delivery order in Recent Orders. It should remain in the list and its button should say View, not Track Order. Active orders should still say Track Order.
+
 ### 2026-09-21 — Owner Recent Orders completed tile button changed to View
 
 - **User request:** If an order is already completed, the Recent Order tile should not show **Track Order** because there is no next step to track.
