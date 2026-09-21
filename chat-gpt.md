@@ -1,4 +1,12 @@
 
+### 2026-09-21 — Aligned Customer Pickup Payment Summary
+- Customer Order Details Pickup summary now shows only **Subtotal**, **Downpayment**, **Cash for Pickup**, and **Balance**.
+- Pickup Subtotal uses the full order amount before payment deductions.
+- Removed the redundant Pickup **Total** row and renamed the cash line to **Cash for Pickup**.
+- Delivery Order Summary remains unchanged.
+- File changed: `lib/features/order/screens/order_details_screen.dart`
+- Commit: 0c8c2b1d113fa3ba5d92550bdd7fc2fb3b952a7a
+
 ### 2026-09-21 — Removed Total Paid from Owner Pickup Summary
 - Owner Pickup payment summary now shows only **Subtotal**, **GCash Downpayment**, **Cash for Pickup**, and **Balance**.
 - Removed the redundant **Total Paid** row as requested.
