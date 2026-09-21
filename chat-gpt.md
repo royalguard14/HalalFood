@@ -1,3 +1,16 @@
+### 2026-09-21 — Disabled Delivery for restaurants beyond maximum distance
+
+- **User finding:** Customer Home correctly keeps far restaurants visible, but Checkout still allowed selecting Delivery for a restaurant 13.59 km away when Maximum Delivery Distance was 10 km. The server then returned a raw PostgREST error.
+- **File changed:** `lib/features/checkout/screens/checkout_screen.dart`
+- **Fix:** Checkout now loads the configured maximum delivery distance and compares it with the calculated restaurant/customer distance. If the restaurant is beyond the limit, the **Delivery** option is disabled and cannot be selected. **Pick-up remains selectable.**
+- **UX:** The disabled Delivery option explains the actual distance and configured maximum. Restaurants are still discoverable; distance limits only affect Delivery eligibility.
+- **Security:** Existing server-side delivery-distance validation remains in place as the final enforcement layer.
+- **Supabase changes:** None.
+- **Testing:** Code committed; runtime verification pending.
+- **Commit:** `56b516f37960c2928274eaac235a9b792de899ba`
+- **Current stopping point:** Checkout now prevents customers from selecting Delivery when the restaurant is outside the configured delivery range.
+- **Next task:** User should `git pull`, open the 13.59 km restaurant with maximum distance 10 km, and confirm Delivery is visibly disabled while Pick-up can still be selected.
+
 ### 2026-09-21 — Fixed Customer restaurant visibility beyond delivery radius
 
 - **User finding:** With Maximum Delivery Distance set to 10 km, Customer Home showed no restaurants. This conflicted with the required fulfillment rule.
