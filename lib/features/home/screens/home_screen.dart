@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../app/theme.dart';
@@ -644,6 +646,7 @@ class _HomeContent extends StatelessWidget {
                         return _FeaturedRestaurantCard(
                           restaurant:
                               restaurant,
+                          distanceKm: _distanceFromCustomer(restaurant),
                           onTap: () {
                             Navigator.of(
                               context,
@@ -684,6 +687,7 @@ class _HomeContent extends StatelessWidget {
                       child: _RestaurantCard(
                         restaurant:
                             entry.restaurant,
+                        distanceKm: _distanceFromCustomer(entry.restaurant),
                       ),
                     ),
                   ),
@@ -693,6 +697,23 @@ class _HomeContent extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  double? _distanceFromCustomer(Restaurant restaurant) {
+    final customerLatitude = customerAddress?.latitude;
+    final customerLongitude = customerAddress?.longitude;
+    final restaurantLatitude = restaurant.latitude;
+    final restaurantLongitude = restaurant.longitude;
+    if (customerLatitude == null || customerLongitude == null || restaurantLatitude == null || restaurantLongitude == null) return null;
+    if (!customerLatitude.isFinite || !customerLongitude.isFinite || !restaurantLatitude.isFinite || !restaurantLongitude.isFinite) return null;
+    if (customerLatitude < -90 || customerLatitude > 90 || restaurantLatitude < -90 || restaurantLatitude > 90 || customerLongitude < -180 || customerLongitude > 180 || restaurantLongitude < -180 || restaurantLongitude > 180) return null;
+    const earthRadiusKm = 6371.0;
+    final lat1 = customerLatitude * math.pi / 180;
+    final lat2 = restaurantLatitude * math.pi / 180;
+    final dLat = (restaurantLatitude - customerLatitude) * math.pi / 180;
+    final dLon = (restaurantLongitude - customerLongitude) * math.pi / 180;
+    final a = math.pow(math.sin(dLat / 2), 2) + math.cos(lat1) * math.cos(lat2) * math.pow(math.sin(dLon / 2), 2);
+    return earthRadiusKm * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
   }
 
   Future<List<_RestaurantWithMenu>>
@@ -870,10 +891,12 @@ class _SectionTitle
 class _FeaturedRestaurantCard
     extends StatelessWidget {
   final Restaurant restaurant;
+  final double? distanceKm;
   final VoidCallback onTap;
 
   const _FeaturedRestaurantCard({
     required this.restaurant,
+    required this.distanceKm,
     required this.onTap,
   });
 
@@ -964,6 +987,19 @@ class _FeaturedRestaurantCard
                       height: 8,
                     ),
 
+                    if (distanceKm != null)
+                      Text(
+                        distanceKm!.toStringAsFixed(1) + ' km away',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: HalalFoodTheme.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+
+                    if (distanceKm != null)
+                      const SizedBox(height: 8),
+
                     _HalalBadge(
                       status:
                           restaurant
@@ -983,9 +1019,11 @@ class _FeaturedRestaurantCard
 class _RestaurantCard
     extends StatelessWidget {
   final Restaurant restaurant;
+  final double? distanceKm;
 
   const _RestaurantCard({
     required this.restaurant,
+    required this.distanceKm,
   });
 
   @override
@@ -1098,6 +1136,19 @@ class _RestaurantCard
                                 .textSecondary,
                       ),
                     ),
+
+                    if (distanceKm != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 5),
+                        child: Text(
+                          distanceKm!.toStringAsFixed(1) + ' km away',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: HalalFoodTheme.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
 
                     const SizedBox(
                       height: 10,
