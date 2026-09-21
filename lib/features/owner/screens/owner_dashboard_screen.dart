@@ -26,7 +26,19 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   double _monthlySales = 0, _todaySales = 0;
   int _monthlyOrders = 0, _newOrders = 0, _preparingOrders = 0, _readyOrders = 0, _completedOrders = 0;
   List<Map<String,dynamic>> _recentOrders = [];
-  @override void initState(){super.initState();_restaurantName=widget.restaurantName;_loadDashboard();}
+  RealtimeChannel? _ordersChannel;
+  @override void initState(){super.initState();_restaurantName=widget.restaurantName;_loadDashboard();_subscribeToOrderUpdates();}
+  @override void dispose(){_ordersChannel?.unsubscribe();super.dispose();}
+  void _subscribeToOrderUpdates(){
+    _ordersChannel=_supabase.channel('owner-orders-${widget.restaurantId}')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'orders',
+        filter: PostgresChangeFilter(type: PostgresChangeFilterType.eq,column: 'restaurant_id',value: widget.restaurantId),
+        callback: (_) { if (mounted) _loadDashboard(); },
+      ).subscribe();
+  }
   Future<void> _loadDashboard() async {if(mounted)setState(()=>_loading=true);await Future.wait([_loadSubscription(),_loadBusinessStats(),_loadOrderStats(),_loadRestaurantName()]);if(mounted)setState(()=>_loading=false);}
   Future<void> _loadSubscription() async{try{final s=await _supabase.from('restaurant_subscriptions').select('status,current_period_end,billing_cycle,subscription_plans(name)').eq('restaurant_id',widget.restaurantId).order('created_at',ascending:false).limit(1).maybeSingle();if(!mounted)return;final p=s?['subscription_plans'];setState((){_subscriptionStatus=s?['status']?.toString();_subscriptionPlan=p is Map?p['name']?.toString():null;_subscriptionExpiry=s?['current_period_end']?.toString();});}catch(e){debugPrint('OWNER SUBSCRIPTION ERROR: $e');}}
   Future<void> _loadRestaurantName() async{try{final r=await _supabase.from('restaurants').select('name').eq('id',widget.restaurantId).maybeSingle();if(mounted&&r!=null)setState(()=>_restaurantName=r['name']?.toString()??_restaurantName);}catch(e){debugPrint('OWNER RESTAURANT ERROR: $e');}}
