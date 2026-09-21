@@ -1,3 +1,16 @@
+### 2026-09-21 — Fixed Pickup receipt re-upload RLS and Owner reject red screen
+
+- **User test finding:** Customer successfully uploaded a Pickup GCash receipt. Owner rejected it, but saving the rejection could produce the known Flutter red screen. After rejection, the Customer could not upload a replacement receipt and received: `StorageException(message: new row violates row-level security policy, statusCode: 403, error: Unauthorized)`.
+- **Root cause — Customer re-upload:** The Customer uses Storage `upsert: true` on the same path `<order_id>/receipt.jpg`. The existing Storage policy allowed INSERT and SELECT, but Supabase requires **UPDATE + SELECT + INSERT** when overwriting an existing object. The rejected order was already in `receipt_rejected`, so the missing UPDATE policy caused the 403.
+- **Supabase fix:** Added **Customers update own pickup receipts** UPDATE policy on `storage.objects`. It only allows the authenticated customer who owns the Pickup order to replace the receipt while `pickup_downpayment_status = 'receipt_rejected'`.
+- **Verification:** The live policy was created successfully and read back from `pg_policies`. Existing INSERT and SELECT policies remain in place.
+- **Root cause — Owner red screen:** The rejection dialog's `TextEditingController` was disposed immediately after the dialog future returned. This could race with the dialog/TextField teardown and reproduce the Flutter `_dependents.isEmpty` red-screen assertion seen previously.
+- **Flutter fix:** Owner Order Details now defers disposing the rejection dialog controller until the next frame after the rejection flow completes, avoiding the teardown race.
+- **Files changed:** `lib/features/owner/screens/owner_order_details_screen.dart`; `supabase/fix_customer_pickup_receipt_reupload_storage_policy.sql`.
+- **Commits:** Flutter fix `46152ed5416c891abb0c02923dd76aabac4a49c5`; Storage policy `381f8973c7c949859c47b041d3536edc2ca7316a`.
+- **Current stopping point:** Both reported issues have been addressed. Do not reset the order; use the same rejected Pickup order for the verification.
+- **Next exact test:** `git pull` → Customer side open the rejected Pickup order → **Upload Receipt** → choose a new receipt photo → verify upload succeeds and status changes to **Receipt Submitted**. Then Owner side open the same order → Reject with a reason once → verify there is **no red screen** and the reject UI closes normally. Report the result before any further edit.
+
 ### 2026-09-21 — Reset All Order Test Data for Fresh Testing
 
 - **User request:** Delete all existing order-related test data so we can restart testing from a clean order state.
