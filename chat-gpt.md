@@ -37,3 +37,15 @@
 - UI/backend deletion commit: `26c49a158c9923d41e6087da1d0f4d8bbdfc6c65`.
 - SQL documentation commit: `32a64be1e7f1f33e1079bd1604708a3c643b328a`.
 - Live Supabase function was applied directly to project `taltqnxhivpfwjqlvxnt`.
+
+
+## 2026-09-21 — Correct Developer Order Deletion Location
+
+- Corrected the previous implementation architecture: permanent order deletion is now a **Developer Console-only** feature.
+- Added `lib/features/developer/screens/developer_order_management_screen.dart` for the Developer Console's **Platform Operations → Orders** module.
+- Removed the permanent-delete UI and deletion methods from `lib/features/admin/screens/admin_order_management_screen.dart`; Admin Order Management no longer exposes permanent deletion.
+- Updated `lib/features/developer/screens/developer_dashboard_screen.dart` so **Platform Operations → Orders** opens `DeveloperOrderManagementScreen` instead of the Admin screen.
+- The Supabase RPC `public.developer_delete_order(uuid)` remains independently protected by `public.is_developer()`, so UI access is not the security boundary.
+- No Owner/Customer order or payment flow was changed.
+- **Previous incorrect UI commit:** `26c49a158c9923d41e6087da1d0f4d8bbdfc6c65`.
+- **This correction:** Developer-only order management screen + Admin cleanup + Developer Console routing.
