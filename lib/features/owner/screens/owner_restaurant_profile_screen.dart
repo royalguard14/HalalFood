@@ -26,6 +26,8 @@ class _OwnerRestaurantProfileScreenState extends State<OwnerRestaurantProfileScr
   final _addressController = TextEditingController();
   final _cityController = TextEditingController();
   final _provinceController = TextEditingController();
+  final _gcashNameController = TextEditingController();
+  final _gcashNumberController = TextEditingController();
 
   bool _isLoading = true;
   bool _isSaving = false;
@@ -51,6 +53,8 @@ class _OwnerRestaurantProfileScreenState extends State<OwnerRestaurantProfileScr
     _addressController.dispose();
     _cityController.dispose();
     _provinceController.dispose();
+    _gcashNameController.dispose();
+    _gcashNumberController.dispose();
     super.dispose();
   }
 
@@ -59,7 +63,7 @@ class _OwnerRestaurantProfileScreenState extends State<OwnerRestaurantProfileScr
     setState(() { _isLoading = true; _error = null; });
     try {
       final restaurant = await _supabase.from('restaurants').select(
-        'id, name, description, phone, email, address, city, province, halal_status, logo_url',
+        'id, name, description, phone, email, address, city, province, halal_status, logo_url, gcash_name, gcash_number, gcash_qr_url',
       ).eq('id', widget.restaurantId).maybeSingle();
       if (restaurant == null) throw Exception('Restaurant not found.');
 
@@ -74,6 +78,8 @@ class _OwnerRestaurantProfileScreenState extends State<OwnerRestaurantProfileScr
       _addressController.text = restaurant['address']?.toString() ?? '';
       _cityController.text = restaurant['city']?.toString() ?? '';
       _provinceController.text = restaurant['province']?.toString() ?? '';
+      _gcashNameController.text = restaurant['gcash_name']?.toString() ?? '';
+      _gcashNumberController.text = restaurant['gcash_number']?.toString() ?? '';
       setState(() {
         _logoUrl = restaurant['logo_url']?.toString();
         _halalStatus = restaurant['halal_status']?.toString() ?? 'unverified';
@@ -166,6 +172,8 @@ class _OwnerRestaurantProfileScreenState extends State<OwnerRestaurantProfileScr
         'address': _clean(_addressController.text),
         'city': _clean(_cityController.text),
         'province': _clean(_provinceController.text),
+        'gcash_name': _clean(_gcashNameController.text),
+        'gcash_number': _clean(_gcashNumberController.text),
       }).eq('id', widget.restaurantId);
       if (!mounted) return;
       setState(() => _isSaving = false);
@@ -182,6 +190,21 @@ class _OwnerRestaurantProfileScreenState extends State<OwnerRestaurantProfileScr
     return trimmed.isEmpty ? null : trimmed;
   }
 
+  Future<void> _pickGcashQr() async {
+    try {
+      final file = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 90, maxWidth: 1200, maxHeight: 1200);
+      if (file == null) return;
+      final bytes = await file.readAsBytes();
+      final path = widget.restaurantId + '/gcash_qr.jpg';
+      await _supabase.storage.from('restaurant-images').uploadBinary(path, bytes, fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true));
+      final url = _supabase.storage.from('restaurant-images').getPublicUrl(path);
+      await _supabase.from('restaurants').update({'gcash_qr_url': url + '?v=' + DateTime.now().millisecondsSinceEpoch.toString()}).eq('id', widget.restaurantId);
+      _showMessage('GCash QR updated successfully.');
+      await _loadRestaurant();
+    } catch (e) {
+      _showMessage('Unable to upload GCash QR:\n$e', error: true);
+    }
+  }
   Future<void> _openVerificationRequest() async {
     await Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => OwnerHalalVerificationRequestScreen(
@@ -249,7 +272,23 @@ class _OwnerRestaurantProfileScreenState extends State<OwnerRestaurantProfileScr
               const Text('Unable to load restaurant profile', textAlign: TextAlign.center, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
               const SizedBox(height: 8),
               Text(_error!, textAlign: TextAlign.center),
-              const SizedBox(height: 18),
+              Card(
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('Pickup Payment Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 6),
+                  const Text('Customers will use these details to pay the pickup downpayment directly to the restaurant.', style: TextStyle(color: HalalFoodTheme.textSecondary)),
+                  const SizedBox(height: 14),
+                  TextFormField(controller: _gcashNameController, decoration: _decoration('GCash Account Name', Icons.person_outline)),
+                  const SizedBox(height: 12),
+                  TextFormField(controller: _gcashNumberController, keyboardType: TextInputType.phone, decoration: _decoration('GCash Number', Icons.phone_android_outlined)),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(onPressed: _isSaving ? null : _pickGcashQr, icon: const Icon(Icons.qr_code_2_rounded), label: const Text('Upload GCash QR')),
+                ]),
+              ),
+            ),
+            const SizedBox(height: 18),            const SizedBox(height: 18),
               ElevatedButton(onPressed: _loadRestaurant, child: const Text('Try Again')),
             ],
           ),
