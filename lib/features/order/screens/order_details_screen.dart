@@ -1290,6 +1290,9 @@ class _OrderDetailsScreenState
     final submitted = pickupState == 'receipt_submitted';
     final paid = pickupState == 'paid';
     if (!isPickup) return Card(child: Padding(padding: const EdgeInsets.all(18), child: Row(children: [const Icon(Icons.payments_outlined, color: HalalFoodTheme.primaryGreen), const SizedBox(width: 12), const Expanded(child: Text('Payment', style: TextStyle(fontWeight: FontWeight.w700))), Text(_displayStatus(_currentOrder.paymentStatus), style: const TextStyle(fontWeight: FontWeight.w800))])));
+    // Once the Pickup downpayment is confirmed, the bottom payment tile is no longer needed.
+    // The Order Summary above already shows the confirmed Downpayment, Cash, and Balance.
+    if (paid) return const SizedBox.shrink();
     final amount = _currentOrder.pickupDownpaymentAmount;
     final gcashName = _restaurantPayment?['gcash_name']?.toString().trim() ?? '';
     final gcashNumber = _restaurantPayment?['gcash_number']?.toString().trim() ?? '';
