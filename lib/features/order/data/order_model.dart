@@ -6,6 +6,12 @@ class Order {
   final String? deliveryAddressId;
   final String status;
   final String paymentStatus;
+  final String fulfillmentType;
+  final double pickupDownpaymentAmount;
+  final String pickupDownpaymentStatus;
+  final String? pickupReceiptPath;
+  final DateTime? pickupReceiptSubmittedAt;
+  final String? pickupReceiptRejectionReason;
   final double subtotal;
   final double deliveryFee;
   final double totalAmount;
@@ -20,6 +26,12 @@ class Order {
     required this.deliveryAddressId,
     required this.status,
     required this.paymentStatus,
+    required this.fulfillmentType,
+    required this.pickupDownpaymentAmount,
+    required this.pickupDownpaymentStatus,
+    required this.pickupReceiptPath,
+    required this.pickupReceiptSubmittedAt,
+    required this.pickupReceiptRejectionReason,
     required this.subtotal,
     required this.deliveryFee,
     required this.totalAmount,
@@ -40,6 +52,20 @@ class Order {
       status: map['status'] as String,
       paymentStatus:
           map['payment_status'] as String,
+      fulfillmentType:
+          map['fulfillment_type']?.toString() ?? 'delivery',
+      pickupDownpaymentAmount:
+          (map['pickup_downpayment_amount'] as num?)?.toDouble() ?? 0,
+      pickupDownpaymentStatus:
+          map['pickup_downpayment_status']?.toString() ?? 'not_required',
+      pickupReceiptPath:
+          map['pickup_receipt_path'] as String?,
+      pickupReceiptSubmittedAt:
+          map['pickup_receipt_submitted_at'] == null
+              ? null
+              : DateTime.tryParse(map['pickup_receipt_submitted_at'].toString()),
+      pickupReceiptRejectionReason:
+          map['pickup_receipt_rejection_reason'] as String?,
       subtotal:
           (map['subtotal'] as num).toDouble(),
       deliveryFee:
