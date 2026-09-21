@@ -6,8 +6,8 @@
 - **Supabase:** Added restaurant GCash fields (`gcash_name`, `gcash_number`, `gcash_qr_url`), pickup receipt fields on `orders`, `payment-receipts` private Storage bucket, customer/owner Storage policies, and `cleanup-old-pickup-receipts()` with a daily pg_cron job.
 - **Flutter files:** Updated checkout success flow, customer order model/repository/details, owner dashboard/order details, and owner restaurant profile. Owner can configure GCash name/number and upload a GCash QR. Customer can upload receipt from gallery.
 - **Security:** Receipt bucket is private; access is restricted by customer ownership or restaurant ownership. Receipt URLs are signed for short-lived viewing.
-- **Testing:** Supabase schema/bucket/cron creation verified. Flutter runtime/analyzer verification is still pending.
-- **Commits:** `e600d784b7a801a6752f724b7a52b513b4bac04e`, `116e66caccaa4e2b5543bd9e1ebb3c1d52091ecc`, `ba52d772e9ee7aa7785d94776c5a727390465eff`, `30a0d5514b4966b32ffd7fa8d64cc6d9e5052578`, `28d5feec71d2ef161265545eba4b4be47b2cdfc9`, `d8e4ef69e575661c0fdfb93f18c8a2600e97eeea`, `b6a9c0d31b5d2f83ad65ea421ab3c0b3e469bb7d`.
+- **Testing:** Supabase schema/bucket/private storage policies verified. A scheduled Edge Function now performs the actual Storage API deletion after 7 days; this avoids orphaning files because Supabase recommends deleting Storage files through the Storage API rather than direct SQL. citeturn0search10 Flutter runtime/analyzer verification is still pending.
+- **Commits:** `e600d784b7a801a6752f724b7a52b513b4bac04e`, `116e66caccaa4e2b5543bd9e1ebb3c1d52091ecc`, `ba52d772e9ee7aa7785d94776c5a727390465eff`, `30a0d5514b4966b32ffd7fa8d64cc6d9e5052578`, `28d5feec71d2ef161265545eba4b4be47b2cdfc9`, `d8e4ef69e575661c0fdfb93f18c8a2600e97eeea`, `b6a9c0d31b5d2f83ad65ea421ab3c0b3e469bb7d`, plus Edge Function `cleanup-pickup-receipts` deployment.
 - **Current stopping point:** Manual Pickup GCash receipt workflow is implemented in code and database; runtime/analyzer test is next.
 - **Next task:** `git pull`, run `flutter analyze`, then test Owner GCash settings → Customer Pickup Place Order → Upload Receipt → Owner Accept/Reject.
 
