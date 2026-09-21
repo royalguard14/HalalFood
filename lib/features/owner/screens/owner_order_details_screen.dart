@@ -127,7 +127,6 @@ class _OwnerOrderDetailsScreenState
       if (orderId == null || orderId.isEmpty) throw Exception('Invalid order ID.');
       final data = <String, dynamic>{'pickup_downpayment_status': state};
       if (state == 'paid') {
-        data['payment_status'] = 'paid';
         data['status'] = 'preparing';
       }
       if (state == 'receipt_rejected') {
@@ -144,6 +143,9 @@ class _OwnerOrderDetailsScreenState
       if (!mounted) return;
       setState(() {
         _pickupPaymentState = state;
+        if (state == 'paid') {
+          _pickupFinalPaymentPaid = false;
+        }
         _status = state == 'paid'
             ? 'preparing'
             : (widget.order['status']?.toString() ?? _status);
@@ -758,7 +760,7 @@ class _OwnerOrderDetailsScreenState
                   : () => _updateStatus('full_payment'),
               icon: const Icon(Icons.payments_outlined),
               label: const Text(
-                'Payment Complete',
+                'Full Payment',
                 style: TextStyle(fontWeight: FontWeight.w800),
               ),
             ),
