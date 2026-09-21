@@ -27,6 +27,7 @@ class _OwnerOrderDetailsScreenState
   String? _receiptUrl;
   String? _pickupPaymentState;
   bool _showReceipt = false;
+  bool _pickupFinalPaymentPaid = false;
 
   String? _error;
 
@@ -40,6 +41,8 @@ class _OwnerOrderDetailsScreenState
         widget.order['status']?.toString() ?? 'pending';
     _pickupPaymentState =
         widget.order['pickup_downpayment_status']?.toString() ?? 'pending';
+    _pickupFinalPaymentPaid =
+        widget.order['payment_status']?.toString() == 'paid';
 
     _loadOrderItems();
     _loadPickupReceipt();
@@ -52,14 +55,19 @@ class _OwnerOrderDetailsScreenState
 
       final freshOrder = await _supabase
           .from('orders')
-          .select('pickup_receipt_path,pickup_receipt_submitted_at,pickup_downpayment_status')
+          .select('pickup_receipt_path,pickup_receipt_submitted_at,pickup_downpayment_status,payment_status')
           .eq('id', orderId)
           .maybeSingle();
 
       final freshState =
           freshOrder?['pickup_downpayment_status']?.toString();
+      final freshPaymentStatus =
+          freshOrder?['payment_status']?.toString();
       if (mounted && freshState != null && freshState.isNotEmpty) {
-        setState(() => _pickupPaymentState = freshState);
+        setState(() {
+          _pickupPaymentState = freshState;
+          _pickupFinalPaymentPaid = freshPaymentStatus == 'paid';
+        });
       }
 
       final path = freshOrder?['pickup_receipt_path']?.toString().trim();
@@ -209,11 +217,35 @@ class _OwnerOrderDetailsScreenState
         throw Exception('Invalid order ID.');
       }
 
+      final isPickup =
+          widget.order['fulfillment_type']?.toString().toLowerCase() == 'pickup';
+
+      if (isPickup && newStatus == 'ready_to_pick_up') {
+        // order_status has no custom pickup value; `ready` is the database state.
+        newStatus = 'ready';
+      } else if (isPickup && newStatus == 'full_payment') {
+        // Final pickup payment is represented by payment_status, not order_status.
+        await _supabase
+            .from('orders')
+            .update({'payment_status': 'paid'})
+            .eq('id', orderId);
+        if (!mounted) return;
+        setState(() {
+          _pickupFinalPaymentPaid = true;
+          _isUpdating = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Final payment marked as paid. Order is ready to be claimed.')),
+        );
+        return;
+      } else if (isPickup && newStatus == 'claimed') {
+        // `delivered` is the terminal order_status used for completed pickup orders.
+        newStatus = 'delivered';
+      }
+
       await _supabase
           .from('orders')
-          .update({
-            'status': newStatus,
-          })
+          .update({'status': newStatus})
           .eq('id', orderId);
 
       if (!mounted) return;
@@ -701,6 +733,22 @@ class _OwnerOrderDetailsScreenState
 
         case 'ready':
         case 'ready_to_pick_up':
+          if (_pickupFinalPaymentPaid) {
+            return SizedBox(
+              width: double.infinity,
+              height: 54,
+              child: ElevatedButton.icon(
+                onPressed: _isUpdating
+                    ? null
+                    : () => _updateStatus('claimed'),
+                icon: const Icon(Icons.done_all_rounded),
+                label: const Text(
+                  'Claimed',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+            );
+          }
           return SizedBox(
             width: double.infinity,
             height: 54,
@@ -718,20 +766,7 @@ class _OwnerOrderDetailsScreenState
 
         case 'full_payment':
         case 'payment_due':
-          return SizedBox(
-            width: double.infinity,
-            height: 54,
-            child: ElevatedButton.icon(
-              onPressed: _isUpdating
-                  ? null
-                  : () => _updateStatus('claimed'),
-              icon: const Icon(Icons.done_all_rounded),
-              label: const Text(
-                'Claimed',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
-            ),
-          );
+          return SizedBox.shrink();
 
         case 'claimed':
         case 'picked_up':
