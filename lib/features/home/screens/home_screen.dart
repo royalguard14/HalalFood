@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/utils/distance_utils.dart';
+import '../../address/data/address_model.dart';
+import '../../address/data/address_repository.dart';
 import '../../category/data/food_category_model.dart';
 import '../../category/data/food_category_repository.dart';
 import '../../category/widgets/food_category_section.dart';
@@ -30,6 +33,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final RestaurantRepository _restaurantRepository =
       RestaurantRepository();
 
+  final AddressRepository _addressRepository =
+      AddressRepository();
+
   final FoodCategoryRepository _categoryRepository =
       FoodCategoryRepository();
 
@@ -40,6 +46,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   late Future<List<Restaurant>> _restaurantsFuture;
   late Future<List<FoodCategory>> _categoriesFuture;
+
+  Address? _customerAddress;
+  double? _customerRestaurantRadiusKm;
 
   String? _selectedCategoryId;
   String _searchQuery = '';
@@ -59,8 +68,29 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _loadRestaurants() {
-    _restaurantsFuture =
-        _restaurantRepository.getRestaurants();
+    _restaurantsFuture = _loadRestaurantsForCustomer();
+  }
+
+  Future<List<Restaurant>> _loadRestaurantsForCustomer() async {
+    final addresses = await _addressRepository.getAddresses();
+
+    Address? selectedAddress;
+    for (final address in addresses) {
+      if (address.isDefault) {
+        selectedAddress = address;
+        break;
+      }
+    }
+
+    selectedAddress ??= addresses.isNotEmpty ? addresses.first : null;
+
+    final radiusKm =
+        await _restaurantRepository.getCustomerRestaurantRadiusKm();
+
+    _customerAddress = selectedAddress;
+    _customerRestaurantRadiusKm = radiusKm;
+
+    return _restaurantRepository.getRestaurants();
   }
 
   void _loadCategories() {
@@ -355,6 +385,10 @@ final categories =
           _selectCategory,
       getMenuItems:
           _getMenuItems,
+      customerAddress:
+          _customerAddress,
+      customerRestaurantRadiusKm:
+          _customerRestaurantRadiusKm,
       matchesSearch:
           _matchesSearch,
       matchesCategory:
@@ -387,6 +421,9 @@ class _HomeContent extends StatelessWidget {
     String restaurantId,
   ) getMenuItems;
 
+  final Address? customerAddress;
+  final double? customerRestaurantRadiusKm;
+
   final bool Function(
     Restaurant restaurant,
     List<MenuItem> menuItems,
@@ -407,6 +444,8 @@ class _HomeContent extends StatelessWidget {
     required this.onClearSearch,
     required this.onCategorySelected,
     required this.getMenuItems,
+    required this.customerAddress,
+    required this.customerRestaurantRadiusKm,
     required this.matchesSearch,
     required this.matchesCategory,
   });
@@ -520,9 +559,47 @@ class _HomeContent extends StatelessWidget {
             final restaurantMenus =
                 snapshot.data ?? [];
 
+            final hasValidCustomerLocation =
+                customerAddress?.latitude != null &&
+                customerAddress?.longitude != null &&
+                customerAddress!.latitude!.isFinite &&
+                customerAddress!.longitude!.isFinite &&
+                customerAddress!.latitude! >= -90 &&
+                customerAddress!.latitude! <= 90 &&
+                customerAddress!.longitude! >= -180 &&
+                customerAddress!.longitude! <= 180 &&
+                customerRestaurantRadiusKm != null &&
+                customerRestaurantRadiusKm! > 0;
+
             final filtered =
                 restaurantMenus.where(
               (entry) {
+                if (!hasValidCustomerLocation) {
+                  return false;
+                }
+
+                final restaurantLat = entry.restaurant.latitude;
+                final restaurantLng = entry.restaurant.longitude;
+
+                if (restaurantLat == null ||
+                    restaurantLng == null ||
+                    !restaurantLat.isFinite ||
+                    !restaurantLng.isFinite ||
+                    restaurantLat < -90 ||
+                    restaurantLat > 90 ||
+                    restaurantLng < -180 ||
+                    restaurantLng > 180) {
+                  return false;
+                }
+
+                final distanceKm =
+                    DistanceUtils.distanceInKm(
+                  latitude1: customerAddress!.latitude!,
+                  longitude1: customerAddress!.longitude!,
+                  latitude2: restaurantLat,
+                  longitude2: restaurantLng,
+                );
+
                 final searchMatch =
                     matchesSearch(
                   entry.restaurant,
@@ -536,7 +613,9 @@ class _HomeContent extends StatelessWidget {
                           entry.menuItems,
                         );
 
-                return searchMatch &&
+                return distanceKm <=
+                        customerRestaurantRadiusKm! &&
+                    searchMatch &&
                     categoryMatch;
               },
             ).toList();
@@ -615,6 +694,32 @@ class _HomeContent extends StatelessWidget {
                   const SizedBox(height: 30),
                 ],
 
+                if (customerAddress == null ||
+                    customerAddress!.latitude == null ||
+                    customerAddress!.longitude == null) ...[
+                  const _DeliveryRadiusNotice(
+                    icon: Icons.location_off_outlined,
+                    title: 'Set a delivery address',
+                    message:
+                        'Add a saved address with GPS coordinates to see restaurants within the platform delivery radius.',
+                  ),
+                  const SizedBox(height: 24),
+                ] else if (customerRestaurantRadiusKm != null) ...[
+                  _DeliveryRadiusNotice(
+                    icon: Icons.near_me_rounded,
+                    title: 'Nearby restaurants',
+                    message:
+                        'Showing restaurants within ' +
+                        customerRestaurantRadiusKm!.toStringAsFixed(1) +
+                        ' km of ' +
+                        (customerAddress!.label?.trim().isNotEmpty == true
+                            ? customerAddress!.label!.trim()
+                            : 'your saved address') +
+                        '.',
+                  ),
+                  const SizedBox(height: 24),
+                ],
+
                 const _SectionTitle(
                   title:
                       'Nearby Restaurants',
@@ -677,6 +782,64 @@ class _RestaurantWithMenu {
     required this.restaurant,
     required this.menuItems,
   });
+}
+
+class _DeliveryRadiusNotice extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String message;
+
+  const _DeliveryRadiusNotice({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.14),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            icon,
+            color: HalalFoodTheme.primaryGreen,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    height: 1.35,
+                    color: HalalFoodTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _FilterResultHeader
