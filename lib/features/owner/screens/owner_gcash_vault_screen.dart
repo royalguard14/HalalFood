@@ -25,7 +25,7 @@ class _OwnerGcashVaultScreenState extends State<OwnerGcashVaultScreen> {
   double _adjustments = 0;
   List<Map<String, dynamic>> _cashoutRows = [];
 
-  double get _balance => _received - _cashouts;
+  double get _balance => _received + _adjustments - _cashouts;
 
   @override
   void initState() {
