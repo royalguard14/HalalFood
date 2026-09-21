@@ -1,3 +1,17 @@
+### 2026-09-21 — Fixed Checkout analyzer error after Delivery disabling edit
+
+- **User test:** `flutter analyze` found 1 blocking error in `checkout_screen.dart` plus non-blocking infos/warnings.
+- **Root cause:** Delivery `RadioListTile` was inside a `const Column` while using runtime state for its availability/color. It also used deprecated per-radio `onChanged`.
+- **Fix:** Removed the invalid `const` parent and switched Delivery to `enabled: _deliveryAvailable`; the existing `RadioGroup` remains responsible for selection changes.
+- **Cleanup:** Removed obsolete `DistanceUtils` import and unused customer-location variable from Home after radius filtering was removed.
+- **Other analyzer infos:** Existing interpolation suggestions remain non-blocking.
+- **Supabase changes:** None.
+- **Testing:** User should pull and rerun `flutter analyze`; runtime Delivery-disabled behavior remains pending.
+- **Checkout commit:** `00359f1582a6f3ef202c7f55945b3745e31234e3`
+- **Home commit:** `df756b663f96b4b4a094cada0b9e28a906dba7ae`
+- **Current stopping point:** Blocking analyzer error addressed.
+- **Next task:** `git pull`, then rerun `flutter analyze` only.
+
 ### 2026-09-21 — Disabled Delivery for restaurants beyond maximum distance
 
 - **User finding:** Customer Home correctly keeps far restaurants visible, but Checkout still allowed selecting Delivery for a restaurant 13.59 km away when Maximum Delivery Distance was 10 km. The server then returned a raw PostgREST error.
