@@ -183,6 +183,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _quickButton('Owner', Icons.storefront_outlined, Env.devOwnerEmail, Env.devOwnerPassword),
       _quickButton('User', Icons.person_outline, Env.devUserEmail, Env.devUserPassword),
       _quickButton('Developer', Icons.developer_mode_outlined, Env.devDeveloperEmail, Env.devDeveloperPassword),
+      _quickButton('Rider', Icons.delivery_dining_outlined, Env.devRiderEmail, Env.devRiderPassword),
     ];
 
     return Container(
