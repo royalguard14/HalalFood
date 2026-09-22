@@ -13,6 +13,70 @@ class DriverDashboardScreen extends StatefulWidget {
 
 class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
   bool _isOnline = false;
+  bool _loadingDeliveries = true;
+  bool _takingDelivery = false;
+  String? _deliveryError;
+  List<Map<String, dynamic>> _availableDeliveries = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAvailableDeliveries();
+  }
+
+  Future<void> _loadAvailableDeliveries() async {
+    if (!mounted) return;
+    setState(() {
+      _loadingDeliveries = true;
+      _deliveryError = null;
+    });
+    try {
+      final rows = await Supabase.instance.client
+          .from('delivery_assignments')
+          .select('id, order_id, status, restaurant_food_advance, customer_collection_amount, created_at')
+          .eq('status', 'available')
+          .isFilter('rider_id', null)
+          .order('created_at', ascending: true);
+      if (!mounted) return;
+      setState(() {
+        _availableDeliveries = List<Map<String, dynamic>>.from(rows);
+        _loadingDeliveries = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadingDeliveries = false;
+        _deliveryError = e.toString();
+      });
+    }
+  }
+
+  Future<void> _takeDelivery(String assignmentId) async {
+    if (_takingDelivery) return;
+    setState(() {
+      _takingDelivery = true;
+      _deliveryError = null;
+    });
+    try {
+      await Supabase.instance.client.rpc(
+        'rider_take_delivery',
+        params: {'p_assignment_id': assignmentId},
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Delivery accepted.')),
+      );
+      await _loadAvailableDeliveries();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _deliveryError = e.toString());
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to take delivery: ' + e.toString())),
+      );
+    } finally {
+      if (mounted) setState(() => _takingDelivery = false);
+    }
+  }
 
   Future<void> _logout() async {
     await Supabase.instance.client.auth.signOut();
@@ -59,6 +123,10 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
             const SizedBox(height: 16),
             _statsCard(),
             const SizedBox(height: 16),
+            _sectionTitle('Available Deliveries'),
+            const SizedBox(height: 10),
+            _availableDeliveriesCard(),
+            const SizedBox(height: 20),
             _sectionTitle('Current Delivery'),
             const SizedBox(height: 10),
             _emptyDeliveryCard(),
@@ -247,6 +315,143 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
 
   Widget _divider() {
     return Container(width: 1, height: 34, color: Colors.grey.shade200);
+  }
+
+  Widget _availableDeliveriesCard() {
+    if (_loadingDeliveries) {
+      return const Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+
+    if (_deliveryError != null && _availableDeliveries.isEmpty) {
+      return Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              const Icon(Icons.error_outline_rounded, size: 42),
+              const SizedBox(height: 10),
+              const Text('Unable to load deliveries',
+                  style: TextStyle(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 6),
+              Text(_deliveryError!, textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 11, color: HalalFoodTheme.textSecondary)),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _loadAvailableDeliveries,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_availableDeliveries.isEmpty) {
+      return Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
+              Icon(Icons.local_shipping_outlined, size: 46, color: Colors.grey.shade400),
+              const SizedBox(height: 10),
+              const Text('No available delivery',
+                  style: TextStyle(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 5),
+              const Text('New delivery requests will appear here.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary)),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _loadAvailableDeliveries,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Refresh'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: _availableDeliveries.map((delivery) {
+        final orderId = delivery['order_id']?.toString() ?? '';
+        final shortOrderId = orderId.length > 8
+            ? orderId.substring(0, 8).toUpperCase()
+            : orderId.toUpperCase();
+        final advance = (delivery['restaurant_food_advance'] as num?)?.toDouble();
+        final collection = (delivery['customer_collection_amount'] as num?)?.toDouble();
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 10),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: HalalFoodTheme.primaryGreen.withValues(alpha: .10),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Text('AVAILABLE',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+                    ),
+                    const Spacer(),
+                    Text('#' + shortOrderId,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                if (advance != null) _deliveryAmountRow(
+                  'Restaurant advance',
+                  '₱' + advance.toStringAsFixed(2),
+                ),
+                if (collection != null) _deliveryAmountRow(
+                  'Customer collection',
+                  '₱' + collection.toStringAsFixed(2),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _takingDelivery ? null : () => _takeDelivery(delivery['id'].toString()),
+                    icon: const Icon(Icons.delivery_dining_rounded),
+                    label: const Text('Take Delivery'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _deliveryAmountRow(String label, String amount) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(label,
+                style: const TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary)),
+          ),
+          Text(amount, style: const TextStyle(fontWeight: FontWeight.w800)),
+        ],
+      ),
+    );
   }
 
   Widget _emptyDeliveryCard() {
