@@ -147,7 +147,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     try {
       final value = await _restaurantRepository.getMaximumDeliveryDistanceKm();
       if (!mounted) return;
+
       setState(() => _maximumDeliveryDistanceKm = value);
+
+      // The distance may have been calculated before the maximum-distance
+      // setting finished loading. Recalculate now so Delivery availability
+      // reflects the loaded setting.
+      if (_selectedAddress != null && _restaurant != null) {
+        _calculateDelivery();
+      }
     } catch (_) {
       // Keep Delivery unavailable until the configured limit is known.
     }
