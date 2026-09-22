@@ -304,3 +304,12 @@ Delivery is therefore different from Pickup mainly in the final collection flow:
 - The existing **Continue to Downpayment** and receipt-upload flow was preserved.
 - GitHub commit: `4f0d44d3f32f09675e5abed5c54e591700b616e9`.
 - Next: `git pull origin main`, place a new Pickup or Delivery downpayment order, and verify the Owner's GCash details appear on the **Downpayment Required** screen before continuing to receipt upload.
+
+
+### 2026-09-22 — Pickup GCash Clarification on Downpayment Required Screen
+
+- Updated the same Customer `OrderSuccessScreen` so the GCash section is explicitly labeled according to the fulfillment type: **Pickup GCash Information** or **Delivery GCash Information**.
+- The instruction also now identifies whether the displayed GCash account is for the Pickup or Delivery downpayment.
+- This confirms the same Owner GCash details are presented for both Pickup and Delivery downpayment orders.
+- Existing payment and receipt-upload behavior was not changed.
+- GitHub commit: `9bef9e78ec781d59d8f3fec67c5c1ede4dc8f237`.
