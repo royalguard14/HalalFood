@@ -90,7 +90,7 @@ class OrderRepository {
         .inFilter('pickup_downpayment_status', ['pending', 'receipt_rejected']);
   }
 
-  Future<void> submitPickupReceipt({
+  Future<void> submitCustomerDownpaymentReceipt({
     required String orderId,
     required XFile receipt,
   }) async {
@@ -99,26 +99,31 @@ class OrderRepository {
 
     final order = await _supabase
         .from('orders')
-        .select('id,customer_id,fulfillment_type,pickup_downpayment_status,pickup_receipt_path')
+        .select(
+          'id,customer_id,fulfillment_type,pickup_downpayment_status,pickup_receipt_path',
+        )
         .eq('id', orderId)
         .eq('customer_id', user.id)
         .maybeSingle();
 
-    if (order == null || order['fulfillment_type'] != 'pickup') {
-      throw Exception('Pickup order not found.');
+    if (order == null) {
+      throw Exception('Order not found.');
+    }
+
+    final fulfillmentType = order['fulfillment_type']?.toString();
+    if (fulfillmentType != 'pickup' && fulfillmentType != 'delivery') {
+      throw Exception('Unsupported order type.');
     }
 
     final state = order['pickup_downpayment_status']?.toString();
     if (state != 'pending' && state != 'receipt_rejected') {
-      throw Exception('This order is not waiting for a receipt.');
+      throw Exception('This order is not waiting for a downpayment receipt.');
     }
 
     final bytes = await receipt.readAsBytes();
     if (bytes.isEmpty) throw Exception('The selected receipt is empty.');
 
-    // Keep exactly one receipt file per order. A rejected receipt is replaced
-    // in the same Storage path when the customer uploads a new one.
-    final path = orderId + '/receipt.jpg';
+    final path = '$orderId/receipt.jpg';
     await _supabase.storage.from('payment-receipts').uploadBinary(
       path,
       bytes,
@@ -128,22 +133,37 @@ class OrderRepository {
       ),
     );
 
-    try {
+    if (fulfillmentType == 'delivery') {
+      await _supabase.rpc(
+        'submit_delivery_downpayment_receipt',
+        params: {
+          'p_order_id': orderId,
+          'p_receipt_path': path,
+        },
+      );
+    } else {
       await _supabase
           .from('orders')
           .update({
             'pickup_receipt_path': path,
-            'pickup_receipt_submitted_at': DateTime.now().toUtc().toIso8601String(),
+            'pickup_receipt_submitted_at':
+                DateTime.now().toUtc().toIso8601String(),
             'pickup_receipt_rejection_reason': null,
             'pickup_downpayment_status': 'receipt_submitted',
           })
           .eq('id', orderId)
           .eq('customer_id', user.id);
-    } catch (e) {
-      // Do not remove the shared order receipt path here because this path is
-      // intentionally reused for the next upload of the same order.
-      rethrow;
     }
+  }
+
+  Future<void> submitPickupReceipt({
+    required String orderId,
+    required XFile receipt,
+  }) {
+    return submitCustomerDownpaymentReceipt(
+      orderId: orderId,
+      receipt: receipt,
+    );
   }
 
   Future<void> rejectPickupReceipt({
