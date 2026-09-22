@@ -66,6 +66,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     _addressesFuture =
         _addressRepository.getAddresses();
 
+    // Preload the default address so Delivery availability can be evaluated
+    // before the customer taps the Delivery option.
+    _addressesFuture.then((addresses) {
+      if (!mounted) return;
+      _selectDefaultAddress(addresses);
+    });
+
     _loadRestaurant();
     _loadMaximumDeliveryDistance();
     _loadPickupDownpaymentPercent();
@@ -200,7 +207,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         _restaurant = restaurant;
       });
 
-      if (_fulfillmentType == 'delivery') {
+      if (_selectedAddress != null) {
         _calculateDelivery();
       } else if (mounted) {
         setState(() => _isCalculatingDelivery = false);
