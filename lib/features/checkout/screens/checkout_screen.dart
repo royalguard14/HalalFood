@@ -2166,7 +2166,7 @@ class OrderSuccessScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          '₱$pickupDownpaymentAmount.toStringAsFixed(2)',
+                          '₱${pickupDownpaymentAmount.toStringAsFixed(2)}',
                           style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w900,
