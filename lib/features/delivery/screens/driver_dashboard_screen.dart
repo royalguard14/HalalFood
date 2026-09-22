@@ -772,26 +772,46 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     }
 
     if (_availableDeliveries.isEmpty) {
+      final offline = !_isOnline;
       return Card(
         margin: EdgeInsets.zero,
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
             children: [
-              Icon(Icons.local_shipping_outlined, size: 46, color: Colors.grey.shade400),
-              const SizedBox(height: 10),
-              const Text('No available delivery',
-                  style: TextStyle(fontWeight: FontWeight.w800)),
-              const SizedBox(height: 5),
-              const Text('New delivery requests will appear here.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary)),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: _loadAvailableDeliveries,
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Refresh'),
+              Icon(
+                offline
+                    ? Icons.wifi_off_rounded
+                    : Icons.local_shipping_outlined,
+                size: 46,
+                color: Colors.grey.shade400,
               ),
+              const SizedBox(height: 10),
+              Text(
+                offline
+                    ? 'Go Online to See Deliveries'
+                    : 'No available delivery',
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                offline
+                    ? 'Available delivery requests are hidden while you are offline.'
+                    : 'New delivery requests will appear here.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: HalalFoodTheme.textSecondary,
+                ),
+              ),
+              if (!offline) ...[
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _loadAvailableDeliveries,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Refresh'),
+                ),
+              ],
             ],
           ),
         ),
@@ -1044,38 +1064,6 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
       default:
         return status ?? 'Active';
     }
-  }
-
-  Widget _emptyDeliveryCard() {
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            Icon(
-              Icons.local_shipping_outlined,
-              size: 46,
-              color: Colors.grey.shade400,
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'No active delivery',
-              style: TextStyle(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 5),
-            const Text(
-              'Available delivery requests will appear here.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
-                color: HalalFoodTheme.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _sectionTitle(String title) {
