@@ -1117,6 +1117,16 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
         label = 'Out for Delivery';
         icon = Icons.local_shipping_rounded;
         break;
+      case 'out_for_delivery':
+        nextStatus = 'delivered_cash_collected';
+        label = 'Delivered / Cash Collected';
+        icon = Icons.payments_rounded;
+        break;
+      case 'delivered_cash_collected':
+        nextStatus = 'completed';
+        label = 'Complete Delivery';
+        icon = Icons.check_circle_rounded;
+        break;
       default:
         return const SizedBox.shrink();
     }
