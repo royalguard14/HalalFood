@@ -454,7 +454,8 @@ class _MyOrdersScreenState
       itemBuilder: (context, index) {
         final order = _orders[index];
 
-        final effectiveStatus = _deliveryStatuses[order.id] ?? order.status;
+        final rawStatus = _deliveryStatuses[order.id] ?? order.status;
+        final effectiveStatus = rawStatus == 'available' ? 'rider_assigned' : rawStatus;
         return Padding(
           padding: const EdgeInsets.only(
             bottom: 12,
