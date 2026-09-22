@@ -274,3 +274,20 @@ Delivery is therefore different from Pickup mainly in the final collection flow:
 - The GCash Information card is separate from the downpayment upload card, so the owner's GCash details remain visible on the customer order details screen when configured.
 - GitHub commit: `32145bc4f1f2bdf5aab4302888adcd762cf37c69`.
 - Next: pull latest `main`, runtime-test the Customer Delivery tracking and GCash Information display. Do not move to Owner until Customer side is confirmed complete.
+
+
+### 2026-09-22 — Owner GCash Information for Customer Downpayment
+
+- User clarified that GCash setup should be handled first on the **Owner side**, because the Owner's GCash details must appear on the Customer's downpayment requirement screen.
+- Verified that `public.restaurants` already has `gcash_name`, `gcash_number`, and `gcash_qr_url` columns.
+- Verified restaurant-owner UPDATE RLS exists for the restaurant record and Storage policies already allow owners to upload/update files under their restaurant folder in `restaurant-images`.
+- Updated `lib/features/owner/screens/owner_restaurant_profile_screen.dart`.
+- Owner Restaurant Profile now has a proper **GCash Information** section with:
+  - GCash Account Name
+  - GCash Number
+  - Upload/Replace GCash QR
+  - Preview of the saved GCash QR
+- The section explicitly tells the Owner that customers will see these details on the downpayment requirement screen.
+- Removed the misplaced old GCash form that was accidentally inside the error-state UI; GCash settings now appear in the normal Owner Restaurant Profile form.
+- GitHub commit: `1085924458937f8500efbb92fb15643f416b942f`.
+- Next: pull and test Owner GCash Information first. After confirming the Owner can save/upload the details, verify the Customer downpayment requirement screen displays the same Owner GCash information.
