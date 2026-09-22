@@ -325,3 +325,106 @@ Delivery is therefore different from Pickup mainly in the final collection flow:
 - Horizontal tracker is scrollable so the complete Delivery sequence remains readable on smaller screens.
 - **GitHub commit:** aeaf24f6fe63ad92d105983724d34f4434598d32
 - Next: pull latest `main` and runtime-test one Pickup and one Delivery order in Owner Order Details. Verify Delivery starts at **For Confirmation**, receipt review works, then **Confirmed → Preparing → Ready for Pickup**, and that it does not incorrectly mark the delivery as completed.
+
+
+### 2026-09-22 — DELIVERY/RIDER MASTER PLAN (LOCKED BEFORE IMPLEMENTATION)
+
+**Important:** This section is the working plan for the next Delivery/Rider build so we do not repeat or change the agreed flow accidentally.
+
+#### Delivery responsibility boundary
+
+**Owner responsibility ends at Out for Delivery.**
+Owner flow:
+**For Confirmation → Confirmed → Preparing → Ready for Delivery → Rider Assigned → Rider at Restaurant → Full Payment → Out for Delivery**
+
+- At **Rider Assigned**, the order enters the Rider queue.
+- Owner does not manage the rider's travel to the restaurant.
+- At **Rider at Restaurant**, Owner records the actual amount received from the Rider for the restaurant food payment.
+- Owner must accept/confirm **Full Payment** before the order can move to **Out for Delivery**.
+- Once **Out for Delivery**, Owner has **no further action**. Owner only sees the order as ongoing/Out for Delivery.
+- Owner does NOT manually mark the order Completed.
+- When Rider later completes the delivery cycle, the final backend order state becomes **Completed**, which must reflect on Owner + Customer + Rider.
+
+#### Rider responsibility
+
+Rider flow:
+**Rider Assigned → Take Order → Rider Going to Restaurant → Rider at Restaurant → Picked Up → Out for Delivery → Delivered / Cash Collected → Completed**
+
+- Rider queue appears when Owner reaches **Rider Assigned**.
+- Rider can **Take Order** to claim an available delivery.
+- Rider screen must calculate/display the amount the Rider needs to advance to the restaurant.
+- Rider must NOT be required to manually calculate this amount.
+- After pickup, Rider proceeds to **Out for Delivery**.
+- At delivery, Rider sees the exact customer collection amount.
+- Rider records the customer payment / cash collection.
+- After successful collection, Rider can mark **Completed**.
+- Rider completion is the final event that completes the entire order cycle.
+
+#### Customer display flow
+
+Customer must see:
+**For Confirmation → Confirmed → Preparing → Ready for Pickup → Rider Assigned → Rider Going to Restaurant → Rider at Restaurant → Picked Up → Out for Delivery → Delivered / Cash Collected → Full Payment → Completed**
+
+- Customer must NOT see the internal Rider → Owner restaurant payment as a customer-facing payment step.
+- The internal Rider → Owner payment happens before Owner allows Out for Delivery.
+- Customer's final Full Payment display happens after Delivered / Cash Collected according to the agreed customer-facing sequence.
+- When Rider completes the order, Customer sees **Completed**.
+
+#### Delivery payment rules
+
+- Customer Delivery Downpayment is based on the configured percentage of the final order total.
+- Remaining Balance already includes the Delivery Fee. **Never add the Delivery Fee again.**
+- Rider's restaurant advance = the remaining food amount that still needs to be paid to the restaurant.
+- Rider's customer collection = the customer's remaining Balance, which already includes the Delivery Fee.
+- Owner Full Payment records the actual amount received from Rider.
+- Rider final collection records the actual amount received from Customer.
+- Payment amounts must be validated server-side; do not trust client-calculated values.
+
+#### Rider account / approval requirements
+
+Current state:
+- **No Rider account has been created yet.**
+- **No Rider screen exists yet.**
+- There is currently **no Rider Instant Login button**.
+- The database already has the `driver` role in the existing `user_role` enum.
+- The existing `identity_verifications` table already supports role `driver`, ID document, selfie-with-ID, pending/approved/rejected status, reviewer, and rejection reason.
+
+Required Rider onboarding:
+1. Rider registers/creates an account using the existing member/identity-verification approach.
+2. Rider submits valid ID + selfie with ID.
+3. Admin must review the submitted verification.
+4. Rider must be **approved** before Rider functions/screens can be used.
+5. Rejected Rider verification must not unlock Rider operations.
+6. We will reuse the existing secure approval pattern where appropriate rather than creating a parallel unsafe role system.
+
+#### Rider Instant Login
+
+- Add a temporary Developer/Testing-only **Instant Login → Rider** option.
+- This is only for development/testing, matching the existing temporary role shortcuts.
+- It must not bypass the real Rider approval rules for normal Rider accounts.
+- The Rider test account must be an actual Rider/driver-role account so the Rider screen and RLS can be tested correctly.
+
+#### Implementation order
+
+1. Inspect existing member registration/identity approval code and admin approval flow.
+2. Inspect current role/authorization and confirm how `driver` is assigned safely.
+3. Design the Rider data model and secure RLS/RPC transitions before building the Rider UI.
+4. Add Rider account/approval support where missing.
+5. Add temporary Rider Instant Login.
+6. Build Rider queue + Take Order/claim flow.
+7. Build Rider order screen and delivery status transitions.
+8. Add secure Rider → Restaurant payment/advance tracking.
+9. Add Owner Full Payment checkpoint before Out for Delivery.
+10. Add Rider customer collection and final Completed action.
+11. Update Customer Delivery tracking to the agreed display sequence without changing Pickup.
+12. Runtime-test the complete Delivery flow end-to-end.
+13. **PICKUP SCREEN = LOCKED.** Do not modify Pickup UI, payment, receipt, status flow, summary, buttons, or logic while implementing Rider/Delivery.
+
+#### Current database facts verified before implementation
+
+- `public.order_status` currently contains:
+  `pending`, `confirmed`, `preparing`, `ready`, `out_for_delivery`, `delivered`, `cancelled`, `refunded`.
+- There are currently no Rider-specific tables/functions found by the existing Rider search.
+- Existing `profiles.role` uses `user_role`.
+- Existing `identity_verifications.role` already includes `driver`.
+- Existing Delivery/Pickup downpayment fields are currently shared in `orders`; Rider-specific settlement data should be designed separately rather than overloading Pickup behavior.
