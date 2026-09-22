@@ -2240,7 +2240,7 @@ class OrderSuccessScreen extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Row(
+                            Row(
                               children: [
                                 Icon(Icons.account_balance_wallet_outlined),
                                 SizedBox(width: 8),
@@ -2295,7 +2295,7 @@ class OrderSuccessScreen extends StatelessWidget {
                               ),
                             ],
                             const SizedBox(height: 12),
-                            const Text(
+                            Text(
                               'Send the $fulfillmentLabel downpayment to this GCash account, then upload your payment receipt.',
                               style: TextStyle(
                                 fontSize: 13,
