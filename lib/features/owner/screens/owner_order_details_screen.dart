@@ -308,12 +308,150 @@ class _OwnerOrderDetailsScreenState extends State<OwnerOrderDetailsScreen> {
     ])));
   }
 
+  List<String> _trackingSteps() {
+    final isPickup = widget.order['fulfillment_type']?.toString().toLowerCase() == 'pickup';
+    return isPickup
+        ? const [
+            'For Confirmation',
+            'Confirmed',
+            'Preparing',
+            'Ready to Pick Up',
+            'Full Payment',
+            'Claimed',
+          ]
+        : const [
+            'For Confirmation',
+            'Confirmed',
+            'Preparing',
+            'Ready for Pickup',
+            'Rider Assigned',
+            'Rider Going to Restaurant',
+            'Rider at Restaurant',
+            'Full Payment',
+            'Picked Up',
+            'Out for Delivery',
+            'Delivered / Cash Collected',
+            'Completed',
+          ];
+  }
+
+  int _trackingIndex() {
+    final s = _status.toLowerCase();
+    final isPickup = widget.order['fulfillment_type']?.toString().toLowerCase() == 'pickup';
+
+    if (isPickup) {
+      if (s == 'pending') return 0;
+      if (s == 'confirmed') return 1;
+      if (s == 'preparing') return 2;
+      if (s == 'ready' || s == 'ready_to_pick_up') return 3;
+      if (s == 'full_payment' || s == 'payment_due') return 4;
+      if (s == 'claimed' || s == 'delivered' || s == 'completed') return 5;
+      return 0;
+    }
+
+    if (s == 'pending') return 0;
+    if (s == 'confirmed') return 1;
+    if (s == 'preparing') return 2;
+    if (s == 'ready' || s == 'ready_for_pickup') return 3;
+    if (s == 'rider_assigned') return 4;
+    if (s == 'rider_going_to_restaurant' || s == 'rider_to_restaurant') return 5;
+    if (s == 'rider_at_restaurant' || s == 'at_restaurant') return 6;
+    if (s == 'full_payment' || s == 'payment_due') return 7;
+    if (s == 'picked_up' || s == 'pickedup') return 8;
+    if (s == 'out_for_delivery' || s == 'on_the_way') return 9;
+    if (s == 'delivered' || s == 'cash_collected') return 10;
+    if (s == 'completed') return 11;
+    return 0;
+  }
+
+  Widget _buildOrderFlow() {
+    final steps = _trackingSteps();
+    final current = _trackingIndex();
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Order Flow', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 14),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: List.generate(steps.length, (index) {
+                  final isDone = index < current;
+                  final isCurrent = index == current;
+                  final color = isDone || isCurrent ? HalalFoodTheme.primaryGreen : Colors.grey.shade400;
+
+                  return Row(
+                    children: [
+                      SizedBox(
+                        width: 92,
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 34,
+                              height: 34,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isDone || isCurrent
+                                    ? color.withValues(alpha: 0.12)
+                                    : Colors.grey.withValues(alpha: 0.08),
+                                border: Border.all(color: color, width: isCurrent ? 2 : 1),
+                              ),
+                              child: Icon(
+                                isDone ? Icons.check_rounded : (isCurrent ? Icons.radio_button_checked_rounded : Icons.circle_outlined),
+                                size: 18,
+                                color: color,
+                              ),
+                            ),
+                            const SizedBox(height: 7),
+                            Text(
+                              steps[index],
+                              textAlign: TextAlign.center,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
+                                color: isCurrent ? HalalFoodTheme.textPrimary : HalalFoodTheme.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (index < steps.length - 1)
+                        Container(
+                          width: 28,
+                          height: 2,
+                          margin: const EdgeInsets.only(bottom: 38),
+                          color: index < current ? HalalFoodTheme.primaryGreen : Colors.grey.shade300,
+                        ),
+                    ],
+                  );
+                }),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildStatusCard() {
     final color = _statusColor(_status);
-    return Card(child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('Current Status', style: TextStyle(fontSize: 13, color: HalalFoodTheme.textSecondary)), const SizedBox(height: 10),
-      Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9), decoration: BoxDecoration(color: color.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(20)), child: Text(_displayStatus(_status), style: TextStyle(color: color, fontWeight: FontWeight.w800))),
-    ])));
+    return Column(
+      children: [
+        Card(child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Current Status', style: TextStyle(fontSize: 13, color: HalalFoodTheme.textSecondary)), const SizedBox(height: 10),
+          Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9), decoration: BoxDecoration(color: color.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(20)), child: Text(_displayStatus(_status), style: TextStyle(color: color, fontWeight: FontWeight.w800))),
+        ])),
+        const SizedBox(height: 12),
+        _buildOrderFlow(),
+      ],
+    );
   }
 
   Widget _buildItemCard(Map<String, dynamic> item) {
@@ -364,12 +502,86 @@ class _OwnerOrderDetailsScreenState extends State<OwnerOrderDetailsScreen> {
       }
     }
     switch (_status.toLowerCase()) {
-      case 'pending': return SizedBox(width: double.infinity, height: 54, child: ElevatedButton.icon(onPressed: _isUpdating ? null : () => _updateStatus('confirmed'), icon: _isUpdating ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.check_circle_outline_rounded), label: const Text('Confirm Order', style: TextStyle(fontWeight: FontWeight.w800))));
-      case 'preparing': return SizedBox(width: double.infinity, height: 54, child: ElevatedButton.icon(onPressed: _isUpdating ? null : () => _updateStatus('ready'), icon: const Icon(Icons.check_circle_outline_rounded), label: const Text('Mark as Ready', style: TextStyle(fontWeight: FontWeight.w800))));
-      case 'ready': return SizedBox(width: double.infinity, height: 54, child: ElevatedButton.icon(onPressed: _isUpdating ? null : () => _updateStatus('delivered'), icon: const Icon(Icons.done_all_rounded), label: const Text('Mark as Completed', style: TextStyle(fontWeight: FontWeight.w800))));
-      case 'completed': return const Card(child: Padding(padding: EdgeInsets.all(18), child: Row(children: [Icon(Icons.check_circle_rounded, color: Colors.green), SizedBox(width: 12), Expanded(child: Text('This order has been completed.', style: TextStyle(fontWeight: FontWeight.w700)))])));
-      case 'cancelled': return const Card(child: Padding(padding: EdgeInsets.all(18), child: Row(children: [Icon(Icons.cancel_rounded, color: Colors.red), SizedBox(width: 12), Expanded(child: Text('This order has been cancelled.', style: TextStyle(fontWeight: FontWeight.w700)))])));
-      default: return const SizedBox.shrink();
+      case 'pending':
+        return SizedBox(width: double.infinity, height: 54, child: ElevatedButton.icon(
+          onPressed: _isUpdating ? null : () => _updateStatus('confirmed'),
+          icon: _isUpdating ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.check_circle_outline_rounded),
+          label: const Text('Confirm Order', style: TextStyle(fontWeight: FontWeight.w800)),
+        ));
+      case 'confirmed':
+        return SizedBox(width: double.infinity, height: 54, child: ElevatedButton.icon(
+          onPressed: _isUpdating ? null : () => _updateStatus('preparing'),
+          icon: const Icon(Icons.restaurant_rounded),
+          label: const Text('Preparing', style: TextStyle(fontWeight: FontWeight.w800)),
+        ));
+      case 'preparing':
+        return SizedBox(width: double.infinity, height: 54, child: ElevatedButton.icon(
+          onPressed: _isUpdating ? null : () => _updateStatus('ready_for_pickup'),
+          icon: const Icon(Icons.shopping_bag_outlined),
+          label: const Text('Ready for Pickup', style: TextStyle(fontWeight: FontWeight.w800)),
+        ));
+      case 'ready':
+      case 'ready_for_pickup':
+        return const Card(child: Padding(
+          padding: EdgeInsets.all(18),
+          child: Row(children: [
+            Icon(Icons.delivery_dining_rounded, color: HalalFoodTheme.primaryGreen),
+            SizedBox(width: 12),
+            Expanded(child: Text(
+              'Ready for Pickup. Waiting for the rider to take over this delivery order.',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            )),
+          ]),
+        ));
+      case 'rider_assigned':
+      case 'rider_going_to_restaurant':
+      case 'rider_to_restaurant':
+      case 'rider_at_restaurant':
+      case 'at_restaurant':
+      case 'full_payment':
+      case 'payment_due':
+      case 'picked_up':
+      case 'pickedup':
+      case 'out_for_delivery':
+      case 'on_the_way':
+        return const Card(child: Padding(
+          padding: EdgeInsets.all(18),
+          child: Row(children: [
+            Icon(Icons.delivery_dining_rounded, color: HalalFoodTheme.primaryGreen),
+            SizedBox(width: 12),
+            Expanded(child: Text(
+              'This delivery is now handled by the rider. Track the order from the delivery flow.',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            )),
+          ]),
+        ));
+      case 'delivered':
+      case 'cash_collected':
+        return const Card(child: Padding(
+          padding: EdgeInsets.all(18),
+          child: Row(children: [
+            Icon(Icons.check_circle_rounded, color: Colors.green),
+            SizedBox(width: 12),
+            Expanded(child: Text(
+              'Delivered and cash collected. Waiting for final completion.',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            )),
+          ]),
+        ));
+      case 'completed':
+        return const Card(child: Padding(padding: EdgeInsets.all(18), child: Row(children: [
+          Icon(Icons.check_circle_rounded, color: Colors.green),
+          SizedBox(width: 12),
+          Expanded(child: Text('This delivery order has been completed.', style: TextStyle(fontWeight: FontWeight.w700))),
+        ])));
+      case 'cancelled':
+        return const Card(child: Padding(padding: EdgeInsets.all(18), child: Row(children: [
+          Icon(Icons.cancel_rounded, color: Colors.red),
+          SizedBox(width: 12),
+          Expanded(child: Text('This order has been cancelled.', style: TextStyle(fontWeight: FontWeight.w700))),
+        ])));
+      default:
+        return const SizedBox.shrink();
     }
   }
 }
