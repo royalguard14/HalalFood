@@ -1911,89 +1911,7 @@ class _OrderSummaryCard
 // NO ADDRESS
 // ============================================================
 
-class _NoAddressView
-    extends StatelessWidget {
-  final VoidCallback onAddAddress;
 
-  const _NoAddressView({
-    required this.onAddAddress,
-  });
-
-  @override
-  Widget build(
-    BuildContext context,
-  ) {
-    return Center(
-      child: Padding(
-        padding:
-            const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize:
-              MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons
-                  .location_off_outlined,
-              size: 60,
-              color:
-                  HalalFoodTheme
-                      .primaryGreen,
-            ),
-
-            const SizedBox(
-              height: 18,
-            ),
-
-            const Text(
-              'No delivery address',
-              textAlign:
-                  TextAlign.center,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight:
-                    FontWeight.w800,
-              ),
-            ),
-
-            const SizedBox(
-              height: 8,
-            ),
-
-            const Text(
-              'Please add a delivery address before placing your order.',
-              textAlign:
-                  TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                height: 1.4,
-                color:
-                    HalalFoodTheme
-                        .textSecondary,
-              ),
-            ),
-
-            const SizedBox(
-              height: 20,
-            ),
-
-            ElevatedButton.icon(
-              onPressed:
-                  onAddAddress,
-              icon: const Icon(
-                Icons
-                    .add_location_alt_outlined,
-              ),
-              label:
-                  const Text(
-                'Add Address',
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 // ============================================================
 // ADDRESS ERROR
@@ -2283,7 +2201,7 @@ class OrderSuccessScreen extends StatelessWidget {
                                     width: 220,
                                     height: 220,
                                     fit: BoxFit.contain,
-                                    errorBuilder: (_, __, ___) => const Padding(
+                                    errorBuilder: (_, _, _) => const Padding(
                                       padding: EdgeInsets.all(16),
                                       child: Text(
                                         'Unable to load the GCash QR code.',
