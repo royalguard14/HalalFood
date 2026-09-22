@@ -346,7 +346,7 @@ class _OwnerOrderDetailsScreenState extends State<OwnerOrderDetailsScreen> {
       case 'ready_to_pick_up': case 'ready_to_pickup': return 'Ready to Pick Up';
       case 'full_payment': case 'payment_due': return 'Payment Complete';
       case 'claimed': case 'picked_up': case 'pickedup': return 'Claimed';
-      case 'ready_for_pickup': return 'Ready for Pickup';
+      case 'ready': case 'ready_for_pickup': return 'Ready for Pickup';
       case 'out_for_delivery': case 'on_the_way': return 'Out for Delivery';
       case 'completed': case 'delivered': return 'Completed';
       default: return status.replaceAll('_', ' ').split(' ').map((word) => word.isEmpty ? word : '${word[0].toUpperCase()}${word.substring(1)}').join(' ');
