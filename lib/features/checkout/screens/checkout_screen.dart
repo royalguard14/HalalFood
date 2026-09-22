@@ -2089,66 +2089,149 @@ class OrderSuccessScreen extends StatelessWidget {
   final String orderId;
   final String fulfillmentType;
   final double pickupDownpaymentAmount;
-  const OrderSuccessScreen({super.key, required this.orderId, required this.fulfillmentType, this.pickupDownpaymentAmount = 0});
+
+  const OrderSuccessScreen({
+    super.key,
+    required this.orderId,
+    required this.fulfillmentType,
+    this.pickupDownpaymentAmount = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
     final isPickup = fulfillmentType == 'pickup';
+    final hasDownpayment = pickupDownpaymentAmount > 0;
+    final fulfillmentLabel = isPickup ? 'Pickup' : 'Delivery';
+
     return Scaffold(
-      appBar: AppBar(automaticallyImplyLeading: false, title: const Text('Order Confirmed', style: TextStyle(fontWeight: FontWeight.w800))),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: Text(
+          hasDownpayment ? 'Downpayment Required' : 'Order Confirmed',
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+      ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Container(width: 84, height: 84, decoration: BoxDecoration(shape: BoxShape.circle, color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.10)), child: const Icon(Icons.check_circle_rounded, size: 58, color: HalalFoodTheme.primaryGreen)),
-            const SizedBox(height: 24),
-            const Text('Order Placed!', textAlign: TextAlign.center, style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900)),
-            const SizedBox(height: 10),
-            Text(isPickup ? 'Your pickup order is waiting for the downpayment receipt. The restaurant will only start processing after a receipt is submitted.' : 'Your order has been successfully placed.', textAlign: TextAlign.center, style: const TextStyle(fontSize: 15, height: 1.4, color: HalalFoodTheme.textSecondary)),
-            if (isPickup) ...[
-              const SizedBox(height: 18),
-              Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(children: [
-                const Text('Pickup Downpayment Required', style: TextStyle(fontWeight: FontWeight.w800)),
-                const SizedBox(height: 6),
-                Text('₱${pickupDownpaymentAmount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: HalalFoodTheme.primaryGreen)),
-                const SizedBox(height: 6),
-                const Text('Pay directly to the restaurant and upload your GCash receipt.', textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: HalalFoodTheme.textSecondary)),
-              ]))),
-            ],
-            const SizedBox(height: 14),
-            Text('Order ID: $orderId', textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: HalalFoodTheme.textSecondary)),
-            const SizedBox(height: 26),
-            if (isPickup) ...[
-              SizedBox(width: double.infinity, height: 52, child: ElevatedButton.icon(
-                onPressed: () => Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => OrderDetailsScreenById(orderId: orderId))),
-                icon: const Icon(Icons.upload_file_rounded),
-                label: const Text('Upload Receipt', style: TextStyle(fontWeight: FontWeight.w800)),
-              )),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 84,
+                height: 84,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.10),
+                ),
+                child: Icon(
+                  hasDownpayment
+                      ? Icons.payments_outlined
+                      : Icons.check_circle_rounded,
+                  size: 58,
+                  color: HalalFoodTheme.primaryGreen,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                hasDownpayment ? 'Downpayment Required' : 'Order Placed!',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
               const SizedBox(height: 10),
-              SizedBox(width: double.infinity, height: 52, child: OutlinedButton.icon(
-                onPressed: () async {
-                  final ok = await showDialog<bool>(context: context, builder: (context) => AlertDialog(
-                    title: const Text('Cancel pickup order?'),
-                    content: const Text('You can cancel this order while it is still waiting for the payment receipt.'),
-                    actions: [
-                      TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Keep Order')),
-                      FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Cancel Order')),
-                    ],
-                  ));
-                  if (ok != true || !context.mounted) return;
-                  try {
-                    await Supabase.instance.client.from('orders').update({'status': 'cancelled'}).eq('id', orderId).eq('fulfillment_type', 'pickup').inFilter('pickup_downpayment_status', ['pending','receipt_rejected']);
-                    if (context.mounted) Navigator.of(context).popUntil((route) => route.isFirst);
-                  } catch (e) {
-                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unable to cancel order: $e')));
-                  }
-                },
-                icon: const Icon(Icons.cancel_outlined),
-                label: const Text('Cancel Order', style: TextStyle(fontWeight: FontWeight.w800)),
-              )),
-            ] else
-              SizedBox(width: double.infinity, height: 52, child: ElevatedButton(onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst), child: const Text('Back to Home', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)))),
-          ]),
+              Text(
+                hasDownpayment
+                    ? 'Your $fulfillmentLabel order is waiting for the downpayment receipt. The restaurant will only start processing after your receipt is submitted and approved.'
+                    : 'Your order has been successfully placed.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 15,
+                  height: 1.4,
+                  color: HalalFoodTheme.textSecondary,
+                ),
+              ),
+              if (hasDownpayment) ...[
+                const SizedBox(height: 18),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Text(
+                          '$fulfillmentLabel Downpayment',
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '₱$pickupDownpaymentAmount.toStringAsFixed(2)',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w900,
+                            color: HalalFoodTheme.primaryGreen,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Pay directly to the restaurant and upload your GCash receipt.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: HalalFoodTheme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 14),
+              Text(
+                'Order ID: $orderId',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: HalalFoodTheme.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 26),
+              if (hasDownpayment) ...[
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(
+                        builder: (_) => OrderDetailsScreenById(orderId: orderId),
+                      ),
+                    ),
+                    icon: const Icon(Icons.upload_file_rounded),
+                    label: const Text(
+                      'Continue to Downpayment',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+                  child: Text(
+                    hasDownpayment ? 'Do This Later' : 'Back to Home',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
