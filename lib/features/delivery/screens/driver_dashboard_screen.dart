@@ -20,6 +20,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
   bool _loadingDeliveries = true;
   bool _loadingActiveDeliveries = true;
   bool _takingDelivery = false;
+  final Set<String> _updatingDeliveryIds = <String>{};
   bool _changingOnlineState = false;
   String? _deliveryError;
   List<Map<String, dynamic>> _availableDeliveries = [];
@@ -470,6 +471,27 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
       );
     } finally {
       if (mounted) setState(() => _takingDelivery = false);
+    }
+  }
+
+  Future<void> _updateDeliveryStatus(String assignmentId, String status) async {
+    if (_updatingDeliveryIds.contains(assignmentId)) return;
+    setState(() => _updatingDeliveryIds.add(assignmentId));
+    try {
+      await Supabase.instance.client.rpc(
+        'rider_update_delivery_status',
+        params: {'p_assignment_id': assignmentId, 'p_status': status},
+      );
+      await _loadActiveDeliveries(showLoading: false);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to update delivery: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _updatingDeliveryIds.remove(assignmentId));
+      }
     }
   }
 
@@ -1032,11 +1054,72 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                     'Customer collection',
                     '₱${collection.toStringAsFixed(2)}',
                   ),
+                const SizedBox(height: 14),
+                _riderActionButton(
+                  assignmentId: delivery['id'].toString(),
+                  status: delivery['status']?.toString(),
+                ),
               ],
             ),
           ),
         );
       }).toList(),
+    );
+  }
+
+  Widget _riderActionButton({
+    required String assignmentId,
+    required String? status,
+  }) {
+    String? nextStatus;
+    String label = '';
+    IconData icon = Icons.arrow_forward_rounded;
+
+    switch (status) {
+      case 'rider_assigned':
+        nextStatus = 'rider_going_to_restaurant';
+        label = 'Start Delivery';
+        icon = Icons.navigation_rounded;
+        break;
+      case 'rider_going_to_restaurant':
+        nextStatus = 'rider_at_restaurant';
+        label = 'Arrived at Restaurant';
+        icon = Icons.storefront_rounded;
+        break;
+      case 'rider_at_restaurant':
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.orange.withValues(alpha: .08),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Text(
+            'At restaurant. Waiting for Owner payment before pickup.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+          ),
+        );
+      default:
+        return const SizedBox.shrink();
+    }
+
+    final loading = _updatingDeliveryIds.contains(assignmentId);
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.icon(
+        onPressed: loading
+            ? null
+            : () => _updateDeliveryStatus(assignmentId, nextStatus!),
+        icon: loading
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Icon(icon),
+        label: Text(loading ? 'Updating...' : label),
+      ),
     );
   }
 
