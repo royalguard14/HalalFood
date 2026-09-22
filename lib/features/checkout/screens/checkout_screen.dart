@@ -145,7 +145,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   Future<void> _loadMaximumDeliveryDistance() async {
     try {
-      final value = await _restaurantRepository.getCustomerRestaurantRadiusKm();
+      final value = await _restaurantRepository.getMaximumDeliveryDistanceKm();
       if (!mounted) return;
       setState(() => _maximumDeliveryDistanceKm = value);
     } catch (_) {
