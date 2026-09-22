@@ -476,7 +476,11 @@ class _OwnerOrderDetailsScreenState extends State<OwnerOrderDetailsScreen> {
         _SummaryRow(label: 'GCash Downpayment', value: '-₱${_gcashDownpaymentPaid.toStringAsFixed(2)}'),
         const SizedBox(height: 10),
         _SummaryRow(label: 'Cash for Pickup', value: '-₱${_cashPickupPaid.toStringAsFixed(2)}'),
-      ] else ...[_SummaryRow(label: 'Delivery Fee', value: '₱${deliveryFee.toStringAsFixed(2)}')],
+      ] else ...[
+        _SummaryRow(label: 'Delivery Fee', value: '₱${deliveryFee.toStringAsFixed(2)}'),
+        const SizedBox(height: 10),
+        _SummaryRow(label: 'GCash Downpayment', value: '-₱${_gcashDownpaymentPaid.toStringAsFixed(2)}'),
+      ],
       const Padding(padding: EdgeInsets.symmetric(vertical: 14), child: Divider()),
       _SummaryRow(label: isReadyForPickup ? 'Cash Balance' : 'Balance', value: '₱${balance.toStringAsFixed(2)}', isTotal: true),
     ])));
