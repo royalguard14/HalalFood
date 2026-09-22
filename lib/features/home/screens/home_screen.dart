@@ -622,17 +622,6 @@ class _HomeContent extends StatelessWidget {
 
             final restaurantMenus =
                 snapshot.data ?? [];
-
-            final hasValidCustomerLocation =
-                customerAddress?.latitude != null &&
-                customerAddress?.longitude != null &&
-                customerAddress!.latitude!.isFinite &&
-                customerAddress!.longitude!.isFinite &&
-                customerAddress!.latitude! >= -90 &&
-                customerAddress!.latitude! <= 90 &&
-                customerAddress!.longitude! >= -180 &&
-                customerAddress!.longitude! <= 180;
-
             final filtered =
                 restaurantMenus.where(
               (entry) {
@@ -843,63 +832,7 @@ class _RestaurantWithMenu {
   });
 }
 
-class _DeliveryRadiusNotice extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String message;
 
-  const _DeliveryRadiusNotice({
-    required this.icon,
-    required this.title,
-    required this.message,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: HalalFoodTheme.primaryGreen.withValues(alpha: 0.14),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            icon,
-            color: HalalFoodTheme.primaryGreen,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  message,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    height: 1.35,
-                    color: HalalFoodTheme.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _FilterResultHeader
     extends StatelessWidget {
@@ -1082,7 +1015,7 @@ class _FeaturedRestaurantCard
 
                     if (distanceKm != null)
                       Text(
-                        distanceKm!.toStringAsFixed(1) + ' km away',
+                        '${distanceKm!.toStringAsFixed(1)} km away',
                         style: const TextStyle(
                           fontSize: 12,
                           color: HalalFoodTheme.textSecondary,
@@ -1234,7 +1167,7 @@ class _RestaurantCard
                       Padding(
                         padding: const EdgeInsets.only(top: 5),
                         child: Text(
-                          distanceKm!.toStringAsFixed(1) + ' km away',
+                          '${distanceKm!.toStringAsFixed(1)} km away',
                           style: const TextStyle(
                             fontSize: 12,
                             color: HalalFoodTheme.textSecondary,
