@@ -2097,6 +2097,25 @@ class OrderSuccessScreen extends StatelessWidget {
     this.pickupDownpaymentAmount = 0,
   });
 
+  Future<Map<String, dynamic>?> _loadRestaurantPayment() async {
+    final supabase = Supabase.instance.client;
+
+    final order = await supabase
+        .from('orders')
+        .select('restaurant_id')
+        .eq('id', orderId)
+        .maybeSingle();
+
+    final restaurantId = order?['restaurant_id']?.toString();
+    if (restaurantId == null || restaurantId.isEmpty) return null;
+
+    return await supabase
+        .from('restaurants')
+        .select('gcash_name,gcash_number,gcash_qr_url')
+        .eq('id', restaurantId)
+        .maybeSingle();
+  }
+
   @override
   Widget build(BuildContext context) {
     final isPickup = fulfillmentType == 'pickup';
@@ -2186,6 +2205,110 @@ class OrderSuccessScreen extends StatelessWidget {
                     ),
                   ),
                 ),
+                const SizedBox(height: 12),
+                FutureBuilder<Map<String, dynamic>?>(
+                  future: _loadRestaurantPayment(),
+                  builder: (context, snapshot) {
+                    final payment = snapshot.data;
+                    final gcashName =
+                        payment?['gcash_name']?.toString().trim() ?? '';
+                    final gcashNumber =
+                        payment?['gcash_number']?.toString().trim() ?? '';
+                    final gcashQrUrl =
+                        payment?['gcash_qr_url']?.toString().trim() ?? '';
+
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Card(
+                        child: Padding(
+                          padding: EdgeInsets.all(18),
+                          child: Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        ),
+                      );
+                    }
+
+                    if (gcashName.isEmpty &&
+                        gcashNumber.isEmpty &&
+                        gcashQrUrl.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+
+                    return Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.account_balance_wallet_outlined),
+                                SizedBox(width: 8),
+                                Text(
+                                  'GCash Information',
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+                            if (gcashName.isNotEmpty)
+                              _paymentInfoRow(
+                                'Account Name',
+                                gcashName,
+                              ),
+                            if (gcashNumber.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              _paymentInfoRow(
+                                'GCash Number',
+                                gcashNumber,
+                              ),
+                            ],
+                            if (gcashQrUrl.isNotEmpty) ...[
+                              const SizedBox(height: 14),
+                              const Text(
+                                'GCash QR Code',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Center(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.network(
+                                    gcashQrUrl,
+                                    width: 220,
+                                    height: 220,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (_, __, ___) => const Padding(
+                                      padding: EdgeInsets.all(16),
+                                      child: Text(
+                                        'Unable to load the GCash QR code.',
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 12),
+                            const Text(
+                              'Send the downpayment to this GCash account, then upload your payment receipt.',
+                              style: TextStyle(
+                                fontSize: 13,
+                                height: 1.35,
+                                color: HalalFoodTheme.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ],
               const SizedBox(height: 14),
               Text(
@@ -2220,7 +2343,8 @@ class OrderSuccessScreen extends StatelessWidget {
                 width: double.infinity,
                 height: 52,
                 child: OutlinedButton(
-                  onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+                  onPressed: () =>
+                      Navigator.of(context).popUntil((route) => route.isFirst),
                   child: Text(
                     hasDownpayment ? 'Do This Later' : 'Back to Home',
                     style: const TextStyle(
@@ -2234,6 +2358,30 @@ class OrderSuccessScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  static Widget _paymentInfoRow(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 105,
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              color: HalalFoodTheme.textSecondary,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+        ),
+      ],
     );
   }
 }
