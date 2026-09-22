@@ -1,3 +1,18 @@
+### 2026-09-22 — Rider Online / GPS / Multi-Delivery Foundation
+
+- Rider **Online/Offline switch** is now connected to the backend through protected RPCs; it is no longer only local UI state.
+- **Offline Rider:** available delivery queue is hidden and backend RLS prevents an offline Rider from reading available deliveries.
+- **Online Rider:** GPS is required before going online. The app starts continuous location updates and stores the Rider's latest coordinates/time in `profiles`.
+- **Background tracking foundation:** Android background-location + foreground-service permissions were added, and the Geolocator stream uses a foreground notification configuration while tracking. Full production background/terminated-app behavior still needs dedicated runtime testing and permission UX.
+- **Active delivery lock:** once a Rider has active deliveries, the Online switch cannot be turned off and logout is blocked. Backend `rider_set_online(false)` also rejects going offline while any assigned delivery is not `completed`.
+- **Multiple deliveries:** Rider can take multiple deliveries. There is currently a **temporary hard server limit of 5 active deliveries per Rider**.
+- **Future Admin setting:** replace the temporary hardcoded 5-delivery limit with an Admin-configurable **Maximum Active Deliveries per Rider** setting. Keep the current 5 as the default until that Admin setting is implemented.
+- **Double-book protection:** `rider_take_delivery` only claims rows still marked `available` with no `rider_id`; the claim is server-side/atomic. Once another Rider takes it, it disappears from the available queue on refresh.
+- **Rider Active Deliveries:** the Rider Dashboard now has a dedicated **My Active Deliveries** section showing all deliveries currently assigned to that Rider until they reach `completed`.
+- **Queue refresh:** available/active delivery data refreshes every 4 seconds while the Rider is online, so taken deliveries leave the queue quickly even before a full Realtime UI pass.
+- **Supabase additions:** `profiles.is_online`, `last_location_lat`, `last_location_lng`, `last_location_at`; protected RPCs `rider_set_online` and `rider_update_location`; updated `rider_take_delivery`; Rider delivery RLS now requires online status for available deliveries.
+- **GitHub commits:** `6ad90ca73ec63122e7ee7a1252b9b0c8164a6f47` (Rider dashboard) and `ad893f820414aa244a60b81ac607fdfa84250b4a` (Android location permissions).
+
 ### 2026-09-21 — Owner Pickup Payment Summary Fixed
 - User reported that the Owner Desktop **Recent Orders** status/tracking and the opened **Payment Summary** were not showing the intended Pickup flow.
 - `lib/features/owner/screens/owner_order_details_screen.dart` was updated directly on `main`.
