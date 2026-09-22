@@ -22,6 +22,7 @@ class _DeveloperRestaurantControlScreenState
 
   bool _loading = true;
   bool _saving = false;
+  bool _deletingVault = false;
 
   double _cashReceived = 0;
   double _gcashReceived = 0;
@@ -42,9 +43,7 @@ class _DeveloperRestaurantControlScreenState
   }
 
   Future<void> _load() async {
-    if (mounted) {
-      setState(() => _loading = true);
-    }
+    if (mounted) setState(() => _loading = true);
 
     try {
       final orders = await _supabase
@@ -83,12 +82,8 @@ class _DeveloperRestaurantControlScreenState
         final amount = (row['amount'] as num?)?.toDouble() ?? 0;
         final method = row['payment_method']?.toString().toLowerCase();
 
-        if (method == 'cash_on_delivery') {
-          cash += amount;
-        }
-        if (method == 'gcash') {
-          gcash += amount;
-        }
+        if (method == 'cash_on_delivery') cash += amount;
+        if (method == 'gcash') gcash += amount;
       }
 
       final out = cashouts.fold<double>(
@@ -101,12 +96,8 @@ class _DeveloperRestaurantControlScreenState
 
       for (final row in adjustments) {
         final amount = (row['amount'] as num?)?.toDouble() ?? 0;
-        if (row['vault_type'] == 'cash') {
-          cashAdjustments += amount;
-        }
-        if (row['vault_type'] == 'gcash') {
-          gcashAdjustments += amount;
-        }
+        if (row['vault_type'] == 'cash') cashAdjustments += amount;
+        if (row['vault_type'] == 'gcash') gcashAdjustments += amount;
       }
 
       if (!mounted) return;
@@ -133,55 +124,10 @@ class _DeveloperRestaurantControlScreenState
   }
 
   Future<void> _adjust(String vault) async {
-    final amountController = TextEditingController();
-    final notesController = TextEditingController();
-
     final result = await showDialog<List<String>>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text('${vault == 'cash' ? 'Cash' : 'GCash'} Vault Adjustment'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: amountController,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: const InputDecoration(
-                labelText: 'Amount',
-                helperText: 'Positive adds funds; negative subtracts funds.',
-                prefixText: '₱ ',
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: notesController,
-              maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'Reason / Notes',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(
-              dialogContext,
-              [amountController.text.trim(), notesController.text.trim()],
-            ),
-            child: const Text('Save Adjustment'),
-          ),
-        ],
-      ),
+      builder: (dialogContext) => _VaultAdjustmentDialog(vault: vault),
     );
-
-    amountController.dispose();
-    notesController.dispose();
 
     if (result == null || !mounted) return;
 
@@ -218,9 +164,82 @@ class _DeveloperRestaurantControlScreenState
         );
       }
     } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _deleteVaultData() async {
+    if (_deletingVault || _saving || !mounted) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red),
+            SizedBox(width: 8),
+            Expanded(child: Text('Delete Vault Data?')),
+          ],
+        ),
+        content: const Text(
+          'This permanently deletes all developer vault adjustment records '
+          'for this restaurant.\n\n'
+          'Orders, payments, GCash cashouts, and restaurant data will NOT be deleted.\n\n'
+          'This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete Permanently'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _deletingVault = true);
+
+    try {
+      final result = await _supabase.rpc(
+        'developer_clear_vault_adjustments',
+        params: {'p_restaurant_id': widget.restaurantId},
+      );
+
+      if (!mounted) return;
+
+      await _load();
+      if (!mounted) return;
+
+      final deleted = result is Map
+          ? (result['deleted_adjustments'] ?? 0).toString()
+          : '0';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.green,
+          content: Text('Vault data deleted. $deleted adjustment(s) removed.'),
+        ),
+      );
+    } catch (e) {
       if (mounted) {
-        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.red,
+            content: Text('Unable to delete vault data: $e'),
+          ),
+        );
       }
+    } finally {
+      if (mounted) setState(() => _deletingVault = false);
     }
   }
 
@@ -231,6 +250,7 @@ class _DeveloperRestaurantControlScreenState
     final datePart = '${date.month}/${date.day}/${date.year}';
     final timePart =
         '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+
     return '$datePart $timePart';
   }
 
@@ -275,16 +295,14 @@ class _DeveloperRestaurantControlScreenState
             ),
             const SizedBox(height: 8),
             Text('Received: ₱${received.toStringAsFixed(2)}'),
-            Text(
-              'Developer adjustments: ₱${adjustments.toStringAsFixed(2)}',
-            ),
+            Text('Developer adjustments: ₱${adjustments.toStringAsFixed(2)}'),
             if (!isCash)
               Text('GCash cashouts: ₱${_gcashCashouts.toStringAsFixed(2)}'),
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: _saving ? null : onAdjust,
+                onPressed: _saving || _deletingVault ? null : onAdjust,
                 icon: const Icon(Icons.tune_rounded),
                 label: const Text(
                   'Manipulate Vault',
@@ -308,7 +326,7 @@ class _DeveloperRestaurantControlScreenState
         ),
         actions: [
           IconButton(
-            onPressed: _loading || _saving ? null : _load,
+            onPressed: _loading || _saving || _deletingVault ? null : _load,
             icon: const Icon(Icons.refresh_rounded),
           ),
         ],
@@ -347,6 +365,66 @@ class _DeveloperRestaurantControlScreenState
                     () => _adjust('gcash'),
                   ),
                   const SizedBox(height: 22),
+                  Card(
+                    color: Colors.red.withValues(alpha: 0.06),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.delete_forever_rounded, color: Colors.red),
+                              SizedBox(width: 8),
+                              Text(
+                                'Danger Zone',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Delete all developer vault adjustment records for this restaurant. Orders, payments, and cashouts are not affected.',
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                              ),
+                              onPressed: _saving || _deletingVault
+                                  ? null
+                                  : _deleteVaultData,
+                              icon: _deletingVault
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Icon(Icons.delete_forever_rounded),
+                              label: Text(
+                                _deletingVault
+                                    ? 'Deleting Vault Data...'
+                                    : 'Delete Vault Data',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 22),
                   const Text(
                     'Developer Adjustment History',
                     style: TextStyle(
@@ -379,9 +457,7 @@ class _DeveloperRestaurantControlScreenState
                           ),
                           title: Text(
                             '${vaultType == 'cash' ? 'Cash' : 'GCash'}  ${amount >= 0 ? '+' : '−'} ₱${amount.abs().toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w800,
-                            ),
+                            style: const TextStyle(fontWeight: FontWeight.w800),
                           ),
                           subtitle: Text(
                             '$noteText${_date(row['created_at']?.toString())}',
@@ -392,6 +468,81 @@ class _DeveloperRestaurantControlScreenState
                 ],
               ),
             ),
+    );
+  }
+}
+
+class _VaultAdjustmentDialog extends StatefulWidget {
+  final String vault;
+
+  const _VaultAdjustmentDialog({required this.vault});
+
+  @override
+  State<_VaultAdjustmentDialog> createState() => _VaultAdjustmentDialogState();
+}
+
+class _VaultAdjustmentDialogState extends State<_VaultAdjustmentDialog> {
+  late final TextEditingController _amountController;
+  late final TextEditingController _notesController;
+
+  @override
+  void initState() {
+    super.initState();
+    _amountController = TextEditingController();
+    _notesController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final vaultName = widget.vault == 'cash' ? 'Cash' : 'GCash';
+
+    return AlertDialog(
+      title: Text('$vaultName Vault Adjustment'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _amountController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Amount',
+                helperText: 'Positive adds funds; negative subtracts funds.',
+                prefixText: '₱ ',
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _notesController,
+              maxLines: 2,
+              decoration: const InputDecoration(labelText: 'Reason / Notes'),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(
+            context,
+            [
+              _amountController.text.trim(),
+              _notesController.text.trim(),
+            ],
+          ),
+          child: const Text('Save Adjustment'),
+        ),
+      ],
     );
   }
 }
