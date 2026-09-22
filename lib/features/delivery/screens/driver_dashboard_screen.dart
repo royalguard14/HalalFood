@@ -63,6 +63,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
             if (!mounted || !_isOnline) return;
             _loadAvailableDeliveries(showLoading: false);
             _loadActiveDeliveries(showLoading: false);
+            _loadRiderStats();
           },
         )
         .subscribe();
@@ -523,6 +524,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
         params: {'p_assignment_id': assignmentId, 'p_status': status},
       );
       await _loadActiveDeliveries(showLoading: false);
+      await _loadRiderStats();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
