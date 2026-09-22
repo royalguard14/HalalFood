@@ -272,7 +272,7 @@ class _OwnerOrderDetailsScreenState extends State<OwnerOrderDetailsScreen> {
     if (_error != null) return Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_error!, textAlign: TextAlign.center)));
     return ListView(padding: const EdgeInsets.fromLTRB(20, 20, 20, 32), children: [
       _buildStatusCard(),
-      if (widget.order['fulfillment_type']?.toString().toLowerCase() == 'pickup') _buildPickupPaymentCard(),
+      _buildDownpaymentCard(),
       const SizedBox(height: 24),
       const Text('Order Items', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
       const SizedBox(height: 12),
@@ -284,12 +284,14 @@ class _OwnerOrderDetailsScreenState extends State<OwnerOrderDetailsScreen> {
     ]);
   }
 
-  Widget _buildPickupPaymentCard() {
+  Widget _buildDownpaymentCard() {
+    final isPickup = widget.order['fulfillment_type']?.toString().toLowerCase() == 'pickup';
+    final paymentLabel = isPickup ? 'Pickup Payment' : 'Delivery Payment';
     final state = _pickupPaymentState ?? widget.order['pickup_downpayment_status']?.toString() ?? 'pending';
     final amount = (widget.order['pickup_downpayment_amount'] as num?)?.toDouble() ?? 0;
     final submitted = state == 'receipt_submitted';
     return Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('Pickup Payment', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+      Text(paymentLabel, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
       const SizedBox(height: 6), Text('Downpayment: ₱${amount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w700)),
       const SizedBox(height: 10), Text('Payment: ${_displayStatus(state)}', style: const TextStyle(fontWeight: FontWeight.w700)),
       if (_receiptUrl != null) ...[
