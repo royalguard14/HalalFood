@@ -28,6 +28,7 @@ class _OwnerOrderDetailsScreenState extends State<OwnerOrderDetailsScreen> {
   String? _deliveryAssignmentStatus;
   double? _deliveryOwnerPaidAmount;
   double _deliveryCustomerCollectedAmount = 0;
+  RealtimeChannel? _deliveryChannel;
 
   @override
   void initState() {
@@ -40,7 +41,50 @@ class _OwnerOrderDetailsScreenState extends State<OwnerOrderDetailsScreen> {
     _loadPickupPayments();
     if (widget.order['fulfillment_type']?.toString().toLowerCase() == 'delivery') {
       _loadDeliveryAssignment();
+      _subscribeToDeliveryUpdates();
     }
+  }
+
+  @override
+  void dispose() {
+    final channel = _deliveryChannel;
+    if (channel != null) {
+      _supabase.removeChannel(channel);
+    }
+    super.dispose();
+  }
+
+  void _subscribeToDeliveryUpdates() {
+    final orderId = widget.order['id']?.toString();
+    if (orderId == null || orderId.isEmpty) return;
+    _deliveryChannel = _supabase
+        .channel('owner-delivery-order-$orderId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'delivery_assignments',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'order_id',
+            value: orderId,
+          ),
+          callback: (payload) {
+            if (!mounted || payload.newRecord.isEmpty) return;
+            final record = payload.newRecord;
+            setState(() {
+              _deliveryAssignmentStatus = record['status']?.toString();
+              _deliveryOwnerPaidAmount = (record['owner_paid_amount'] as num?)?.toDouble();
+              _deliveryCustomerCollectedAmount =
+                  (record['customer_collected_amount'] as num?)?.toDouble() ?? 0;
+              if (_deliveryAssignmentStatus == 'available') {
+                _status = 'rider_assigned';
+              } else if (_deliveryAssignmentStatus != null) {
+                _status = _deliveryAssignmentStatus!;
+              }
+            });
+          },
+        )
+        .subscribe();
   }
 
   Future<void> _loadDeliveryAssignment() async {
