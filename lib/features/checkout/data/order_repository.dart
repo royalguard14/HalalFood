@@ -27,6 +27,7 @@ class OrderRepository {
     String? promoCode,
     double pickupDownpaymentPercent = 0,
     double pickupDownpaymentAmount = 0,
+    double promoDiscount = 0,
   }) async {
     final user =
         _supabase.auth.currentUser;
@@ -84,12 +85,20 @@ class OrderRepository {
       effectiveDeliveryFee = 0;
     }
 
-    final effectivePickupPercent = fulfillmentType == 'pickup'
-        ? pickupDownpaymentPercent.clamp(0, 100).toDouble()
-        : 0.0;
-    final effectivePickupAmount = fulfillmentType == 'pickup'
-        ? pickupDownpaymentAmount.clamp(0, subtotal).toDouble()
-        : 0.0;
+    final effectiveDownpaymentPercent =
+        pickupDownpaymentPercent.clamp(0, 100).toDouble();
+    final expectedTotalAmount =
+        (subtotal + effectiveDeliveryFee - promoDiscount)
+            .clamp(0.0, double.infinity)
+            .toDouble();
+    final effectiveDownpaymentAmount =
+        effectiveDownpaymentPercent > 0
+            ? (fulfillmentType == 'pickup'
+                    ? pickupDownpaymentAmount
+                    : expectedTotalAmount * (effectiveDownpaymentPercent / 100))
+                .clamp(0.0, expectedTotalAmount)
+                .toDouble()
+            : 0.0;
 
     final totalAmount =
         subtotal + effectiveDeliveryFee;
@@ -104,9 +113,10 @@ class OrderRepository {
           'subtotal': subtotal,
           'delivery_fee': effectiveDeliveryFee,
           'total_amount': totalAmount,
-          'pickup_downpayment_percent': effectivePickupPercent == 0 ? null : effectivePickupPercent,
-          'pickup_downpayment_amount': effectivePickupAmount,
-          'pickup_downpayment_status': fulfillmentType == 'pickup' ? 'pending' : 'not_required',
+          'pickup_downpayment_percent': effectiveDownpaymentPercent == 0 ? null : effectiveDownpaymentPercent,
+          'pickup_downpayment_amount': effectiveDownpaymentAmount,
+          'pickup_downpayment_status':
+              effectiveDownpaymentAmount > 0 ? 'pending' : 'not_required',
           'notes': notes,
         })
         .select('id')
@@ -141,14 +151,16 @@ class OrderRepository {
         );
       }
 
-      if (fulfillmentType == 'pickup' && effectivePickupAmount > 0) {
+      if (effectiveDownpaymentAmount > 0) {
         await _supabase.from('payments').insert({
           'order_id': orderId,
           'customer_id': user.id,
-          'amount': effectivePickupAmount,
+          'amount': effectiveDownpaymentAmount,
           'payment_method': 'online',
           'status': 'pending',
-          'notes': 'Pickup downpayment required before restaurant processing. Non-refundable under pickup no-show rule.',
+          'notes': fulfillmentType == 'pickup'
+              ? 'Pickup downpayment required before restaurant processing. Non-refundable under pickup no-show rule.'
+              : 'Delivery downpayment required before restaurant processing.'
         });
       }
 
