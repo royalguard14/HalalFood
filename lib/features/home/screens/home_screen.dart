@@ -91,7 +91,70 @@ class _HomeScreenState extends State<HomeScreen> {
     _customerAddress = selectedAddress;
     _customerRestaurantRadiusKm = radiusKm;
 
-    return _restaurantRepository.getRestaurants();
+    final restaurants = await _restaurantRepository.getRestaurants();
+
+    // Restaurant Search Radius is for discovery only.
+    // It is intentionally separate from Maximum Delivery Distance.
+    final customerLatitude = selectedAddress?.latitude;
+    final customerLongitude = selectedAddress?.longitude;
+
+    if (customerLatitude == null ||
+        customerLongitude == null ||
+        !customerLatitude.isFinite ||
+        !customerLongitude.isFinite ||
+        customerLatitude < -90 ||
+        customerLatitude > 90 ||
+        customerLongitude < -180 ||
+        customerLongitude > 180) {
+      // Without a valid saved customer location, do not apply a
+      // GPS-based radius filter yet.
+      return restaurants;
+    }
+
+    const earthRadiusKm = 6371.0;
+
+    double distanceKm(Restaurant restaurant) {
+      final restaurantLatitude = restaurant.latitude;
+      final restaurantLongitude = restaurant.longitude;
+
+      if (restaurantLatitude == null ||
+          restaurantLongitude == null ||
+          !restaurantLatitude.isFinite ||
+          !restaurantLongitude.isFinite ||
+          restaurantLatitude < -90 ||
+          restaurantLatitude > 90 ||
+          restaurantLongitude < -180 ||
+          restaurantLongitude > 180) {
+        return double.infinity;
+      }
+
+      final lat1 = customerLatitude * math.pi / 180;
+      final lat2 = restaurantLatitude * math.pi / 180;
+      final dLat =
+          (restaurantLatitude - customerLatitude) * math.pi / 180;
+      final dLon =
+          (restaurantLongitude - customerLongitude) * math.pi / 180;
+
+      final a =
+          math.pow(math.sin(dLat / 2), 2) +
+          math.cos(lat1) *
+              math.cos(lat2) *
+              math.pow(math.sin(dLon / 2), 2);
+
+      return earthRadiusKm *
+          2 *
+          math.atan2(
+            math.sqrt(a),
+            math.sqrt(1 - a),
+          );
+    }
+
+    return restaurants
+        .where(
+          (restaurant) =>
+              distanceKm(restaurant) <= radiusKm,
+        )
+        .toList();
   }
 
   void _loadCategories() {
