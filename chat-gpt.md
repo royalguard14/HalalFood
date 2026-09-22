@@ -428,3 +428,42 @@ Required Rider onboarding:
 - Existing `profiles.role` uses `user_role`.
 - Existing `identity_verifications.role` already includes `driver`.
 - Existing Delivery/Pickup downpayment fields are currently shared in `orders`; Rider-specific settlement data should be designed separately rather than overloading Pickup behavior.
+
+
+### 2026-09-22 — Rider Foundation First Edits Completed
+
+- Verified that Rider support was already partially scaffolded:
+  - `public.user_role` already includes `driver`.
+  - `public.identity_verifications` already supports `driver`, ID document, selfie-with-ID, pending/approved/rejected review.
+  - `public.is_identity_verified()` already requires an approved verification for the user's current role.
+  - Splash routing already blocks unapproved driver accounts and routes approved drivers to `DriverDashboardScreen`.
+- The existing `DriverDashboardScreen` is currently only a starter/placeholder dashboard; it is NOT yet the full Rider workflow.
+- Added temporary **Rider** quick-login support:
+  - `Env.devRiderEmail`
+  - `Env.devRiderPassword`
+  - Rider button in Login → Temporary Test Login.
+  - Added `DEV_RIDER_EMAIL` / `DEV_RIDER_PASSWORD` placeholders to `.env.example`.
+  - These credentials are local testing values only.
+- No Rider account was created yet. The Rider quick-login button will remain unconfigured until a real approved driver test account exists.
+- Created secure live Supabase table `public.delivery_assignments` for Delivery/Rider operations.
+  - One assignment per delivery order.
+  - Supports available queue, Rider Assigned, Rider Going to Restaurant, Rider at Restaurant, Picked Up, Out for Delivery, Delivered/Cash Collected, Completed.
+  - Stores Rider identity and internal Rider→Owner / Rider→Customer payment amounts/timestamps separately from Pickup.
+  - RLS allows customers to see their own assignment, owners to see their restaurant's assignments, and approved Riders to see available/own assignments.
+- Added secure RPC `public.owner_create_delivery_assignment(uuid)` so the Owner can place a ready Delivery order into the Rider queue.
+- Added secure RPC `public.rider_take_delivery(uuid)` so only an approved driver can atomically claim an available delivery.
+- Owner Delivery Order Details now starts the new queue action:
+  - **Ready for Delivery → Rider Assigned** button.
+  - After queueing, Owner no longer gets a generic Completed button.
+  - The Owner screen begins showing Rider-controlled stages as delivery progresses.
+- **Pickup was not modified by these Rider foundation edits.**
+- Supabase security advisors were checked after the schema change. Existing project-wide warnings remain; the new Rider RPCs were intentionally restricted from `public`/anon and granted to authenticated users only.
+- Next immediate implementation:
+  1. Build the real Rider queue screen from `delivery_assignments`.
+  2. Add Rider Take Order and status transitions.
+  3. Add server-side calculation/validation of Rider restaurant advance and customer collection.
+  4. Add Owner Full Payment checkpoint at Rider at Restaurant.
+  5. Allow Out for Delivery only after Owner Full Payment.
+  6. Finish Rider Delivered/Cash Collected → Completed.
+  7. Update Customer Delivery tracking to the agreed sequence.
+  8. Create a proper approved Rider test account and test the full flow.
