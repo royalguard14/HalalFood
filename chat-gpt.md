@@ -196,3 +196,28 @@ Rider flow:
 **Important rule:** Never add the ₱135 delivery fee again on top of the remaining balance. The delivery fee is already included in the remaining balance.
 
 Delivery is therefore different from Pickup mainly in the final collection flow: for Delivery, the rider advances the remaining restaurant food amount and collects the customer's remaining balance (which already contains the delivery fee) upon delivery.
+
+
+### 2026-09-22 — Restaurant Search Radius Separated and Applied
+
+- Admin now has two separate distance settings in **Delivery Pricing**:
+  - **Restaurant Search Radius** = maximum distance from the customer's saved location for restaurant discovery.
+  - **Maximum Delivery Distance** = maximum distance from restaurant to delivery address; this remains separate and is NOT changed by this step.
+- Live delivery_pricing_settings has restaurant_search_radius_km with the current configured value verified separately from maximum_delivery_distance_km.
+- Fixed the existing RPC public.get_customer_restaurant_radius_km() so it now reads restaurant_search_radius_km instead of incorrectly reading maximum_delivery_distance_km.
+- Updated lib/features/home/screens/home_screen.dart so Customer Home filters restaurants by the customer's saved/default address GPS coordinates and the configured Restaurant Search Radius.
+- Restaurants with valid coordinates beyond the configured search radius are no longer shown in Customer restaurant discovery.
+- Restaurants without valid GPS coordinates are excluded when a valid customer location is available, because their distance cannot be safely determined.
+- If the customer has no valid saved GPS location, the app does not apply the GPS radius filter yet.
+- **GitHub commit:** b757532f24c9ccdb779221474742612badf529cc.
+- **Live Supabase migration:** use_restaurant_search_radius_for_discovery applied successfully.
+
+### Next Plan — Maximum Delivery Distance
+
+1. Keep **Restaurant Search Radius** responsible only for which restaurants appear in Customer discovery.
+2. Create/use a separate value/RPC for **Maximum Delivery Distance** so Delivery eligibility checks the restaurant-to-delivery-address distance only.
+3. Do not reuse public.get_customer_restaurant_radius_km() for Delivery eligibility after this separation.
+4. Trace the current Delivery enable/disable logic and replace its old radius source with the dedicated Maximum Delivery Distance value.
+5. Verify with the current Admin values before changing them; do not assume the configured Maximum Delivery Distance is 20 KM.
+6. Test the original case where the restaurant was about 13.4 KM away and Delivery was disabled even though the intended Maximum Delivery Distance was higher.
+7. After that, test Delivery checkout and server-side eligibility to ensure the same distance rule is enforced securely.
