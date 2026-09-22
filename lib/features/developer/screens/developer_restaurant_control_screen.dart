@@ -305,14 +305,24 @@ class _DeveloperRestaurantControlScreenState
             if (!isCash)
               Text('GCash cashouts: ₱${_gcashCashouts.toStringAsFixed(2)}'),
             const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton.tonalIcon(
                 onPressed: _saving || _deletingVault ? null : onAdjust,
-                icon: const Icon(Icons.tune_rounded),
+                icon: const Icon(Icons.tune_rounded, size: 18),
                 label: const Text(
-                  'Manipulate Vault',
+                  'Adjust Vault',
                   style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 11,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ),
@@ -371,63 +381,103 @@ class _DeveloperRestaurantControlScreenState
                     () => _adjust('gcash'),
                   ),
                   const SizedBox(height: 22),
-                  Card(
-                    color: Colors.red.withValues(alpha: 0.06),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Row(
-                            children: [
-                              Icon(Icons.delete_forever_rounded, color: Colors.red),
-                              SizedBox(width: 8),
-                              Text(
-                                'Danger Zone',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w900,
-                                ),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.045),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: Colors.red.withValues(alpha: 0.18),
+                      ),
+                    ),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: Colors.red.withValues(alpha: 0.10),
+                                borderRadius: BorderRadius.circular(11),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'Clear the entire vault for this restaurant: developer adjustments and GCash cashout records. Orders and payment records are preserved.',
-                          ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: FilledButton.icon(
-                              style: FilledButton.styleFrom(
-                                backgroundColor: Colors.red,
-                                foregroundColor: Colors.white,
+                              child: const Icon(
+                                Icons.delete_outline_rounded,
+                                color: Colors.red,
+                                size: 21,
                               ),
-                              onPressed: _saving || _deletingVault
-                                  ? null
-                                  : _deleteVaultData,
-                              icon: _deletingVault
-                                  ? const SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Icon(Icons.delete_forever_rounded),
-                              label: Text(
-                                _deletingVault
-                                    ? 'Clearing Entire Vault...'
-                                    : 'Clear Entire Vault',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Danger Zone',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    'Irreversible vault cleanup',
+                                    style: TextStyle(fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Removes developer adjustments and GCash cashout records. Orders and payment records stay untouched.',
+                          style: TextStyle(height: 1.35),
+                        ),
+                        const SizedBox(height: 14),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: OutlinedButton.icon(
+                            onPressed: _saving || _deletingVault
+                                ? null
+                                : _deleteVaultData,
+                            icon: _deletingVault
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.delete_sweep_rounded,
+                                    size: 18,
+                                  ),
+                            label: Text(
+                              _deletingVault
+                                  ? 'Clearing...'
+                                  : 'Clear Entire Vault',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red,
+                              side: BorderSide(
+                                color: Colors.red.withValues(alpha: 0.45),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 15,
+                                vertical: 11,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 22),
