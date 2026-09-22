@@ -35,6 +35,8 @@ class _OrderDetailsScreenState
   double _cashPaidAmount = 0;
 
   RealtimeChannel? _orderChannel;
+  RealtimeChannel? _deliveryChannel;
+  String? _deliveryAssignmentStatus;
 
   @override
   void initState() {
@@ -45,13 +47,18 @@ class _OrderDetailsScreenState
     _loadOrderItems();
     _loadRestaurantPayment();
     _loadCashPaidAmount();
+    _loadDeliveryAssignmentStatus();
     _subscribeToOrderUpdates();
+    _subscribeToDeliveryUpdates();
   }
 
   @override
   void dispose() {
     if (_orderChannel != null) {
       _supabase.removeChannel(_orderChannel!);
+    }
+    if (_deliveryChannel != null) {
+      _supabase.removeChannel(_deliveryChannel!);
     }
 
     super.dispose();
@@ -146,6 +153,49 @@ class _OrderDetailsScreenState
       );
     }
   }
+  Future<void> _loadDeliveryAssignmentStatus() async {
+    if (_currentOrder.fulfillmentType != 'delivery') return;
+    try {
+      final row = await _supabase
+          .from('delivery_assignments')
+          .select('status')
+          .eq('order_id', _currentOrder.id)
+          .maybeSingle();
+      if (!mounted) return;
+      setState(() => _deliveryAssignmentStatus = row?['status']?.toString());
+    } catch (e) {
+      debugPrint('DELIVERY STATUS LOAD ERROR: $e');
+    }
+  }
+
+  void _subscribeToDeliveryUpdates() {
+    if (_currentOrder.fulfillmentType != 'delivery') return;
+    _deliveryChannel = _supabase
+        .channel('delivery-order-details-${_currentOrder.id}')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'delivery_assignments',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'order_id',
+            value: _currentOrder.id,
+          ),
+          callback: (payload) {
+            final record = payload.newRecord;
+            if (record.isEmpty || !mounted) return;
+            final status = record['status']?.toString();
+            if (status == null) return;
+            final oldStatus = _deliveryAssignmentStatus;
+            setState(() => _deliveryAssignmentStatus = status);
+            if (oldStatus != null && oldStatus != status) {
+              _showStatusUpdateMessage(status);
+            }
+          },
+        )
+        .subscribe();
+  }
+
   // ============================================================
   // REALTIME ORDER STATUS
   // ============================================================
@@ -365,7 +415,11 @@ class _OrderDetailsScreenState
   int _statusIndex() {
     final rawStatus = _currentOrder.status.trim().toLowerCase();
     final isPickup = _currentOrder.fulfillmentType == 'pickup';
-    final status = _normalizeStatus(_currentOrder.status);
+    final effectiveStatus = _currentOrder.fulfillmentType == 'delivery' &&
+            _deliveryAssignmentStatus != null
+        ? _deliveryAssignmentStatus!
+        : _currentOrder.status;
+    final status = _normalizeStatus(effectiveStatus);
 
     if (isPickup) {
       if (rawStatus == 'completed' || rawStatus == 'delivered') {
