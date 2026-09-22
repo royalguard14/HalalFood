@@ -26,7 +26,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
   List<Map<String, dynamic>> _activeDeliveries = [];
   Position? _riderPosition;
   StreamSubscription<Position>? _positionSubscription;
-  Timer? _refreshTimer;
+  RealtimeChannel? _deliveryChannel;
 
   @override
   void initState() {
@@ -34,13 +34,34 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     _loadRiderState();
     _loadAvailableDeliveries();
     _loadActiveDeliveries();
+    _setupDeliveryRealtime();
   }
 
   @override
   void dispose() {
     _positionSubscription?.cancel();
-    _refreshTimer?.cancel();
+    final channel = _deliveryChannel;
+    if (channel != null) {
+      unawaited(Supabase.instance.client.removeChannel(channel));
+    }
     super.dispose();
+  }
+
+  void _setupDeliveryRealtime() {
+    final client = Supabase.instance.client;
+    _deliveryChannel = client
+        .channel('rider-delivery-assignments')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'delivery_assignments',
+          callback: (_) {
+            if (!mounted || !_isOnline) return;
+            _loadAvailableDeliveries(showLoading: false);
+            _loadActiveDeliveries(showLoading: false);
+          },
+        )
+        .subscribe();
   }
 
   Future<void> _loadRiderState() async {
@@ -80,7 +101,6 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
 
       if (isOnline) {
         await _startLocationTracking();
-        _startQueueRefresh();
       }
     } catch (_) {}
   }
@@ -199,8 +219,6 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
 
         await _positionSubscription?.cancel();
         _positionSubscription = null;
-        _refreshTimer?.cancel();
-        _refreshTimer = null;
 
         if (!mounted) return;
         setState(() => _isOnline = false);
@@ -215,19 +233,6 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     } finally {
       if (mounted) setState(() => _changingOnlineState = false);
     }
-  }
-
-  void _startQueueRefresh() {
-    _refreshTimer?.cancel();
-    _refreshTimer = Timer.periodic(
-      const Duration(seconds: 4),
-      (_) {
-        if (_isOnline && mounted) {
-          _loadAvailableDeliveries();
-          _loadActiveDeliveries();
-        }
-      },
-    );
   }
 
   double? _distanceKm(
@@ -263,7 +268,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     return '${km.toStringAsFixed(1)} km';
   }
 
-  Future<void> _loadAvailableDeliveries() async {
+  Future<void> _loadAvailableDeliveries({bool showLoading = true}) async {
     if (!mounted) return;
     if (!_isOnline) {
       setState(() {
@@ -273,10 +278,12 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
       });
       return;
     }
-    setState(() {
-      _loadingDeliveries = true;
-      _deliveryError = null;
-    });
+    if (showLoading) {
+      setState(() {
+        _loadingDeliveries = true;
+        _deliveryError = null;
+      });
+    }
     try {
       final rows = await Supabase.instance.client
           .from('delivery_assignments')
@@ -355,10 +362,12 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     }
   }
 
-  Future<void> _loadActiveDeliveries() async {
+  Future<void> _loadActiveDeliveries({bool showLoading = true}) async {
     if (!mounted) return;
 
-    setState(() => _loadingActiveDeliveries = true);
+    if (showLoading) {
+      setState(() => _loadingActiveDeliveries = true);
+    }
     try {
       final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId == null) {
@@ -798,14 +807,6 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                   color: HalalFoodTheme.textSecondary,
                 ),
               ),
-              if (!offline) ...[
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: _loadAvailableDeliveries,
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Refresh'),
-                ),
-              ],
             ],
           ),
         ),
