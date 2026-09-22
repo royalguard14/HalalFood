@@ -26,6 +26,7 @@ class _OwnerOrderDetailsScreenState extends State<OwnerOrderDetailsScreen> {
   String? _error;
   late String _status;
   String? _deliveryAssignmentStatus;
+  double? _deliveryOwnerPaidAmount;
 
   @override
   void initState() {
@@ -53,6 +54,7 @@ class _OwnerOrderDetailsScreenState extends State<OwnerOrderDetailsScreen> {
       if (!mounted || row == null) return;
       setState(() {
         _deliveryAssignmentStatus = row['status']?.toString();
+        _deliveryOwnerPaidAmount = (row['owner_paid_amount'] as num?)?.toDouble();
         if (_deliveryAssignmentStatus == 'available') {
           _status = 'rider_assigned';
         } else if (_deliveryAssignmentStatus != null) {
@@ -379,6 +381,88 @@ class _OwnerOrderDetailsScreenState extends State<OwnerOrderDetailsScreen> {
     }
   }
 
+  Future<void> _recordDeliveryFullPayment() async {
+    final expectedAmount = _deliveryOwnerPaidAmount == null
+        ? null
+        : _deliveryOwnerPaidAmount;
+    final assignmentId = await _getDeliveryAssignmentId();
+    if (assignmentId == null) return;
+
+    final amountRow = await _supabase
+        .from('delivery_assignments')
+        .select('restaurant_food_advance')
+        .eq('id', assignmentId)
+        .maybeSingle();
+    final expected = (amountRow?['restaurant_food_advance'] as num?)?.toDouble() ?? 0;
+    if (expected <= 0) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No restaurant payment balance is due.')),
+      );
+      return;
+    }
+
+    final result = await _showPickupPaymentDialog(
+      title: 'Full Payment from Rider',
+      amountLabel: 'Amount Received',
+      requireReference: false,
+      initialAmount: expected,
+      expectedAmount: expected,
+    );
+    if (result == null || _isUpdating) return;
+
+    setState(() => _isUpdating = true);
+    try {
+      await _supabase.rpc(
+        'owner_record_delivery_full_payment',
+        params: {
+          'p_assignment_id': assignmentId,
+          'p_amount': result.amount,
+        },
+      );
+      if (!mounted) return;
+      setState(() {
+        _deliveryOwnerPaidAmount = result.amount;
+        _isUpdating = false;
+      });
+      await _loadDeliveryAssignment();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Full payment received from Rider. Rider can now pick up the order.'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isUpdating = false);
+      final message = e is PostgrestException
+          ? e.message
+          : e.toString().replaceFirst('Exception: ', '');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
+  }
+
+  Future<String?> _getDeliveryAssignmentId() async {
+    try {
+      final orderId = widget.order['id']?.toString();
+      if (orderId == null || orderId.isEmpty) return null;
+      final row = await _supabase
+          .from('delivery_assignments')
+          .select('id')
+          .eq('order_id', orderId)
+          .maybeSingle();
+      return row?['id']?.toString();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to load delivery assignment: $e')),
+        );
+      }
+      return null;
+    }
+  }
+
   Future<void> _updateStatus(String newStatus) async {
     if (_isUpdating) return;
     setState(() => _isUpdating = true);
@@ -619,7 +703,37 @@ class _OwnerOrderDetailsScreenState extends State<OwnerOrderDetailsScreen> {
       case 'delivered_cash_collected':
         return const Card(child: Padding(padding: EdgeInsets.all(18), child: Row(children: [Icon(Icons.delivery_dining_rounded, color: HalalFoodTheme.primaryGreen), SizedBox(width: 12), Expanded(child: Text('Rider is handling this delivery. No further Owner action is required at this stage.', style: TextStyle(fontWeight: FontWeight.w700)))])));
       case 'rider_at_restaurant':
-        return const Card(child: Padding(padding: EdgeInsets.all(18), child: Row(children: [Icon(Icons.payments_outlined, color: Colors.orange), SizedBox(width: 12), Expanded(child: Text('Rider is at the restaurant. Full Payment checkpoint will be added here next.', style: TextStyle(fontWeight: FontWeight.w700)))])));
+        if ((_deliveryOwnerPaidAmount ?? 0) > 0) {
+          return const Card(
+            child: Padding(
+              padding: EdgeInsets.all(18),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle_rounded, color: Colors.green),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Full payment received from Rider. Waiting for Rider to pick up the order.',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        return SizedBox(
+          width: double.infinity,
+          height: 54,
+          child: ElevatedButton.icon(
+            onPressed: _isUpdating ? null : _recordDeliveryFullPayment,
+            icon: const Icon(Icons.payments_outlined),
+            label: const Text(
+              'Full Payment',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+        );
 
       case 'completed': return const Card(child: Padding(padding: EdgeInsets.all(18), child: Row(children: [Icon(Icons.check_circle_rounded, color: Colors.green), SizedBox(width: 12), Expanded(child: Text('This order has been completed.', style: TextStyle(fontWeight: FontWeight.w700)))])));
       case 'cancelled': return const Card(child: Padding(padding: EdgeInsets.all(18), child: Row(children: [Icon(Icons.cancel_rounded, color: Colors.red), SizedBox(width: 12), Expanded(child: Text('This order has been cancelled.', style: TextStyle(fontWeight: FontWeight.w700)))])));
