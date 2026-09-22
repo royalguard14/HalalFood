@@ -32,6 +32,8 @@ class _MyOrdersScreenState
   String? _error;
 
   RealtimeChannel? _ordersChannel;
+  RealtimeChannel? _deliveryChannel;
+  final Map<String, String> _deliveryStatuses = {};
 
   @override
   void initState() {
@@ -39,11 +41,13 @@ class _MyOrdersScreenState
 
     _loadOrders();
     _subscribeToOrderUpdates();
+    _subscribeToDeliveryUpdates();
   }
 
   @override
   void dispose() {
     _ordersChannel?.unsubscribe();
+    _deliveryChannel?.unsubscribe();
     super.dispose();
   }
 
@@ -61,6 +65,22 @@ class _MyOrdersScreenState
 
       if (!mounted) return;
 
+      final deliveryOrders = orders
+          .where((order) => order.fulfillmentType == 'delivery')
+          .map((order) => order.id)
+          .toList();
+      if (deliveryOrders.isNotEmpty) {
+        final assignments = await _supabase
+            .from('delivery_assignments')
+            .select('order_id, status')
+            .inFilter('order_id', deliveryOrders);
+        _deliveryStatuses
+          ..clear()
+          ..addEntries((assignments as List).map(
+            (row) => MapEntry(row['order_id'].toString(), row['status'].toString()),
+          ));
+      }
+      if (!mounted) return;
       setState(() {
         _orders = orders;
         _isLoading = false;
@@ -124,6 +144,31 @@ class _MyOrdersScreenState
             }
           },
         );
+  }
+
+  void _subscribeToDeliveryUpdates() {
+    _deliveryChannel = _supabase
+        .channel('customer-delivery-assignments')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'delivery_assignments',
+          callback: (payload) {
+            final record = payload.newRecord;
+            final oldRecord = payload.oldRecord;
+            final orderId = record['order_id']?.toString() ??
+                oldRecord['order_id']?.toString();
+            if (orderId == null || !mounted) return;
+            if (payload.eventType == PostgresChangeEvent.delete) {
+              setState(() => _deliveryStatuses.remove(orderId));
+              return;
+            }
+            final status = record['status']?.toString();
+            if (status == null) return;
+            setState(() => _deliveryStatuses[orderId] = status);
+          },
+        )
+        .subscribe();
   }
 
   void _handleRealtimeOrderChange(
@@ -409,6 +454,7 @@ class _MyOrdersScreenState
       itemBuilder: (context, index) {
         final order = _orders[index];
 
+        final effectiveStatus = _deliveryStatuses[order.id] ?? order.status;
         return Padding(
           padding: const EdgeInsets.only(
             bottom: 12,
@@ -430,9 +476,9 @@ class _MyOrdersScreenState
               order: order,
               formatDate: _formatDate,
               statusColor:
-                  _statusColor(order.status),
+                  _statusColor(effectiveStatus),
               displayStatus:
-                  _displayStatus(order.status),
+                  _displayStatus(effectiveStatus),
             ),
           ),
         );
