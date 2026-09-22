@@ -490,7 +490,7 @@ class _OwnerOrderDetailsScreenState extends State<OwnerOrderDetailsScreen> {
       const SizedBox(height: 10), Text('Payment: ${_displayStatus(state)}', style: const TextStyle(fontWeight: FontWeight.w700)),
       if (_receiptUrl != null) ...[
         const SizedBox(height: 12), SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: () => setState(() => _showReceipt = !_showReceipt), icon: Icon(_showReceipt ? Icons.visibility_off_rounded : Icons.receipt_long_rounded), label: Text(_showReceipt ? 'Hide Receipt' : 'View Receipt'))),
-        if (_showReceipt) ...[const SizedBox(height: 10), ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(_receiptUrl!, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Text('Unable to load receipt.')))],
+        if (_showReceipt) ...[const SizedBox(height: 10), ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(_receiptUrl!, fit: BoxFit.contain, errorBuilder: (_, _, _) => const Text('Unable to load receipt.')))],
       ],
       if (submitted) ...[
         const SizedBox(height: 14), Row(children: [
@@ -513,7 +513,7 @@ class _OwnerOrderDetailsScreenState extends State<OwnerOrderDetailsScreen> {
       const SizedBox(height: 10), Text('Payment: ${_displayStatus(state)}', style: const TextStyle(fontWeight: FontWeight.w700)),
       if (_receiptUrl != null) ...[
         const SizedBox(height: 12), SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: () => setState(() => _showReceipt = !_showReceipt), icon: Icon(_showReceipt ? Icons.visibility_off_rounded : Icons.receipt_long_rounded), label: Text(_showReceipt ? 'Hide Receipt' : 'View Receipt'))),
-        if (_showReceipt) ...[const SizedBox(height: 10), ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(_receiptUrl!, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Text('Unable to load receipt.')))],
+        if (_showReceipt) ...[const SizedBox(height: 10), ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(_receiptUrl!, fit: BoxFit.contain, errorBuilder: (_, _, _) => const Text('Unable to load receipt.')))],
       ],
       if (submitted) ...[
         const SizedBox(height: 14), Row(children: [
