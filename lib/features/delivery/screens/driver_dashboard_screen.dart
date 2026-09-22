@@ -248,6 +248,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     final dLng = (endLng - startLng) * math.pi / 180;
     final lat1 = startLat * math.pi / 180;
     final lat2 = endLat * math.pi / 180;
+
     final a = math.pow(math.sin(dLat / 2), 2) +
         math.cos(lat1) *
             math.cos(lat2) *
@@ -496,7 +497,8 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (route) => false,    );
+      (route) => false,
+    );
   }
 
   @override
@@ -745,7 +747,8 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
           child: Column(
             children: [
               const Icon(Icons.error_outline_rounded, size: 42),
-              const SizedBox(height: 10),              const Text('Unable to load deliveries',
+              const SizedBox(height: 10),
+              const Text('Unable to load deliveries',
                   style: TextStyle(fontWeight: FontWeight.w800)),
               const SizedBox(height: 6),
               Text(_deliveryError!, textAlign: TextAlign.center,
@@ -995,3 +998,132 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                       child: const Text(
                         'ACTIVE',
                         style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '#' + shortOrderId,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                if (restaurant['name'] != null)
+                  _deliveryAmountRow(
+                    'Restaurant',
+                    restaurant['name'].toString(),
+                  ),
+                _deliveryAmountRow(
+                  'Status',
+                  _riderStatusLabel(delivery['status']?.toString()),
+                ),
+                if (advance != null)
+                  _deliveryAmountRow(
+                    'Restaurant advance',
+                    '₱' + advance.toStringAsFixed(2),
+                  ),
+                if (collection != null)
+                  _deliveryAmountRow(
+                    'Customer collection',
+                    '₱' + collection.toStringAsFixed(2),
+                  ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  String _riderStatusLabel(String? status) {
+    switch (status) {
+      case 'rider_assigned':
+        return 'Assigned';
+      case 'rider_going_to_restaurant':
+        return 'Going to Restaurant';
+      case 'rider_at_restaurant':
+        return 'At Restaurant';
+      case 'picked_up':
+        return 'Picked Up';
+      case 'out_for_delivery':
+        return 'Out for Delivery';
+      case 'delivered_cash_collected':
+        return 'Delivered / Cash Collected';
+      default:
+        return status ?? 'Active';
+    }
+  }
+
+  Widget _deliveryTabs() {
+    return DefaultTabController(
+      length: 2,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const TabBar(
+              tabs: [
+                Tab(text: 'Available Deliveries'),
+                Tab(text: 'Current Delivery'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 520,
+            child: TabBarView(
+              children: [
+                _availableDeliveriesCard(),
+                SingleChildScrollView(child: _activeDeliveriesCard()),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+    );
+  }
+
+  Widget _toolCard(IconData icon, String title) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: InkWell(
+        onTap: () {},
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Icon(icon, size: 28, color: HalalFoodTheme.primaryGreen),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
