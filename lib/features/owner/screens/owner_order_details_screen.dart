@@ -25,6 +25,7 @@ class _OwnerOrderDetailsScreenState extends State<OwnerOrderDetailsScreen> {
   double _cashPickupPaid = 0;
   String? _error;
   late String _status;
+  String? _deliveryAssignmentStatus;
 
   @override
   void initState() {
@@ -35,6 +36,64 @@ class _OwnerOrderDetailsScreenState extends State<OwnerOrderDetailsScreen> {
     _loadOrderItems();
     _loadPickupReceipt();
     _loadPickupPayments();
+    if (widget.order['fulfillment_type']?.toString().toLowerCase() == 'delivery') {
+      _loadDeliveryAssignment();
+    }
+  }
+
+  Future<void> _loadDeliveryAssignment() async {
+    try {
+      final orderId = widget.order['id']?.toString();
+      if (orderId == null || orderId.isEmpty) return;
+      final row = await _supabase
+          .from('delivery_assignments')
+          .select('status,rider_id,owner_paid_amount')
+          .eq('order_id', orderId)
+          .maybeSingle();
+      if (!mounted || row == null) return;
+      setState(() {
+        _deliveryAssignmentStatus = row['status']?.toString();
+        if (_deliveryAssignmentStatus != null &&
+            _deliveryAssignmentStatus != 'available') {
+          _status = _deliveryAssignmentStatus!;
+        }
+      });
+    } catch (e) {
+      debugPrint('OWNER DELIVERY ASSIGNMENT ERROR: $e');
+    }
+  }
+
+  Future<void> _queueDeliveryForRider() async {
+    if (_isUpdating) return;
+    setState(() => _isUpdating = true);
+    try {
+      final orderId = widget.order['id']?.toString();
+      if (orderId == null || orderId.isEmpty) {
+        throw Exception('Invalid order ID.');
+      }
+      await _supabase.rpc(
+        'owner_create_delivery_assignment',
+        params: {'p_order_id': orderId},
+      );
+      if (!mounted) return;
+      setState(() {
+        _deliveryAssignmentStatus = 'available';
+        _status = 'rider_assigned';
+        _isUpdating = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Delivery order added to the Rider queue.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isUpdating = false);
+      final message = e is PostgrestException
+          ? e.message
+          : e.toString().replaceFirst('Exception: ', '');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
   }
 
   Future<void> _loadPickupPayments() async {
@@ -342,6 +401,28 @@ class _OwnerOrderDetailsScreenState extends State<OwnerOrderDetailsScreen> {
   }
 
   String _displayStatus(String status) {
+    if (widget.order['fulfillment_type']?.toString().toLowerCase() == 'delivery' &&
+        _deliveryAssignmentStatus != null) {
+      switch (_deliveryAssignmentStatus) {
+        case 'available':
+          if (status.toLowerCase() == 'rider_assigned') return 'Rider Assigned';
+          break;
+        case 'rider_assigned':
+          return 'Rider Assigned';
+        case 'rider_going_to_restaurant':
+          return 'Rider Going to Restaurant';
+        case 'rider_at_restaurant':
+          return 'Rider at Restaurant';
+        case 'picked_up':
+          return 'Picked Up';
+        case 'out_for_delivery':
+          return 'Out for Delivery';
+        case 'delivered_cash_collected':
+          return 'Delivered / Cash Collected';
+        case 'completed':
+          return 'Completed';
+      }
+    }
     switch (status.toLowerCase()) {
       case 'ready_to_pick_up': case 'ready_to_pickup': return 'Ready to Pick Up';
       case 'full_payment': case 'payment_due': return 'Payment Complete';
@@ -528,7 +609,17 @@ class _OwnerOrderDetailsScreenState extends State<OwnerOrderDetailsScreen> {
       case 'pending': return SizedBox(width: double.infinity, height: 54, child: ElevatedButton.icon(onPressed: _isUpdating ? null : () => _updateStatus('confirmed'), icon: _isUpdating ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.check_circle_outline_rounded), label: const Text('Confirm Order', style: TextStyle(fontWeight: FontWeight.w800))));
       case 'confirmed': return SizedBox(width: double.infinity, height: 54, child: ElevatedButton.icon(onPressed: _isUpdating ? null : () => _updateStatus('preparing'), icon: const Icon(Icons.restaurant_rounded), label: const Text('Preparing', style: TextStyle(fontWeight: FontWeight.w800))));
       case 'preparing': return SizedBox(width: double.infinity, height: 54, child: ElevatedButton.icon(onPressed: _isUpdating ? null : () => _updateStatus('ready'), icon: const Icon(Icons.check_circle_outline_rounded), label: const Text('Ready for Delivery', style: TextStyle(fontWeight: FontWeight.w800))));
-      case 'ready': return SizedBox(width: double.infinity, height: 54, child: ElevatedButton.icon(onPressed: _isUpdating ? null : () => _updateStatus('delivered'), icon: const Icon(Icons.done_all_rounded), label: const Text('Mark as Completed', style: TextStyle(fontWeight: FontWeight.w800))));
+      case 'ready':
+        return SizedBox(width: double.infinity, height: 54, child: ElevatedButton.icon(onPressed: _isUpdating ? null : _queueDeliveryForRider, icon: const Icon(Icons.delivery_dining_rounded), label: const Text('Rider Assigned', style: TextStyle(fontWeight: FontWeight.w800))));
+      case 'rider_assigned':
+      case 'rider_going_to_restaurant':
+      case 'picked_up':
+      case 'out_for_delivery':
+      case 'delivered_cash_collected':
+        return const Card(child: Padding(padding: EdgeInsets.all(18), child: Row(children: [Icon(Icons.delivery_dining_rounded, color: HalalFoodTheme.primaryGreen), SizedBox(width: 12), Expanded(child: Text('Rider is handling this delivery. No further Owner action is required at this stage.', style: TextStyle(fontWeight: FontWeight.w700)))])));
+      case 'rider_at_restaurant':
+        return const Card(child: Padding(padding: EdgeInsets.all(18), child: Row(children: [Icon(Icons.payments_outlined, color: Colors.orange), SizedBox(width: 12), Expanded(child: Text('Rider is at the restaurant. Full Payment checkpoint will be added here next.', style: TextStyle(fontWeight: FontWeight.w700)))])));
+
       case 'completed': return const Card(child: Padding(padding: EdgeInsets.all(18), child: Row(children: [Icon(Icons.check_circle_rounded, color: Colors.green), SizedBox(width: 12), Expanded(child: Text('This order has been completed.', style: TextStyle(fontWeight: FontWeight.w700)))])));
       case 'cancelled': return const Card(child: Padding(padding: EdgeInsets.all(18), child: Row(children: [Icon(Icons.cancel_rounded, color: Colors.red), SizedBox(width: 12), Expanded(child: Text('This order has been cancelled.', style: TextStyle(fontWeight: FontWeight.w700)))])));
       default: return const SizedBox.shrink();
