@@ -1,4 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/theme.dart';
@@ -17,11 +20,66 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
   bool _takingDelivery = false;
   String? _deliveryError;
   List<Map<String, dynamic>> _availableDeliveries = [];
+  Position? _riderPosition;
 
   @override
   void initState() {
     super.initState();
     _loadAvailableDeliveries();
+    _loadRiderPosition();
+  }
+
+  Future<void> _loadRiderPosition() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition();
+      if (!mounted) return;
+      setState(() => _riderPosition = position);
+    } catch (_) {}
+  }
+
+  double? _distanceKm(
+    double? startLat,
+    double? startLng,
+    double? endLat,
+    double? endLng,
+  ) {
+    if (startLat == null ||
+        startLng == null ||
+        endLat == null ||
+        endLng == null) {
+      return null;
+    }
+
+    const earthRadiusKm = 6371.0;
+    final dLat = (endLat - startLat) * math.pi / 180;
+    final dLng = (endLng - startLng) * math.pi / 180;
+    final lat1 = startLat * math.pi / 180;
+    final lat2 = endLat * math.pi / 180;
+
+    final a = math.pow(math.sin(dLat / 2), 2) +
+        math.cos(lat1) *
+            math.cos(lat2) *
+            math.pow(math.sin(dLng / 2), 2);
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return earthRadiusKm * c;
+  }
+
+  String _formatDistance(double? km) {
+    if (km == null) return 'Location unavailable';
+    if (km < 1) return '${(km * 1000).round()} m';
+    return '${km.toStringAsFixed(1)} km';
   }
 
   Future<void> _loadAvailableDeliveries() async {
@@ -39,8 +97,67 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
           .order('created_at', ascending: true);
       if (!mounted) return;
       setState(() {
-        _availableDeliveries = List<Map<String, dynamic>>.from(rows);
-        _loadingDeliveries = false;
+        final assignments = List<Map<String, dynamic>>.from(rows);
+        final orderIds = assignments
+            .map((row) => row['order_id']?.toString())
+            .whereType<String>()
+            .toList();
+
+        if (orderIds.isNotEmpty) {
+          final orders = await Supabase.instance.client
+              .from('orders')
+              .select('id, restaurant_id, delivery_address_id')
+              .inFilter('id', orderIds);
+
+          final restaurantIds = orders
+              .map((row) => row['restaurant_id']?.toString())
+              .whereType<String>()
+              .toSet()
+              .toList();
+          final addressIds = orders
+              .map((row) => row['delivery_address_id']?.toString())
+              .whereType<String>()
+              .toSet()
+              .toList();
+
+          final restaurants = restaurantIds.isEmpty
+              ? <dynamic>[]
+              : await Supabase.instance.client
+                  .from('restaurants')
+                  .select('id, name, address, latitude, longitude')
+                  .inFilter('id', restaurantIds);
+          final addresses = addressIds.isEmpty
+              ? <dynamic>[]
+              : await Supabase.instance.client
+                  .from('user_addresses')
+                  .select('id, address_line, barangay, city, latitude, longitude')
+                  .inFilter('id', addressIds);
+
+          final orderById = {
+            for (final row in orders) row['id'].toString(): row,
+          };
+          final restaurantById = {
+            for (final row in restaurants) row['id'].toString(): row,
+          };
+          final addressById = {
+            for (final row in addresses) row['id'].toString(): row,
+          };
+
+          for (final assignment in assignments) {
+            final order = orderById[assignment['order_id']?.toString()];
+            if (order == null) continue;
+            assignment['restaurant'] =
+                restaurantById[order['restaurant_id']?.toString()];
+            assignment['customer_address'] =
+                addressById[order['delivery_address_id']?.toString()];
+          }
+        }
+
+        if (!mounted) return;
+        setState(() {
+          _availableDeliveries = assignments;
+          _loadingDeliveries = false;
+        });
       });
     } catch (e) {
       if (!mounted) return;
@@ -389,6 +506,28 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
             : orderId.toUpperCase();
         final advance = _toAmount(delivery['restaurant_food_advance']);
         final collection = _toAmount(delivery['customer_collection_amount']);
+        final restaurant =
+            Map<String, dynamic>.from(delivery['restaurant'] ?? const {});
+        final customerAddress =
+            Map<String, dynamic>.from(delivery['customer_address'] ?? const {});
+
+        final restaurantLat = _toAmount(restaurant['latitude']);
+        final restaurantLng = _toAmount(restaurant['longitude']);
+        final customerLat = _toAmount(customerAddress['latitude']);
+        final customerLng = _toAmount(customerAddress['longitude']);
+
+        final riderToRestaurant = _distanceKm(
+          _riderPosition?.latitude,
+          _riderPosition?.longitude,
+          restaurantLat,
+          restaurantLng,
+        );
+        final restaurantToCustomer = _distanceKm(
+          restaurantLat,
+          restaurantLng,
+          customerLat,
+          customerLng,
+        );
 
         return Card(
           margin: const EdgeInsets.only(bottom: 10),
@@ -422,6 +561,17 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                   'Customer collection',
                   '₱' + collection.toStringAsFixed(2),
                 ),
+                const Divider(height: 20),
+                _deliveryAmountRow(
+                  'Rider → Restaurant',
+                  _formatDistance(riderToRestaurant),
+                ),
+                _deliveryAmountRow(
+                  'Restaurant → Customer',
+                  _formatDistance(restaurantToCustomer),
+                ),
+                if (restaurant['name'] != null)
+                  _deliveryAmountRow('Restaurant', restaurant['name'].toString()),
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
