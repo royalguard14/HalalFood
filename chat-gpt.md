@@ -261,3 +261,16 @@ Delivery is therefore different from Pickup mainly in the final collection flow:
 - Pickup flow was preserved; the change generalizes the existing working Pickup success behavior to Delivery.
 - **Commit:** `a8b51b743bd5624a23ea45d4112a852dff7f7b6f`
 - Next: `git pull origin main`, place a Delivery order again, and verify it lands on **Downpayment Required → Continue to Downpayment** instead of the generic success state.
+
+
+### 2026-09-22 — Customer Delivery Tracking + Owner GCash Information
+
+- User completed Customer Delivery downpayment receipt submission and requested finishing the Customer side before moving to Owner.
+- Updated `lib/features/order/screens/order_details_screen.dart`.
+- Customer Delivery Order Tracking now shows the agreed full status sequence:
+  **For Confirmation → Confirmed → Preparing → Ready for Pickup → Rider Assigned → Rider Going to Restaurant → Rider at Restaurant → Full Payment → Picked Up → Out for Delivery → Delivered / Cash Collected → Completed**.
+- Added status normalization/index handling for these delivery states and common stored aliases, while preserving the existing Pickup tracking flow.
+- Added a dedicated Customer **GCash Information** card on Order Details using the restaurant owner's existing `gcash_name`, `gcash_number`, and `gcash_qr_url`.
+- The GCash Information card is separate from the downpayment upload card, so the owner's GCash details remain visible on the customer order details screen when configured.
+- GitHub commit: `32145bc4f1f2bdf5aab4302888adcd762cf37c69`.
+- Next: pull latest `main`, runtime-test the Customer Delivery tracking and GCash Information display. Do not move to Owner until Customer side is confirmed complete.
