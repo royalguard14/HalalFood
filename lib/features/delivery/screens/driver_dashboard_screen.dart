@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -17,36 +18,216 @@ class DriverDashboardScreen extends StatefulWidget {
 class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
   bool _isOnline = false;
   bool _loadingDeliveries = true;
+  bool _loadingActiveDeliveries = true;
   bool _takingDelivery = false;
+  bool _changingOnlineState = false;
   String? _deliveryError;
   List<Map<String, dynamic>> _availableDeliveries = [];
+  List<Map<String, dynamic>> _activeDeliveries = [];
   Position? _riderPosition;
+  StreamSubscription<Position>? _positionSubscription;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
+    _loadRiderState();
     _loadAvailableDeliveries();
-    _loadRiderPosition();
+    _loadActiveDeliveries();
   }
 
-  Future<void> _loadRiderPosition() async {
+  @override
+  void dispose() {
+    _positionSubscription?.cancel();
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadRiderState() async {
     try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) return;
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) return;
 
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        return;
-      }
+      final profile = await Supabase.instance.client
+          .from('profiles')
+          .select('is_online, last_location_lat, last_location_lng')
+          .eq('id', userId)
+          .maybeSingle();
 
+      if (!mounted || profile == null) return;
+
+      final isOnline = profile['is_online'] == true;
+      final lat = _toAmount(profile['last_location_lat']);
+      final lng = _toAmount(profile['last_location_lng']);
+
+      setState(() {
+        _isOnline = isOnline;
+        if (lat != null && lng != null) {
+          _riderPosition = Position(
+            latitude: lat,
+            longitude: lng,
+            timestamp: DateTime.now(),
+            accuracy: 0,
+            altitude: 0,
+            altitudeAccuracy: 0,
+            heading: 0,
+            headingAccuracy: 0,
+            speed: 0,
+            speedAccuracy: 0,
+          );
+        }
+      });
+
+      if (isOnline) {
+        await _startLocationTracking();
+        _startQueueRefresh();
+      }
+    } catch (_) {}
+  }
+
+  Future<bool> _ensureLocationReady() async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please turn on GPS before going online.')),
+        );
+      }
+      return false;
+    }
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Location permission is required for Rider mode.')),
+        );
+      }
+      return false;
+    }
+    return true;
+  }
+
+  Future<void> _startLocationTracking() async {
+    if (!await _ensureLocationReady()) return;
+
+    try {
       final position = await Geolocator.getCurrentPosition();
       if (!mounted) return;
+
       setState(() => _riderPosition = position);
-    } catch (_) {}
+      await Supabase.instance.client.rpc(
+        'rider_update_location',
+        params: {
+          'p_lat': position.latitude,
+          'p_lng': position.longitude,
+        },
+      );
+
+      await _positionSubscription?.cancel();
+      _positionSubscription = Geolocator.getPositionStream(
+        locationSettings: const AndroidSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 20,
+          intervalDuration: Duration(seconds: 10),
+          foregroundNotificationConfig: ForegroundNotificationConfig(
+            notificationTitle: 'HALAL Food Rider',
+            notificationText: 'Your location is being used for active delivery tracking.',
+            enableWakeLock: true,
+          ),
+        ),
+      ).listen((position) async {
+        if (!mounted || !_isOnline) return;
+        setState(() => _riderPosition = position);
+        try {
+          await Supabase.instance.client.rpc(
+            'rider_update_location',
+            params: {
+              'p_lat': position.latitude,
+              'p_lng': position.longitude,
+            },
+          );
+        } catch (_) {}
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to start GPS tracking: $e')),
+      );
+    }
+  }
+
+  Future<void> _setOnline(bool value) async {
+    if (_changingOnlineState || value == _isOnline) return;
+
+    setState(() {
+      _changingOnlineState = true;
+      _deliveryError = null;
+    });
+
+    try {
+      if (value) {
+        if (!await _ensureLocationReady()) return;
+
+        final position = await Geolocator.getCurrentPosition();
+        await Supabase.instance.client.rpc(
+          'rider_set_online',
+          params: {
+            'p_is_online': true,
+            'p_lat': position.latitude,
+            'p_lng': position.longitude,
+          },
+        );
+
+        if (!mounted) return;
+        setState(() {
+          _isOnline = true;
+          _riderPosition = position;
+        });
+        await _startLocationTracking();
+        _startQueueRefresh();
+        await _loadAvailableDeliveries();
+      } else {
+        await Supabase.instance.client.rpc(
+          'rider_set_online',
+          params: {'p_is_online': false},
+        );
+
+        await _positionSubscription?.cancel();
+        _positionSubscription = null;
+        _refreshTimer?.cancel();
+        _refreshTimer = null;
+
+        if (!mounted) return;
+        setState(() => _isOnline = false);
+        await _loadAvailableDeliveries();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _deliveryError = e.toString());
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to change online status: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _changingOnlineState = false);
+    }
+  }
+
+  void _startQueueRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 4),
+      (_) {
+        if (_isOnline && mounted) {
+          _loadAvailableDeliveries();
+          _loadActiveDeliveries();
+        }
+      },
+    );
   }
 
   double? _distanceKm(
@@ -84,6 +265,14 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
 
   Future<void> _loadAvailableDeliveries() async {
     if (!mounted) return;
+    if (!_isOnline) {
+      setState(() {
+        _availableDeliveries = [];
+        _loadingDeliveries = false;
+        _deliveryError = null;
+      });
+      return;
+    }
     setState(() {
       _loadingDeliveries = true;
       _deliveryError = null;
@@ -166,6 +355,87 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     }
   }
 
+  Future<void> _loadActiveDeliveries() async {
+    if (!mounted) return;
+
+    setState(() => _loadingActiveDeliveries = true);
+    try {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) {
+        if (mounted) {
+          setState(() {
+            _activeDeliveries = [];
+            _loadingActiveDeliveries = false;
+          });
+        }
+        return;
+      }
+
+      final rows = await Supabase.instance.client
+          .from('delivery_assignments')
+          .select(
+            'id, order_id, status, restaurant_food_advance, '
+            'customer_collection_amount, assigned_at',
+          )
+          .eq('rider_id', userId)
+          .neq('status', 'completed')
+          .order('assigned_at', ascending: true);
+
+      final assignments = List<Map<String, dynamic>>.from(rows);
+      final orderIds = assignments
+          .map((row) => row['order_id']?.toString())
+          .whereType<String>()
+          .toList();
+
+      if (orderIds.isNotEmpty) {
+        final orders = await Supabase.instance.client
+            .from('orders')
+            .select('id, restaurant_id, delivery_address_id, total_amount')
+            .inFilter('id', orderIds);
+
+        final restaurantIds = orders
+            .map((row) => row['restaurant_id']?.toString())
+            .whereType<String>()
+            .toSet()
+            .toList();
+
+        final restaurants = restaurantIds.isEmpty
+            ? <dynamic>[]
+            : await Supabase.instance.client
+                .from('restaurants')
+                .select('id, name, address, latitude, longitude')
+                .inFilter('id', restaurantIds);
+
+        final orderById = {
+          for (final row in orders) row['id'].toString(): row,
+        };
+        final restaurantById = {
+          for (final row in restaurants) row['id'].toString(): row,
+        };
+
+        for (final assignment in assignments) {
+          final order = orderById[assignment['order_id']?.toString()];
+          if (order == null) continue;
+          assignment['restaurant'] =
+              restaurantById[order['restaurant_id']?.toString()];
+          assignment['order'] = order;
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _activeDeliveries = assignments;
+        _loadingActiveDeliveries = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadingActiveDeliveries = false;
+        _deliveryError = e.toString();
+      });
+    }
+  }
+
   Future<void> _takeDelivery(String assignmentId) async {
     if (_takingDelivery) return;
     setState(() {
@@ -177,11 +447,13 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
         'rider_take_delivery',
         params: {'p_assignment_id': assignmentId},
       );
+      await _loadActiveDeliveries();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Delivery accepted.')),
       );
       await _loadAvailableDeliveries();
+      await _loadActiveDeliveries();
     } catch (e) {
       if (!mounted) return;
       setState(() => _deliveryError = e.toString());
@@ -194,6 +466,33 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
   }
 
   Future<void> _logout() async {
+    if (_activeDeliveries.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You cannot logout while active deliveries exist.'),
+        ),
+      );
+      return;
+    }
+
+    if (_isOnline) {
+      try {
+        await Supabase.instance.client.rpc(
+          'rider_set_online',
+          params: {'p_is_online': false},
+        );
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Go offline before logging out.')),
+          );
+        }
+        return;
+      }
+    }
+
+    await _positionSubscription?.cancel();
+    _refreshTimer?.cancel();
     await Supabase.instance.client.auth.signOut();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
@@ -242,9 +541,9 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
             const SizedBox(height: 10),
             _availableDeliveriesCard(),
             const SizedBox(height: 20),
-            _sectionTitle('Current Delivery'),
+            _sectionTitle('My Active Deliveries'),
             const SizedBox(height: 10),
-            _emptyDeliveryCard(),
+            _activeDeliveriesCard(),
             const SizedBox(height: 20),
             _sectionTitle('Driver Tools'),
             const SizedBox(height: 10),
@@ -381,7 +680,10 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
             ),
             Switch(
               value: _isOnline,
-              onChanged: (value) => setState(() => _isOnline = value),
+              onChanged: _changingOnlineState ||
+                      (_isOnline && _activeDeliveries.isNotEmpty)
+                  ? null
+                  : _setOnline,
             ),
           ],
         ),
@@ -605,6 +907,143 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
         ],
       ),
     );
+  }
+
+  Widget _activeDeliveriesCard() {
+    if (_loadingActiveDeliveries) {
+      return const Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+
+    if (_activeDeliveries.isEmpty) {
+      return Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
+              Icon(
+                Icons.local_shipping_outlined,
+                size: 46,
+                color: Colors.grey.shade400,
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'No active deliveries',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 5),
+              const Text(
+                'Deliveries you accept will stay here until completed.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: HalalFoodTheme.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: _activeDeliveries.map((delivery) {
+        final orderId = delivery['order_id']?.toString() ?? '';
+        final shortOrderId = orderId.length > 8
+            ? orderId.substring(0, 8).toUpperCase()
+            : orderId.toUpperCase();
+        final restaurant =
+            Map<String, dynamic>.from(delivery['restaurant'] ?? const {});
+        final advance = _toAmount(delivery['restaurant_food_advance']);
+        final collection = _toAmount(delivery['customer_collection_amount']);
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 10),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: HalalFoodTheme.primaryGreen.withValues(alpha: .10),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Text(
+                        'ACTIVE',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '#' + shortOrderId,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                if (restaurant['name'] != null)
+                  _deliveryAmountRow(
+                    'Restaurant',
+                    restaurant['name'].toString(),
+                  ),
+                _deliveryAmountRow(
+                  'Status',
+                  _riderStatusLabel(delivery['status']?.toString()),
+                ),
+                if (advance != null)
+                  _deliveryAmountRow(
+                    'Restaurant advance',
+                    '₱' + advance.toStringAsFixed(2),
+                  ),
+                if (collection != null)
+                  _deliveryAmountRow(
+                    'Customer collection',
+                    '₱' + collection.toStringAsFixed(2),
+                  ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  String _riderStatusLabel(String? status) {
+    switch (status) {
+      case 'rider_assigned':
+        return 'Assigned';
+      case 'rider_going_to_restaurant':
+        return 'Going to Restaurant';
+      case 'rider_at_restaurant':
+        return 'At Restaurant';
+      case 'picked_up':
+        return 'Picked Up';
+      case 'out_for_delivery':
+        return 'Out for Delivery';
+      case 'delivered_cash_collected':
+        return 'Delivered / Cash Collected';
+      default:
+        return status ?? 'Active';
+    }
   }
 
   Widget _emptyDeliveryCard() {
