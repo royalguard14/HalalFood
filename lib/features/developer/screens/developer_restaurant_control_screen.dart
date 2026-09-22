@@ -178,7 +178,7 @@ class _DeveloperRestaurantControlScreenState
           children: [
             Icon(Icons.warning_amber_rounded, color: Colors.red),
             SizedBox(width: 8),
-            Expanded(child: Text('Delete Vault Data?')),
+            Expanded(child: Text('Clear Entire Vault?')),
           ],
         ),
         content: const Text(
@@ -198,7 +198,7 @@ class _DeveloperRestaurantControlScreenState
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Delete Permanently'),
+            child: const Text('Clear Entire Vault'),
           ),
         ],
       ),
@@ -210,7 +210,7 @@ class _DeveloperRestaurantControlScreenState
 
     try {
       final result = await _supabase.rpc(
-        'developer_clear_vault_adjustments',
+        'developer_clear_entire_vault',
         params: {'p_restaurant_id': widget.restaurantId},
       );
 
@@ -219,14 +219,20 @@ class _DeveloperRestaurantControlScreenState
       await _load();
       if (!mounted) return;
 
-      final deleted = result is Map
+      final deletedAdjustments = result is Map
           ? (result['deleted_adjustments'] ?? 0).toString()
+          : '0';
+      final deletedCashouts = result is Map
+          ? (result['deleted_gcash_cashouts'] ?? 0).toString()
           : '0';
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: Colors.green,
-          content: Text('Vault data deleted. $deleted adjustment(s) removed.'),
+          content: Text(
+            'Entire vault cleared. $deletedAdjustments adjustment(s) and '
+            '$deletedCashouts GCash cashout(s) removed.',
+          ),
         ),
       );
     } catch (e) {
@@ -387,7 +393,7 @@ class _DeveloperRestaurantControlScreenState
                           ),
                           const SizedBox(height: 6),
                           const Text(
-                            'Delete all developer vault adjustment records for this restaurant. Orders, payments, and cashouts are not affected.',
+                            'Clear the entire vault for this restaurant: developer adjustments and GCash cashout records. Orders and payment records are preserved.',
                           ),
                           const SizedBox(height: 12),
                           SizedBox(
@@ -412,8 +418,8 @@ class _DeveloperRestaurantControlScreenState
                                   : const Icon(Icons.delete_forever_rounded),
                               label: Text(
                                 _deletingVault
-                                    ? 'Deleting Vault Data...'
-                                    : 'Delete Vault Data',
+                                    ? 'Clearing Entire Vault...'
+                                    : 'Clear Entire Vault',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w800,
                                 ),
