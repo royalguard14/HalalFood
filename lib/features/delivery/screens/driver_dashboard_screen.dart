@@ -25,6 +25,8 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
   String? _deliveryError;
   List<Map<String, dynamic>> _availableDeliveries = [];
   List<Map<String, dynamic>> _activeDeliveries = [];
+  double _todayEarnings = 0;
+  int _todayCompleted = 0;
   Position? _riderPosition;
   StreamSubscription<Position>? _positionSubscription;
   RealtimeChannel? _deliveryChannel;
@@ -35,6 +37,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     _loadRiderState();
     _loadAvailableDeliveries();
     _loadActiveDeliveries();
+    _loadRiderStats();
     _setupDeliveryRealtime();
   }
 
@@ -360,6 +363,43 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
         _deliveryError = e.toString();
       });
     }
+  }
+
+  Future<void> _loadRiderStats() async {
+    try {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final rows = await Supabase.instance.client
+          .from('delivery_assignments')
+          .select('status, rider_earning_amount, completed_at')
+          .eq('rider_id', userId)
+          .inFilter('status', ['delivered_cash_collected', 'completed']);
+
+      final now = DateTime.now();
+      double earnings = 0;
+      int completedToday = 0;
+
+      for (final row in rows as List) {
+        final earning = _toAmount(row['rider_earning_amount']) ?? 0;
+        earnings += earning;
+        if (row['status']?.toString() == 'completed') {
+          final completedAt = DateTime.tryParse(row['completed_at']?.toString() ?? '');
+          if (completedAt != null &&
+              completedAt.year == now.year &&
+              completedAt.month == now.month &&
+              completedAt.day == now.day) {
+            completedToday++;
+          }
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _todayEarnings = earnings;
+        _todayCompleted = completedToday;
+      });
+    } catch (_) {}
   }
 
   Future<void> _loadActiveDeliveries({bool showLoading = true}) async {
@@ -721,11 +761,11 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            _statItem('0', 'Today'),
+            _statItem(_todayCompleted.toString(), 'Today'),
             _divider(),
-            _statItem('₱0.00', 'Earnings'),
+            _statItem('₱${_todayEarnings.toStringAsFixed(2)}', 'Earnings'),
             _divider(),
-            _statItem('0', 'Completed'),
+            _statItem(_todayCompleted.toString(), 'Completed'),
           ],
         ),
       ),
