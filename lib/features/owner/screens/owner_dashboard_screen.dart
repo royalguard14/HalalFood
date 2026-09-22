@@ -28,8 +28,9 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   int _monthlyOrders = 0, _newOrders = 0, _preparingOrders = 0, _readyOrders = 0, _completedOrders = 0;
   List<Map<String,dynamic>> _recentOrders = [];
   RealtimeChannel? _ordersChannel;
-  @override void initState(){super.initState();_restaurantName=widget.restaurantName;_loadDashboard();_subscribeToOrderUpdates();}
-  @override void dispose(){_ordersChannel?.unsubscribe();super.dispose();}
+  RealtimeChannel? _deliveryChannel;
+  @override void initState(){super.initState();_restaurantName=widget.restaurantName;_loadDashboard();_subscribeToOrderUpdates();_subscribeToDeliveryUpdates();}
+  @override void dispose(){_ordersChannel?.unsubscribe();_deliveryChannel?.unsubscribe();super.dispose();}
   void _subscribeToOrderUpdates(){
     _ordersChannel=_supabase.channel('owner-orders-${widget.restaurantId}')
       .onPostgresChanges(
@@ -39,6 +40,10 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         filter: PostgresChangeFilter(type: PostgresChangeFilterType.eq,column: 'restaurant_id',value: widget.restaurantId),
         callback: (_) { if (mounted) _loadDashboard(); },
       ).subscribe();
+  }
+  void _subscribeToDeliveryUpdates(){
+    _deliveryChannel=_supabase.channel('owner-delivery-assignments-${widget.restaurantId}')
+      .onPostgresChanges(event: PostgresChangeEvent.all,schema: 'public',table: 'delivery_assignments',callback: (_) { if (mounted) _loadOrderStats(); }).subscribe();
   }
   Future<void> _loadDashboard() async {if(mounted)setState(()=>_loading=true);await Future.wait([_loadSubscription(),_loadBusinessStats(),_loadOrderStats(),_loadRestaurantName(),_loadVaultSummary()]);if(mounted)setState(()=>_loading=false);}
   Future<void> _loadVaultSummary() async {
@@ -56,7 +61,28 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   Future<void> _loadSubscription() async{try{final s=await _supabase.from('restaurant_subscriptions').select('status,current_period_end,billing_cycle,subscription_plans(name)').eq('restaurant_id',widget.restaurantId).order('created_at',ascending:false).limit(1).maybeSingle();if(!mounted)return;final p=s?['subscription_plans'];setState((){_subscriptionStatus=s?['status']?.toString();_subscriptionPlan=p is Map?p['name']?.toString():null;_subscriptionExpiry=s?['current_period_end']?.toString();});}catch(e){debugPrint('OWNER SUBSCRIPTION ERROR: $e');}}
   Future<void> _loadRestaurantName() async{try{final r=await _supabase.from('restaurants').select('name').eq('id',widget.restaurantId).maybeSingle();if(mounted&&r!=null)setState(()=>_restaurantName=r['name']?.toString()??_restaurantName);}catch(e){debugPrint('OWNER RESTAURANT ERROR: $e');}}
   Future<void> _loadBusinessStats() async{try{final n=DateTime.now(),start=DateTime(n.year,n.month,1).toIso8601String();final rows=await _supabase.from('orders').select('id,total_amount,created_at,status').eq('restaurant_id',widget.restaurantId).gte('created_at',start);double sales=0;int delivered=0;for(final row in rows as List){final s=row['status']?.toString();if(s=='delivered'||s=='completed'){sales+=(row['total_amount'] as num?)?.toDouble()??0;delivered++;}}if(mounted)setState((){_monthlySales=sales;_monthlyOrders=delivered;});}catch(e){debugPrint('OWNER BUSINESS ERROR: $e');}}
-  Future<void> _loadOrderStats() async{try{final rows=await _supabase.from('orders').select('id,total_amount,subtotal,promo_discount,delivery_fee,created_at,status,payment_status,fulfillment_type,pickup_downpayment_status,pickup_downpayment_amount,pickup_downpayment_percent,pickup_receipt_path,pickup_receipt_submitted_at,pickup_receipt_rejection_reason').eq('restaurant_id',widget.restaurantId).order('created_at',ascending:false).limit(50);int n=0,p=0,r=0,c=0;double sales=0;final today=DateTime.now();for(final row in rows as List){final s=row['status']?.toString()??''; final f=row['fulfillment_type']?.toString(); final ps=row['pickup_downpayment_status']?.toString(); if(f=='pickup' && ps!='receipt_submitted' && ps!='paid') continue;if(s=='pending'||s=='confirmed')n++;if(s=='preparing')p++;if(s=='ready')r++;if((f=='pickup' && (s=='claimed'||s=='picked_up'||s=='pickedup')) || (f!='pickup' && (s=='delivered'||s=='completed')))c++;final d=DateTime.tryParse(row['created_at']?.toString()??'');if(d!=null&&d.year==today.year&&d.month==today.month&&d.day==today.day&&(s=='delivered'||s=='completed'))sales+=(row['total_amount'] as num?)?.toDouble()??0;}if(mounted)setState((){_newOrders=n;_preparingOrders=p;_readyOrders=r;_completedOrders=c;_todaySales=sales;_recentOrders=rows.cast<Map<String,dynamic>>().where((row){final f=row['fulfillment_type']?.toString().toLowerCase();final ps=row['pickup_downpayment_status']?.toString().toLowerCase();if(f=='pickup' && ps!='receipt_submitted' && ps!='paid') return false;return true;}).take(5).toList();});}catch(e){debugPrint('OWNER ORDER ERROR: $e');}}
+  Future<void> _loadOrderStats() async{
+    try{
+      final rows=await _supabase.from('orders').select('id,total_amount,subtotal,promo_discount,delivery_fee,created_at,status,payment_status,fulfillment_type,pickup_downpayment_status,pickup_downpayment_amount,pickup_downpayment_percent,pickup_receipt_path,pickup_receipt_submitted_at,pickup_receipt_rejection_reason').eq('restaurant_id',widget.restaurantId).order('created_at',ascending:false).limit(50);
+      final orderRows=List<Map<String,dynamic>>.from(rows);
+      final deliveryIds=orderRows.where((row)=>row['fulfillment_type']?.toString().toLowerCase()=='delivery').map((row)=>row['id'].toString()).toList();
+      if(deliveryIds.isNotEmpty){
+        final assignments=await _supabase.from('delivery_assignments').select('order_id,status').inFilter('order_id',deliveryIds);
+        final byOrder={for(final row in assignments as List) row['order_id'].toString():row['status']?.toString()};
+        for(final row in orderRows){final ds=byOrder[row['id']?.toString()];if(ds!=null)row['_delivery_status']=ds;}
+      }
+      int n=0,p=0,r=0,c=0;double sales=0;final today=DateTime.now();
+      for(final row in orderRows){
+        final s=row['_delivery_status']?.toString()??row['status']?.toString()??'';
+        final f=row['fulfillment_type']?.toString();final ps=row['pickup_downpayment_status']?.toString();
+        if(f=='pickup'&&ps!='receipt_submitted'&&ps!='paid')continue;
+        if(s=='pending'||s=='confirmed')n++;if(s=='preparing')p++;if(s=='ready')r++;
+        if((f=='pickup'&&(s=='claimed'||s=='picked_up'||s=='pickedup'||s=='completed'||s=='delivered'))||(f!='pickup'&&(s=='delivered'||s=='completed')))c++;
+        final d=DateTime.tryParse(row['created_at']?.toString()??'');if(d!=null&&d.year==today.year&&d.month==today.month&&d.day==today.day&&(s=='delivered'||s=='completed'))sales+=(row['total_amount'] as num?)?.toDouble()??0;
+      }
+      if(mounted)setState((){_newOrders=n;_preparingOrders=p;_readyOrders=r;_completedOrders=c;_todaySales=sales;_recentOrders=orderRows.where((row){final f=row['fulfillment_type']?.toString().toLowerCase();final ps=row['pickup_downpayment_status']?.toString().toLowerCase();if(f=='pickup'&&ps!='receipt_submitted'&&ps!='paid')return false;return true;}).take(5).toList();});
+    }catch(e){debugPrint('OWNER ORDER ERROR: $e');}
+  }
   String _formatDate(String? v){if(v==null)return 'Not set';final d=DateTime.tryParse(v);if(d==null)return 'Not set';return '${d.month}/${d.day}/${d.year}';}
   bool get _hasActivePlan=>_subscriptionStatus=='active'||_subscriptionStatus=='trial';
   Future<void> _openSubscription() async{await Navigator.of(context).push(MaterialPageRoute(builder:(_)=>OwnerSubscriptionManagementScreen(restaurantId:widget.restaurantId,restaurantName:_restaurantName)));if(mounted)await _loadDashboard();}
@@ -74,7 +100,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   Widget _buildTopItems()=>Card(child:Padding(padding:const EdgeInsets.all(24),child:Column(children:[Icon(Icons.trending_up_rounded,size:46,color:HalalFoodTheme.primaryGreen.withValues(alpha:.55)),const SizedBox(height:10),const Text('No delivered item sales this month yet.',textAlign:TextAlign.center,style:TextStyle(fontWeight:FontWeight.w700))])));
   Widget _buildEmptyOrders()=>Card(child:Padding(padding:const EdgeInsets.all(28),child:Column(children:[Icon(Icons.receipt_long_outlined,size:52,color:HalalFoodTheme.primaryGreen.withValues(alpha:.55)),const SizedBox(height:12),const Text('No orders yet',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800)),const SizedBox(height:6),const Text('Customer orders will appear here.',textAlign:TextAlign.center,style:TextStyle(fontSize:13,color:HalalFoodTheme.textSecondary))])));
   List<String> _trackingSteps(Map<String,dynamic> order){final pickup=order['fulfillment_type']?.toString()=='pickup';return pickup?const['For Confirmation','Confirmed','Preparing','Ready to Pick Up','Full Payment','Claimed']:const['For Confirmation','Confirmed','Preparing','Ready to Pick Up','Rider Assigned','Rider Going to Restaurant','Rider at Restaurant','Full Payment','Picked Up','Out for Delivery','Delivered / Cash Collected','Completed'];}
-  int _trackingIndex(Map<String,dynamic> order){final s=order['status']?.toString().toLowerCase()??'pending';final pickup=order['fulfillment_type']?.toString()=='pickup';final paymentStatus=order['payment_status']?.toString().toLowerCase();if(s=='cancelled')return -1;if(pickup){if(s=='pending')return 0;if(s=='confirmed')return 1;if(s=='preparing')return 2;if(s=='ready'||s=='ready_to_pick_up'){return paymentStatus=='paid'?4:3;}if(s=='full_payment'||s=='payment_due')return 4;if(s=='claimed'||s=='picked_up'||s=='pickedup'||s=='completed'||s=='delivered')return 5;return 0;}if(s=='pending')return 0;if(s=='confirmed')return 1;if(s=='preparing')return 2;if(s=='ready'||s=='ready_for_pickup')return 3;if(s=='rider_assigned')return 4;if(s=='rider_going_to_restaurant'||s=='rider_to_restaurant')return 5;if(s=='rider_at_restaurant'||s=='at_restaurant')return 6;if(s=='full_payment'||s=='payment_due')return 7;if(s=='picked_up'||s=='pickedup')return 8;if(s=='out_for_delivery'||s=='on_the_way')return 9;if(s=='delivered'||s=='cash_collected')return 10;if(s=='completed')return 11;return 0;}
+  int _trackingIndex(Map<String,dynamic> order){final s=(order['_delivery_status']?.toString()??order['status']?.toString()??'pending').toLowerCase();final pickup=order['fulfillment_type']?.toString()=='pickup';final paymentStatus=order['payment_status']?.toString().toLowerCase();if(s=='cancelled')return -1;if(pickup){if(s=='pending')return 0;if(s=='confirmed')return 1;if(s=='preparing')return 2;if(s=='ready'||s=='ready_to_pick_up'){return paymentStatus=='paid'?4:3;}if(s=='full_payment'||s=='payment_due')return 4;if(s=='claimed'||s=='picked_up'||s=='pickedup'||s=='completed'||s=='delivered')return 5;return 0;}if(s=='pending')return 0;if(s=='confirmed')return 1;if(s=='preparing')return 2;if(s=='ready'||s=='ready_for_pickup')return 3;if(s=='rider_assigned')return 4;if(s=='rider_going_to_restaurant'||s=='rider_to_restaurant')return 5;if(s=='rider_at_restaurant'||s=='at_restaurant')return 6;if(s=='full_payment'||s=='payment_due')return 7;if(s=='picked_up'||s=='pickedup')return 8;if(s=='out_for_delivery'||s=='on_the_way')return 9;if(s=='delivered'||s=='cash_collected')return 10;if(s=='completed')return 11;return 0;}
   Widget _buildOrderCard(Map<String,dynamic> order){
     final id=order['id']?.toString()??'', total=(order['total_amount'] as num?)?.toDouble()??0, shortId=id.length<=8?id:id.substring(0,8), steps=_trackingSteps(order), current=_trackingIndex(order), pickup=order['fulfillment_type']?.toString()=='pickup', completed=current>=steps.length-1;
     return Card(margin:const EdgeInsets.only(bottom:10),elevation:completed?0:1,color:completed?HalalFoodTheme.textSecondary.withValues(alpha:.035):null,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14),side:BorderSide(color:completed?HalalFoodTheme.textSecondary.withValues(alpha:.16):HalalFoodTheme.primaryGreen.withValues(alpha:.12))),child:Padding(padding:const EdgeInsets.fromLTRB(14,14,14,12),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
