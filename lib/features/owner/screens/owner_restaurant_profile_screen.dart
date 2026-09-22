@@ -197,10 +197,10 @@ class _OwnerRestaurantProfileScreenState extends State<OwnerRestaurantProfileScr
       final file = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 90, maxWidth: 1200, maxHeight: 1200);
       if (file == null) return;
       final bytes = await file.readAsBytes();
-      final path = widget.restaurantId + '/gcash_qr.jpg';
+      final path = '${widget.restaurantId}/gcash_qr.jpg';
       await _supabase.storage.from('restaurant-images').uploadBinary(path, bytes, fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true));
       final url = _supabase.storage.from('restaurant-images').getPublicUrl(path);
-      await _supabase.from('restaurants').update({'gcash_qr_url': url + '?v=' + DateTime.now().millisecondsSinceEpoch.toString()}).eq('id', widget.restaurantId);
+      await _supabase.from('restaurants').update({'gcash_qr_url': '$url?v=${DateTime.now().millisecondsSinceEpoch}'}).eq('id', widget.restaurantId);
       _showMessage('GCash QR updated successfully.');
       await _loadRestaurant();
     } catch (e) {
@@ -374,7 +374,7 @@ class _OwnerRestaurantProfileScreenState extends State<OwnerRestaurantProfileScr
                           height: 190,
                           width: 190,
                           fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => const Text(
+                          errorBuilder: (_, _, _) => const Text(
                             'Unable to load GCash QR.',
                           ),
                         ),
