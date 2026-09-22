@@ -282,7 +282,9 @@ class _OrderDetailsScreenState
       case 'pending':
       case 'placed':
       case 'order_placed':
-        return 'placed';
+      case 'for_confirmation':
+      case 'for confirmation':
+        return 'for_confirmation';
 
       case 'confirmed':
       case 'accepted':
@@ -294,16 +296,30 @@ class _OrderDetailsScreenState
 
       case 'ready':
       case 'ready_for_pickup':
-        return 'ready';
+      case 'ready for pickup':
+        return 'ready_for_pickup';
+
+      case 'rider_assigned':
+      case 'rider assigned':
+        return 'rider_assigned';
+
+      case 'rider_going_to_restaurant':
+      case 'rider going to restaurant':
+      case 'going_to_restaurant':
+        return 'rider_going_to_restaurant';
+
+      case 'rider_at_restaurant':
+      case 'rider at restaurant':
+      case 'at_restaurant':
+        return 'rider_at_restaurant';
 
       case 'full_payment':
       case 'payment_due':
         return 'full_payment';
 
-      case 'claimed':
       case 'picked_up':
       case 'pickedup':
-        return 'claimed';
+        return 'picked_up';
 
       case 'on_the_way':
       case 'out_for_delivery':
@@ -311,8 +327,15 @@ class _OrderDetailsScreenState
         return 'out_for_delivery';
 
       case 'delivered':
+      case 'cash_collected':
+      case 'delivered_cash_collected':
+        return 'delivered_cash_collected';
+
       case 'completed':
-        return 'delivered';
+        return 'completed';
+
+      case 'claimed':
+        return 'claimed';
 
       case 'cancelled':
       case 'canceled':
@@ -345,30 +368,29 @@ class _OrderDetailsScreenState
     final status = _normalizeStatus(_currentOrder.status);
 
     if (isPickup) {
-      // Pickup uses "claimed" as its terminal tracking step.
-      // Final records may be stored as "completed" or "delivered".
       if (rawStatus == 'completed' || rawStatus == 'delivered') {
         return 5;
       }
 
-      // Final Pickup payment is stored on payment_status while the
-      // order status remains "ready" until the customer claims it.
       if (_currentOrder.paymentStatus.toLowerCase() == 'paid') {
         return 4;
       }
 
       switch (status) {
+        case 'for_confirmation':
         case 'placed':
           return 0;
         case 'confirmed':
           return 1;
         case 'preparing':
           return 2;
+        case 'ready_for_pickup':
         case 'ready':
           return 3;
         case 'full_payment':
           return 4;
         case 'claimed':
+        case 'picked_up':
           return 5;
         default:
           return 0;
@@ -376,18 +398,32 @@ class _OrderDetailsScreenState
     }
 
     switch (status) {
+      case 'for_confirmation':
       case 'placed':
         return 0;
       case 'confirmed':
         return 1;
       case 'preparing':
         return 2;
-      case 'ready':
+      case 'ready_for_pickup':
         return 3;
-      case 'out_for_delivery':
+      case 'rider_assigned':
         return 4;
-      case 'delivered':
+      case 'rider_going_to_restaurant':
         return 5;
+      case 'rider_at_restaurant':
+        return 6;
+      case 'full_payment':
+        return 7;
+      case 'picked_up':
+        return 8;
+      case 'out_for_delivery':
+        return 9;
+      case 'delivered_cash_collected':
+      case 'delivered':
+        return 10;
+      case 'completed':
+        return 11;
       default:
         return 0;
     }
@@ -510,6 +546,10 @@ class _OrderDetailsScreenState
             const SizedBox(height: 20),
 
             _buildSummary(),
+
+            const SizedBox(height: 20),
+
+            _buildGcashInformation(),
 
             const SizedBox(height: 20),
 
@@ -759,9 +799,9 @@ class _OrderDetailsScreenState
           ]
         : [
             _TrackingStep(
-              title: 'Order Placed',
-              subtitle: 'Your order has been received.',
-              icon: Icons.receipt_long_rounded,
+              title: 'For Confirmation',
+              subtitle: 'Your order is waiting for restaurant confirmation.',
+              icon: Icons.hourglass_top_rounded,
             ),
             _TrackingStep(
               title: 'Confirmed',
@@ -779,14 +819,44 @@ class _OrderDetailsScreenState
               icon: Icons.shopping_bag_outlined,
             ),
             _TrackingStep(
+              title: 'Rider Assigned',
+              subtitle: 'A rider has been assigned to your order.',
+              icon: Icons.person_pin_circle_outlined,
+            ),
+            _TrackingStep(
+              title: 'Rider Going to Restaurant',
+              subtitle: 'Your rider is on the way to the restaurant.',
+              icon: Icons.directions_bike_outlined,
+            ),
+            _TrackingStep(
+              title: 'Rider at Restaurant',
+              subtitle: 'Your rider has arrived at the restaurant.',
+              icon: Icons.storefront_outlined,
+            ),
+            _TrackingStep(
+              title: 'Full Payment',
+              subtitle: 'The rider has completed the restaurant payment step.',
+              icon: Icons.payments_outlined,
+            ),
+            _TrackingStep(
+              title: 'Picked Up',
+              subtitle: 'The rider has picked up your order.',
+              icon: Icons.shopping_bag_rounded,
+            ),
+            _TrackingStep(
               title: 'Out for Delivery',
-              subtitle: 'Your rider is on the way.',
+              subtitle: 'Your rider is on the way to you.',
               icon: Icons.delivery_dining_rounded,
             ),
             _TrackingStep(
-              title: 'Delivered',
-              subtitle: 'Enjoy your halal meal!',
+              title: 'Delivered / Cash Collected',
+              subtitle: 'Your order was delivered and the remaining balance was collected.',
               icon: Icons.home_rounded,
+            ),
+            _TrackingStep(
+              title: 'Completed',
+              subtitle: 'Your delivery order is fully completed.',
+              icon: Icons.check_circle_rounded,
             ),
           ];
 
@@ -1304,6 +1374,79 @@ class _OrderDetailsScreenState
   // ============================================================
   // PAYMENT
   // ============================================================
+
+  Widget _buildGcashInformation() {
+    final gcashName =
+        _restaurantPayment?['gcash_name']?.toString().trim() ?? '';
+    final gcashNumber =
+        _restaurantPayment?['gcash_number']?.toString().trim() ?? '';
+    final qrUrl =
+        _restaurantPayment?['gcash_qr_url']?.toString().trim() ?? '';
+
+    if (gcashName.isEmpty && gcashNumber.isEmpty && qrUrl.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.account_balance_wallet_outlined,
+                  color: HalalFoodTheme.primaryGreen,
+                ),
+                const SizedBox(width: 10),
+                const Text(
+                  'GCash Information',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Owner / Restaurant GCash account',
+              style: TextStyle(
+                fontSize: 12,
+                color: HalalFoodTheme.textSecondary,
+              ),
+            ),
+            if (gcashName.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              _summaryRow('GCash Name', gcashName),
+            ],
+            if (gcashNumber.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              _summaryRow('GCash Number', gcashNumber),
+            ],
+            if (qrUrl.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              Center(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    qrUrl,
+                    height: 210,
+                    width: 210,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Text(
+                      'Unable to load GCash QR.',
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildPaymentStatus() {
     final isPickup = _currentOrder.fulfillmentType == 'pickup';
