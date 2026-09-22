@@ -27,6 +27,7 @@ class _OwnerOrderDetailsScreenState extends State<OwnerOrderDetailsScreen> {
   late String _status;
   String? _deliveryAssignmentStatus;
   double? _deliveryOwnerPaidAmount;
+  double _deliveryCustomerCollectedAmount = 0;
 
   @override
   void initState() {
@@ -48,13 +49,14 @@ class _OwnerOrderDetailsScreenState extends State<OwnerOrderDetailsScreen> {
       if (orderId == null || orderId.isEmpty) return;
       final row = await _supabase
           .from('delivery_assignments')
-          .select('status,rider_id,owner_paid_amount')
+          .select('status,rider_id,owner_paid_amount,customer_collected_amount')
           .eq('order_id', orderId)
           .maybeSingle();
       if (!mounted || row == null) return;
       setState(() {
         _deliveryAssignmentStatus = row['status']?.toString();
         _deliveryOwnerPaidAmount = (row['owner_paid_amount'] as num?)?.toDouble();
+        _deliveryCustomerCollectedAmount = (row['customer_collected_amount'] as num?)?.toDouble() ?? 0;
         if (_deliveryAssignmentStatus == 'available') {
           _status = 'rider_assigned';
         } else if (_deliveryAssignmentStatus != null) {
@@ -643,9 +645,17 @@ class _OwnerOrderDetailsScreenState extends State<OwnerOrderDetailsScreen> {
         _SummaryRow(label: 'Delivery Fee', value: '₱${deliveryFee.toStringAsFixed(2)}'),
         const SizedBox(height: 10),
         _SummaryRow(label: 'GCash Downpayment', value: '-₱${_gcashDownpaymentPaid.toStringAsFixed(2)}'),
+        if (_deliveryCustomerCollectedAmount > 0.005) ...[
+          const SizedBox(height: 10),
+          _SummaryRow(label: 'Cash Paid to Rider', value: '-₱${_deliveryCustomerCollectedAmount.toStringAsFixed(2)}'),
+        ],
       ],
       const Padding(padding: EdgeInsets.symmetric(vertical: 14), child: Divider()),
-      _SummaryRow(label: isReadyForPickup ? 'Cash Balance' : 'Balance', value: '₱${balance.toStringAsFixed(2)}', isTotal: true),
+      _SummaryRow(
+        label: isReadyForPickup ? 'Cash Balance' : 'Balance',
+        value: '₱${(isPickup ? balance : (balance - _deliveryCustomerCollectedAmount).clamp(0, double.infinity)).toStringAsFixed(2)}',
+        isTotal: true,
+      ),
     ])));
   }
 
