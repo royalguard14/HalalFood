@@ -96,68 +96,66 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
           .isFilter('rider_id', null)
           .order('created_at', ascending: true);
       if (!mounted) return;
-      setState(() {
-        final assignments = List<Map<String, dynamic>>.from(rows);
-        final orderIds = assignments
-            .map((row) => row['order_id']?.toString())
+      final assignments = List<Map<String, dynamic>>.from(rows);
+      final orderIds = assignments
+          .map((row) => row['order_id']?.toString())
+          .whereType<String>()
+          .toList();
+
+      if (orderIds.isNotEmpty) {
+        final orders = await Supabase.instance.client
+            .from('orders')
+            .select('id, restaurant_id, delivery_address_id')
+            .inFilter('id', orderIds);
+
+        final restaurantIds = orders
+            .map((row) => row['restaurant_id']?.toString())
             .whereType<String>()
+            .toSet()
+            .toList();
+        final addressIds = orders
+            .map((row) => row['delivery_address_id']?.toString())
+            .whereType<String>()
+            .toSet()
             .toList();
 
-        if (orderIds.isNotEmpty) {
-          final orders = await Supabase.instance.client
-              .from('orders')
-              .select('id, restaurant_id, delivery_address_id')
-              .inFilter('id', orderIds);
+        final restaurants = restaurantIds.isEmpty
+            ? <dynamic>[]
+            : await Supabase.instance.client
+                .from('restaurants')
+                .select('id, name, address, latitude, longitude')
+                .inFilter('id', restaurantIds);
+        final addresses = addressIds.isEmpty
+            ? <dynamic>[]
+            : await Supabase.instance.client
+                .from('user_addresses')
+                .select('id, address_line, barangay, city, latitude, longitude')
+                .inFilter('id', addressIds);
 
-          final restaurantIds = orders
-              .map((row) => row['restaurant_id']?.toString())
-              .whereType<String>()
-              .toSet()
-              .toList();
-          final addressIds = orders
-              .map((row) => row['delivery_address_id']?.toString())
-              .whereType<String>()
-              .toSet()
-              .toList();
+        final orderById = {
+          for (final row in orders) row['id'].toString(): row,
+        };
+        final restaurantById = {
+          for (final row in restaurants) row['id'].toString(): row,
+        };
+        final addressById = {
+          for (final row in addresses) row['id'].toString(): row,
+        };
 
-          final restaurants = restaurantIds.isEmpty
-              ? <dynamic>[]
-              : await Supabase.instance.client
-                  .from('restaurants')
-                  .select('id, name, address, latitude, longitude')
-                  .inFilter('id', restaurantIds);
-          final addresses = addressIds.isEmpty
-              ? <dynamic>[]
-              : await Supabase.instance.client
-                  .from('user_addresses')
-                  .select('id, address_line, barangay, city, latitude, longitude')
-                  .inFilter('id', addressIds);
-
-          final orderById = {
-            for (final row in orders) row['id'].toString(): row,
-          };
-          final restaurantById = {
-            for (final row in restaurants) row['id'].toString(): row,
-          };
-          final addressById = {
-            for (final row in addresses) row['id'].toString(): row,
-          };
-
-          for (final assignment in assignments) {
-            final order = orderById[assignment['order_id']?.toString()];
-            if (order == null) continue;
-            assignment['restaurant'] =
-                restaurantById[order['restaurant_id']?.toString()];
-            assignment['customer_address'] =
-                addressById[order['delivery_address_id']?.toString()];
-          }
+        for (final assignment in assignments) {
+          final order = orderById[assignment['order_id']?.toString()];
+          if (order == null) continue;
+          assignment['restaurant'] =
+              restaurantById[order['restaurant_id']?.toString()];
+          assignment['customer_address'] =
+              addressById[order['delivery_address_id']?.toString()];
         }
+      }
 
-        if (!mounted) return;
-        setState(() {
-          _availableDeliveries = assignments;
-          _loadingDeliveries = false;
-        });
+      if (!mounted) return;
+      setState(() {
+        _availableDeliveries = assignments;
+        _loadingDeliveries = false;
       });
     } catch (e) {
       if (!mounted) return;
