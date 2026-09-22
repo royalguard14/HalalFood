@@ -34,6 +34,7 @@ class _OwnerRestaurantProfileScreenState extends State<OwnerRestaurantProfileScr
   bool _isUploadingLogo = false;
   String? _error;
   String? _logoUrl;
+  String? _gcashQrUrl;
   String? _halalStatus = 'unverified';
   bool _hasPendingVerification = false;
 
@@ -82,6 +83,7 @@ class _OwnerRestaurantProfileScreenState extends State<OwnerRestaurantProfileScr
       _gcashNumberController.text = restaurant['gcash_number']?.toString() ?? '';
       setState(() {
         _logoUrl = restaurant['logo_url']?.toString();
+        _gcashQrUrl = restaurant['gcash_qr_url']?.toString();
         _halalStatus = restaurant['halal_status']?.toString() ?? 'unverified';
         _hasPendingVerification = pending != null;
         _isLoading = false;
@@ -272,23 +274,7 @@ class _OwnerRestaurantProfileScreenState extends State<OwnerRestaurantProfileScr
               const Text('Unable to load restaurant profile', textAlign: TextAlign.center, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
               const SizedBox(height: 8),
               Text(_error!, textAlign: TextAlign.center),
-              Card(
-              child: Padding(
-                padding: const EdgeInsets.all(18),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('Pickup Payment Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 6),
-                  const Text('Customers will use these details to pay the pickup downpayment directly to the restaurant.', style: TextStyle(color: HalalFoodTheme.textSecondary)),
-                  const SizedBox(height: 14),
-                  TextFormField(controller: _gcashNameController, decoration: _decoration('GCash Account Name', Icons.person_outline)),
-                  const SizedBox(height: 12),
-                  TextFormField(controller: _gcashNumberController, keyboardType: TextInputType.phone, decoration: _decoration('GCash Number', Icons.phone_android_outlined)),
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(onPressed: _isSaving ? null : _pickGcashQr, icon: const Icon(Icons.qr_code_2_rounded), label: const Text('Upload GCash QR')),
-                ]),
-              ),
-            ),
-            const SizedBox(height: 18),            const SizedBox(height: 18),
+              const SizedBox(height: 18),
               ElevatedButton(onPressed: _loadRestaurant, child: const Text('Try Again')),
             ],
           ),
@@ -335,6 +321,77 @@ class _OwnerRestaurantProfileScreenState extends State<OwnerRestaurantProfileScr
                 const SizedBox(width: 12),
                 Expanded(child: TextFormField(controller: _provinceController, textCapitalization: TextCapitalization.words, decoration: _decoration('Province', Icons.map_outlined))),
               ],
+            ),
+            const SizedBox(height: 24),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'GCash Information',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Customers will see these details on the downpayment requirement screen. Use the GCash account where you want customers to send their downpayment.',
+                      style: TextStyle(color: HalalFoodTheme.textSecondary),
+                    ),
+                    const SizedBox(height: 14),
+                    TextFormField(
+                      controller: _gcashNameController,
+                      decoration: _decoration(
+                        'GCash Account Name',
+                        Icons.person_outline,
+                        hint: 'Name registered to GCash',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _gcashNumberController,
+                      keyboardType: TextInputType.phone,
+                      decoration: _decoration(
+                        'GCash Number',
+                        Icons.phone_android_outlined,
+                        hint: '09XXXXXXXXX',
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    if ((_gcashNumberController.text.trim().isNotEmpty ||
+                            _gcashNameController.text.trim().isNotEmpty)) ...[
+                      const Text(
+                        'GCash QR Code',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                    if ((_gcashQrUrl ?? '').isNotEmpty)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          _gcashQrUrl!,
+                          height: 190,
+                          width: 190,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => const Text(
+                            'Unable to load GCash QR.',
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: _isSaving ? null : _pickGcashQr,
+                      icon: const Icon(Icons.qr_code_2_rounded),
+                      label: Text(
+                        (_gcashQrUrl ?? '').isEmpty
+                            ? 'Upload GCash QR'
+                            : 'Replace GCash QR',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 24),
             SizedBox(
