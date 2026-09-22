@@ -387,8 +387,8 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
         final shortOrderId = orderId.length > 8
             ? orderId.substring(0, 8).toUpperCase()
             : orderId.toUpperCase();
-        final advance = (delivery['restaurant_food_advance'] as num?)?.toDouble();
-        final collection = (delivery['customer_collection_amount'] as num?)?.toDouble();
+        final advance = _toAmount(delivery['restaurant_food_advance']);
+        final collection = _toAmount(delivery['customer_collection_amount']);
 
         return Card(
           margin: const EdgeInsets.only(bottom: 10),
@@ -437,6 +437,11 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
         );
       }).toList(),
     );
+  }
+
+  double? _toAmount(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '');
   }
 
   Widget _deliveryAmountRow(String label, String amount) {
