@@ -237,3 +237,16 @@ Delivery is therefore different from Pickup mainly in the final collection flow:
   - `7fe12051a383adbcbd3863523041e92a2a48217d` — repository method.
   - `2cbdebc107b950686802a6ffcd413dfeba797e46` — Checkout uses Maximum Delivery Distance.
 - Next: runtime-test Customer Checkout with a restaurant/address distance below and above the configured Maximum Delivery Distance. Do not change the already-working Restaurant Search Radius code.
+
+
+### 2026-09-22 — Customer Delivery Downpayment Implementation Started
+
+- Customer Checkout now applies the configured downpayment percentage to Delivery as well as Pickup.
+- Delivery downpayment base is food subtotal + delivery fee - promo discount. Current configured percentage is loaded through the existing pickup downpayment setting (currently 50%).
+- Delivery order creation now stores the downpayment amount/status in the existing downpayment fields and creates a pending online payment record, mirroring the working Pickup implementation.
+- Customer Checkout now shows a Delivery Downpayment card and explains that the remaining balance already includes the delivery fee.
+- Customer Order Details now supports the same GCash receipt flow for Delivery: pending -> receipt submitted -> paid.
+- Added secure live RPC public.submit_delivery_downpayment_receipt(p_order_id, p_receipt_path) for Delivery receipt submission. It checks auth.uid(), order ownership, fulfillment type, and allowed receipt states.
+- Verified the new RPC: anon cannot execute it; authenticated can execute it.
+- Customer Order model now exposes promo_discount so summaries can show the actual promo separately.
+- Runtime test is still pending. Next: pull latest main, run Customer Delivery checkout, verify Subtotal + Delivery Fee - Promo = Total, verify 50% Delivery Downpayment, place the order, open Customer Order Details, and verify the Delivery Downpayment GCash/QR receipt upload flow. Do not move to Owner yet until this Customer flow is verified.
