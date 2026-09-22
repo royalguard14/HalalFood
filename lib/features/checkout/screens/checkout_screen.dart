@@ -495,6 +495,43 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return distance <= maximum;
   }
 
+  String? _addressUnavailableReason(Address address) {
+    final maximum = _maximumDeliveryDistanceKm;
+    final restaurant = _restaurant;
+    if (restaurant == null || maximum == null || maximum <= 0) {
+      return 'Delivery is currently unavailable';
+    }
+
+    final latitude = address.latitude;
+    final longitude = address.longitude;
+    final restaurantLatitude = restaurant.latitude;
+    final restaurantLongitude = restaurant.longitude;
+
+    if (latitude == null ||
+        longitude == null ||
+        restaurantLatitude == null ||
+        restaurantLongitude == null ||
+        !latitude.isFinite ||
+        !longitude.isFinite ||
+        !restaurantLatitude.isFinite ||
+        !restaurantLongitude.isFinite) {
+      return 'GPS location is required for delivery';
+    }
+
+    final distance = DistanceUtils.distanceInKm(
+      latitude1: latitude,
+      longitude1: longitude,
+      latitude2: restaurantLatitude,
+      longitude2: restaurantLongitude,
+    );
+
+    if (distance > maximum) {
+      return '${distance.toStringAsFixed(2)} km away • outside delivery range';
+    }
+
+    return null;
+  }
+
   String get _deliveryUnavailableMessage {
     final distance = _deliveryDistanceKm;
     final maximum = _maximumDeliveryDistanceKm;
@@ -688,6 +725,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       final selected = _selectedAddress?.id == address.id;
                       final canSelectForDelivery =
                           _isAddressWithinDeliveryRange(address);
+                      final unavailableReason =
+                          _addressUnavailableReason(address);
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 10),
                         child: _AddressOption(
@@ -695,6 +734,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           selected: selected,
                           title: _addressTitle(address),
                           details: _addressDetails(address),
+                          unavailableReason: unavailableReason,
                           onTap: canSelectForDelivery
                               ? () => _selectAddress(address)
                               : null,
@@ -1054,6 +1094,7 @@ class _AddressOption
   final bool selected;
   final String title;
   final String details;
+  final String? unavailableReason;
   final VoidCallback? onTap;
 
   const _AddressOption({
@@ -1061,6 +1102,7 @@ class _AddressOption
     required this.selected,
     required this.title,
     required this.details,
+    required this.unavailableReason,
     required this.onTap,
   });
 
@@ -1068,6 +1110,11 @@ class _AddressOption
   Widget build(
     BuildContext context,
   ) {
+    final isDisabled = onTap == null;
+    final secondaryColor = isDisabled
+        ? Theme.of(context).disabledColor
+        : HalalFoodTheme.textSecondary;
+
     return InkWell(
       onTap: onTap,
       borderRadius:
@@ -1089,12 +1136,10 @@ class _AddressOption
                 selected ? 2 : 1,
           ),
           color: selected
-              ? HalalFoodTheme
-                  .primaryGreen
-                  .withValues(
-                  alpha: 0.04,
-                )
-              : null,
+              ? HalalFoodTheme.primaryGreen.withValues(alpha: 0.04)
+              : isDisabled
+                  ? Theme.of(context).disabledColor.withValues(alpha: 0.06)
+                  : null,
         ),
         child: Row(
           crossAxisAlignment:
@@ -1107,10 +1152,8 @@ class _AddressOption
                   : Icons
                       .radio_button_off,
               color: selected
-                  ? HalalFoodTheme
-                      .primaryGreen
-                  : HalalFoodTheme
-                      .textSecondary,
+                  ? HalalFoodTheme.primaryGreen
+                  : secondaryColor,
             ),
 
             const SizedBox(
@@ -1129,12 +1172,15 @@ class _AddressOption
                         child: Text(
                           title,
                           style:
-                              const TextStyle(
+                              TextStyle(
                             fontSize:
                                 15,
                             fontWeight:
                                 FontWeight
                                     .w800,
+                            color: isDisabled
+                                ? secondaryColor
+                                : null,
                           ),
                         ),
                       ),
@@ -1211,12 +1257,10 @@ class _AddressOption
                         address.phone!
                             .trim(),
                         style:
-                            const TextStyle(
+                            TextStyle(
                           fontSize:
                               12,
-                          color:
-                              HalalFoodTheme
-                                  .textSecondary,
+                          color: secondaryColor,
                         ),
                       ),
                     ),
@@ -1228,14 +1272,37 @@ class _AddressOption
                   Text(
                     details,
                     style:
-                        const TextStyle(
+                        TextStyle(
                       fontSize: 13,
                       height: 1.4,
-                      color:
-                          HalalFoodTheme
-                              .textSecondary,
+                      color: secondaryColor,
                     ),
                   ),
+
+                  if (unavailableReason != null) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.block_rounded,
+                          size: 15,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                        const SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            unavailableReason!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
