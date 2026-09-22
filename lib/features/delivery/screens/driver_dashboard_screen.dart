@@ -501,7 +501,6 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     }
 
     await _positionSubscription?.cancel();
-    _refreshTimer?.cancel();
     await Supabase.instance.client.auth.signOut();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
