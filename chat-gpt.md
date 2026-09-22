@@ -221,3 +221,19 @@ Delivery is therefore different from Pickup mainly in the final collection flow:
 5. Verify with the current Admin values before changing them; do not assume the configured Maximum Delivery Distance is 20 KM.
 6. Test the original case where the restaurant was about 13.4 KM away and Delivery was disabled even though the intended Maximum Delivery Distance was higher.
 7. After that, test Delivery checkout and server-side eligibility to ensure the same distance rule is enforced securely.
+
+
+### 2026-09-22 — Maximum Delivery Distance Separated from Restaurant Search Radius
+
+- Kept the already-working Restaurant Search Radius logic unchanged.
+- Added dedicated Supabase RPC: `public.get_maximum_delivery_distance_km()`, which reads only `maximum_delivery_distance_km`.
+- Updated `lib/features/home/data/restaurant_repository.dart` with `getMaximumDeliveryDistanceKm()`.
+- Updated `lib/features/checkout/screens/checkout_screen.dart` so Delivery eligibility loads the dedicated Maximum Delivery Distance instead of reusing `getCustomerRestaurantRadiusKm()`.
+- Server-side `public.calculate_delivery_fee(restaurant_id, address_id)` was inspected and already enforces `maximum_delivery_distance_km`; no change was made to that working backend logic.
+- Verified live Supabase values after the change:
+  - Restaurant Search Radius = **15.00 KM**
+  - Maximum Delivery Distance = **15.00 KM**
+- GitHub commits:
+  - `7fe12051a383adbcbd3863523041e92a2a48217d` — repository method.
+  - `2cbdebc107b950686802a6ffcd413dfeba797e46` — Checkout uses Maximum Delivery Distance.
+- Next: runtime-test Customer Checkout with a restaurant/address distance below and above the configured Maximum Delivery Distance. Do not change the already-working Restaurant Search Radius code.
