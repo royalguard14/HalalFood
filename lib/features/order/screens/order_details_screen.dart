@@ -116,7 +116,7 @@ class _OrderDetailsScreenState
         setState(() => _cashPaidAmount = total);
       }
     } catch (e) {
-      debugPrint('CASH PAYMENT LOAD ERROR: ' + e.toString());
+      debugPrint('CASH PAYMENT LOAD ERROR: $e');
     }
   }
   Future<void> _uploadDownpaymentReceipt() async {
@@ -1253,7 +1253,7 @@ class _OrderDetailsScreenState
               if (_currentOrder.promoDiscount > 0.005) ...[
                 _summaryRow(
                   'Promo',
-                  '-₱' + _currentOrder.promoDiscount.toStringAsFixed(2),
+                  '-₱${_currentOrder.promoDiscount.toStringAsFixed(2)}',
                 ),
                 const SizedBox(height: 10),
               ],
@@ -1293,13 +1293,13 @@ class _OrderDetailsScreenState
               if (_currentOrder.promoDiscount > 0.005) ...[
                 _summaryRow(
                   'Promo',
-                  '-₱' + _currentOrder.promoDiscount.toStringAsFixed(2),
+                  '-₱${_currentOrder.promoDiscount.toStringAsFixed(2)}',
                 ),
                 const SizedBox(height: 10),
               ],
               _summaryRow(
                 'Delivery Fee',
-                '₱' + _currentOrder.deliveryFee.toStringAsFixed(2),
+                '₱${_currentOrder.deliveryFee.toStringAsFixed(2)}',
               ),
               const SizedBox(height: 10),
               _summaryRow(
@@ -1435,7 +1435,7 @@ class _OrderDetailsScreenState
                     height: 210,
                     width: 210,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Text(
+                    errorBuilder: (_, _, _) => const Text(
                       'Unable to load GCash QR.',
                     ),
                   ),
@@ -1475,23 +1475,23 @@ class _OrderDetailsScreenState
           children: [
             Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
             const SizedBox(height: 6),
-            Text('₱' + amount.toStringAsFixed(2), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: HalalFoodTheme.primaryGreen)),
+            Text('₱${amount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: HalalFoodTheme.primaryGreen)),
             const SizedBox(height: 12),
             if (needsReceipt) ...[
               Text(instruction, style: const TextStyle(height: 1.4)),
               if (gcashName.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                Text('GCash Name: ' + gcashName, style: const TextStyle(fontWeight: FontWeight.w700)),
+                Text('GCash Name: $gcashName', style: const TextStyle(fontWeight: FontWeight.w700)),
               ],
               if (gcashNumber.isNotEmpty) ...[
                 const SizedBox(height: 4),
-                Text('GCash Number: ' + gcashNumber, style: const TextStyle(fontWeight: FontWeight.w700)),
+                Text('GCash Number: $gcashNumber', style: const TextStyle(fontWeight: FontWeight.w700)),
               ],
               if (qrUrl.isNotEmpty) ...[
                 const SizedBox(height: 14),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.network(qrUrl, height: 190, width: 190, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Text('Unable to load GCash QR.')),
+                  child: Image.network(qrUrl, height: 190, width: 190, fit: BoxFit.contain, errorBuilder: (_, _, _) => const Text('Unable to load GCash QR.')),
                 ),
               ],
               if (state == 'receipt_rejected') ...[
@@ -1500,7 +1500,7 @@ class _OrderDetailsScreenState
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
-                  child: Text('Receipt rejected' + (_currentOrder.pickupReceiptRejectionReason == null ? '.' : ': ' + _currentOrder.pickupReceiptRejectionReason!), style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w700)),
+                  child: Text('Receipt rejected${_currentOrder.pickupReceiptRejectionReason == null ? '.' : ': ${_currentOrder.pickupReceiptRejectionReason!}'}', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w700)),
                 ),
               ],
               const SizedBox(height: 14),
@@ -1517,7 +1517,7 @@ class _OrderDetailsScreenState
               const SizedBox(height: 8),
               const Text('Receipt submitted. Waiting for the restaurant to verify the downpayment.', style: TextStyle(height: 1.4, fontWeight: FontWeight.w600)),
             ] else ...[
-              Text('Payment status: ' + _displayStatus(state)),
+              Text('Payment status: ${_displayStatus(state)}'),
             ],
           ],
         ),
