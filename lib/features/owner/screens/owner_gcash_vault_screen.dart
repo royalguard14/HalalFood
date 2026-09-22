@@ -109,7 +109,7 @@ class _OwnerGcashVaultScreenState extends State<OwnerGcashVaultScreen> {
               decoration: InputDecoration(
                 labelText: 'Cashout Amount',
                 prefixText: '₱ ',
-                helperText: 'Available: ₱' + _balance.toStringAsFixed(2),
+                helperText: 'Available: ₱${_balance.toStringAsFixed(2)}',
               ),
             ),
             const SizedBox(height: 12),
@@ -175,9 +175,7 @@ class _OwnerGcashVaultScreenState extends State<OwnerGcashVaultScreen> {
     if (date == null) return '—';
     final hh = date.hour.toString().padLeft(2, '0');
     final mm = date.minute.toString().padLeft(2, '0');
-    return date.month.toString() + '/' +
-        date.day.toString() + '/' +
-        date.year.toString() + ' ' + hh + ':' + mm;
+    return '${date.month}/${date.day}/${date.year} $hh:$mm';
   }
 
   @override
@@ -217,7 +215,7 @@ class _OwnerGcashVaultScreenState extends State<OwnerGcashVaultScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            '₱' + _balance.toStringAsFixed(2),
+                            '₱${_balance.toStringAsFixed(2)}',
                             style: const TextStyle(
                               fontSize: 32,
                               fontWeight: FontWeight.w900,
@@ -226,10 +224,10 @@ class _OwnerGcashVaultScreenState extends State<OwnerGcashVaultScreen> {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            'GCash received: ₱' + _received.toStringAsFixed(2),
+                            'GCash received: ₱${_received.toStringAsFixed(2)}',
                           ),
-                          Text('Developer adjustments: ₱' + _adjustments.toStringAsFixed(2)),
-                          Text('Cashed out: ₱' + _cashouts.toStringAsFixed(2)),
+                          Text('Developer adjustments: ₱${_adjustments.toStringAsFixed(2)}'),
+                          Text('Cashed out: ₱${_cashouts.toStringAsFixed(2)}'),
                           const SizedBox(height: 16),
                           SizedBox(
                             width: double.infinity,
@@ -273,16 +271,11 @@ class _OwnerGcashVaultScreenState extends State<OwnerGcashVaultScreen> {
                             child: Icon(Icons.outbox_rounded),
                           ),
                           title: Text(
-                            '- ₱' +
-                                ((row['amount'] as num?)?.toDouble() ?? 0)
-                                    .toStringAsFixed(2),
+                            '- ₱${((row['amount'] as num?)?.toDouble() ?? 0).toStringAsFixed(2)}',
                             style: const TextStyle(fontWeight: FontWeight.w800),
                           ),
                           subtitle: Text(
-                            (row['notes']?.toString().isNotEmpty == true
-                                    ? row['notes'].toString() + '\n'
-                                    : '') +
-                                _date(row['created_at']?.toString()),
+                            '${row['notes']?.toString().isNotEmpty == true ? '${row['notes']}\n' : ''}${_date(row['created_at']?.toString())}',
                           ),
                         ),
                       ),
