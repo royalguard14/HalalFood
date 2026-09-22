@@ -33,6 +33,7 @@ class _OrderDetailsScreenState
   String? _error;
   Map<String, dynamic>? _restaurantPayment;
   double _cashPaidAmount = 0;
+  double _deliveryCustomerCollectedAmount = 0;
 
   RealtimeChannel? _orderChannel;
   RealtimeChannel? _deliveryChannel;
@@ -158,11 +159,15 @@ class _OrderDetailsScreenState
     try {
       final row = await _supabase
           .from('delivery_assignments')
-          .select('status')
+          .select('status, customer_collected_amount')
           .eq('order_id', _currentOrder.id)
           .maybeSingle();
       if (!mounted) return;
-      setState(() => _deliveryAssignmentStatus = row?['status']?.toString());
+      setState(() {
+        _deliveryAssignmentStatus = row?['status']?.toString();
+        _deliveryCustomerCollectedAmount =
+            (row?['customer_collected_amount'] as num?)?.toDouble() ?? 0;
+      });
     } catch (e) {
       debugPrint('DELIVERY STATUS LOAD ERROR: $e');
     }
@@ -187,7 +192,11 @@ class _OrderDetailsScreenState
             final status = record['status']?.toString();
             if (status == null) return;
             final oldStatus = _deliveryAssignmentStatus;
-            setState(() => _deliveryAssignmentStatus = status);
+            final collected = (record['customer_collected_amount'] as num?)?.toDouble() ?? 0;
+            setState(() {
+              _deliveryAssignmentStatus = status;
+              _deliveryCustomerCollectedAmount = collected;
+            });
             if (oldStatus != null && oldStatus != status) {
               _showStatusUpdateMessage(status);
             }
@@ -1355,14 +1364,29 @@ class _OrderDetailsScreenState
                 'Downpayment',
                 '-₱${(_currentOrder.pickupDownpaymentStatus.toLowerCase() == 'paid' ? _currentOrder.pickupDownpaymentAmount : 0).toStringAsFixed(2)}',
               ),
+              if (_deliveryCustomerCollectedAmount > 0.005) ...[
+                const SizedBox(height: 10),
+                _summaryRow(
+                  'Cash Paid to Rider',
+                  '-₱${_deliveryCustomerCollectedAmount.toStringAsFixed(2)}',
+                ),
+              ],
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 14),
                 child: Divider(),
               ),
               _summaryRow(
                 'Balance',
-                '₱${(_currentOrder.paymentStatus.toLowerCase() == 'paid' ? 0 : (_currentOrder.totalAmount - (_currentOrder.pickupDownpaymentStatus.toLowerCase() == 'paid' ? _currentOrder.pickupDownpaymentAmount : 0)).clamp(0, double.infinity)).toStringAsFixed(2)}',
-                 isTotal: true,
+                '₱${(_currentOrder.paymentStatus.toLowerCase() == 'paid'
+                        ? 0
+                        : (_currentOrder.totalAmount -
+                                (_currentOrder.pickupDownpaymentStatus.toLowerCase() == 'paid'
+                                    ? _currentOrder.pickupDownpaymentAmount
+                                    : 0) -
+                                _deliveryCustomerCollectedAmount)
+                            .clamp(0, double.infinity))
+                    .toStringAsFixed(2)}',
+                isTotal: true,
               ),
             ],
           ],
