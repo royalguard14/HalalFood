@@ -119,21 +119,31 @@ class _OrderDetailsScreenState
       debugPrint('CASH PAYMENT LOAD ERROR: ' + e.toString());
     }
   }
-  Future<void> _uploadPickupReceipt() async {
+  Future<void> _uploadDownpaymentReceipt() async {
     if (_isUploadingReceipt) return;
     try {
       final image = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 85);
       if (image == null || !mounted) return;
       setState(() => _isUploadingReceipt = true);
-      await _orderRepository.submitPickupReceipt(orderId: _currentOrder.id, receipt: image);
+      await _orderRepository.submitCustomerDownpaymentReceipt(
+        orderId: _currentOrder.id,
+        receipt: image,
+      );
       final updated = await _supabase.from('orders').select().eq('id', _currentOrder.id).single();
       if (!mounted) return;
-      setState(() { _currentOrder = Order.fromMap(Map<String, dynamic>.from(updated)); _isUploadingReceipt = false; });
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Receipt submitted. The restaurant can now review your payment.')));
+      setState(() {
+        _currentOrder = Order.fromMap(Map<String, dynamic>.from(updated));
+        _isUploadingReceipt = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Receipt submitted. The restaurant can now review your downpayment.')),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isUploadingReceipt = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unable to upload receipt: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to upload receipt: $e')),
+      );
     }
   }
   // ============================================================
@@ -1170,10 +1180,10 @@ class _OrderDetailsScreenState
             const SizedBox(height: 10),
 
             if (_currentOrder.fulfillmentType == 'pickup') ...[
-              if ((_currentOrder.subtotal - _currentOrder.totalAmount) > 0.005) ...[
+              if (_currentOrder.promoDiscount > 0.005) ...[
                 _summaryRow(
                   'Promo',
-                  '-₱${(_currentOrder.subtotal - _currentOrder.totalAmount).toStringAsFixed(2)}',
+                  '-₱' + _currentOrder.promoDiscount.toStringAsFixed(2),
                 ),
                 const SizedBox(height: 10),
               ],
@@ -1210,24 +1220,36 @@ class _OrderDetailsScreenState
                 isTotal: true,
               ),
             ] else ...[
+              if (_currentOrder.promoDiscount > 0.005) ...[
+                _summaryRow(
+                  'Promo',
+                  '-₱' + _currentOrder.promoDiscount.toStringAsFixed(2),
+                ),
+                const SizedBox(height: 10),
+              ],
               _summaryRow(
                 'Delivery Fee',
-                '₱${_currentOrder.deliveryFee.toStringAsFixed(2)}',
+                '₱' + _currentOrder.deliveryFee.toStringAsFixed(2),
               ),
-            ],
-
-            if (_currentOrder.fulfillmentType != 'pickup') ...[
+              const SizedBox(height: 10),
+              _summaryRow(
+                'Downpayment',
+                '-₱' + (_currentOrder.pickupDownpaymentStatus.toLowerCase() == 'paid'
+                    ? _currentOrder.pickupDownpaymentAmount
+                    : 0).toStringAsFixed(2),
+              ),
               const Padding(
-                padding:
-                    EdgeInsets.symmetric(
-                  vertical: 14,
-                ),
+                padding: EdgeInsets.symmetric(vertical: 14),
                 child: Divider(),
               ),
-
               _summaryRow(
-                'Total',
-                '₱${_currentOrder.totalAmount.toStringAsFixed(2)}',
+                'Balance',
+                '₱' + (_currentOrder.paymentStatus.toLowerCase() == 'paid'
+                    ? 0
+                    : (_currentOrder.totalAmount -
+                        (_currentOrder.pickupDownpaymentStatus.toLowerCase() == 'paid'
+                            ? _currentOrder.pickupDownpaymentAmount
+                            : 0)).clamp(0, double.infinity)).toStringAsFixed(2),
                 isTotal: true,
               ),
             ],
@@ -1285,38 +1307,80 @@ class _OrderDetailsScreenState
 
   Widget _buildPaymentStatus() {
     final isPickup = _currentOrder.fulfillmentType == 'pickup';
-    final pickupState = _currentOrder.pickupDownpaymentStatus;
-    final needsReceipt = isPickup && (pickupState == 'pending' || pickupState == 'receipt_rejected');
-    final submitted = pickupState == 'receipt_submitted';
-    final paid = pickupState == 'paid';
-    if (!isPickup) return Card(child: Padding(padding: const EdgeInsets.all(18), child: Row(children: [const Icon(Icons.payments_outlined, color: HalalFoodTheme.primaryGreen), const SizedBox(width: 12), const Expanded(child: Text('Payment', style: TextStyle(fontWeight: FontWeight.w700))), Text(_displayStatus(_currentOrder.paymentStatus), style: const TextStyle(fontWeight: FontWeight.w800))])));
-    // Once the Pickup downpayment is confirmed, the bottom payment tile is no longer needed.
-    // The Order Summary above already shows the confirmed Downpayment, Cash, and Balance.
+    final state = _currentOrder.pickupDownpaymentStatus;
+    final needsReceipt = state == 'pending' || state == 'receipt_rejected';
+    final submitted = state == 'receipt_submitted';
+    final paid = state == 'paid';
+
     if (paid) return const SizedBox.shrink();
+
     final amount = _currentOrder.pickupDownpaymentAmount;
     final gcashName = _restaurantPayment?['gcash_name']?.toString().trim() ?? '';
     final gcashNumber = _restaurantPayment?['gcash_number']?.toString().trim() ?? '';
     final qrUrl = _restaurantPayment?['gcash_qr_url']?.toString().trim() ?? '';
-    return Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('Pickup Downpayment', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-      const SizedBox(height: 6),
-      Text('₱'+amount.toStringAsFixed(2), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: HalalFoodTheme.primaryGreen)),
-      const SizedBox(height: 12),
-      if (needsReceipt) ...[
-        const Text('Pay directly to the restaurant GCash account, then upload your successful payment receipt.', style: TextStyle(height: 1.4)),
-        if (gcashName.isNotEmpty) ...[const SizedBox(height: 12), Text('GCash Name: '+gcashName, style: const TextStyle(fontWeight: FontWeight.w700))],
-        if (gcashNumber.isNotEmpty) ...[const SizedBox(height: 4), Text('GCash Number: '+gcashNumber, style: const TextStyle(fontWeight: FontWeight.w700))],
-        if (qrUrl.isNotEmpty) ...[const SizedBox(height: 14), ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(qrUrl, height: 190, width: 190, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Text('Unable to load GCash QR.')))],
-        if (pickupState == 'receipt_rejected') ...[
-          const SizedBox(height: 14),
-          Container(width: double.infinity, padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)), child: Text('Receipt rejected'+(_currentOrder.pickupReceiptRejectionReason == null ? '.' : ': '+_currentOrder.pickupReceiptRejectionReason!), style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w700))),
-        ],
-        const SizedBox(height: 14),
-        SizedBox(width: double.infinity, height: 50, child: ElevatedButton.icon(onPressed: _isUploadingReceipt ? null : _uploadPickupReceipt, icon: _isUploadingReceipt ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.upload_file_rounded), label: Text(_isUploadingReceipt ? 'Uploading...' : 'Upload Receipt'))),
-      ] else if (submitted) ...[const SizedBox(height: 8), const Text('Receipt submitted. Waiting for the restaurant to verify the payment.', style: TextStyle(height: 1.4, fontWeight: FontWeight.w600))]
-      else if (paid) ...[const SizedBox(height: 8), const Text('Payment confirmed. Your restaurant can now process the pickup order.', style: TextStyle(height: 1.4, fontWeight: FontWeight.w600))]
-      else ...[Text('Payment status: '+_displayStatus(pickupState))],
-    ])));
+
+    final title = isPickup ? 'Pickup Downpayment' : 'Delivery Downpayment';
+    final instruction = isPickup
+        ? 'Pay directly to the restaurant GCash account, then upload your successful payment receipt.'
+        : 'Pay the required delivery downpayment to the restaurant GCash account, then upload your successful payment receipt. The remaining balance already includes the delivery fee.';
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 6),
+            Text('₱' + amount.toStringAsFixed(2), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: HalalFoodTheme.primaryGreen)),
+            const SizedBox(height: 12),
+            if (needsReceipt) ...[
+              Text(instruction, style: const TextStyle(height: 1.4)),
+              if (gcashName.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text('GCash Name: ' + gcashName, style: const TextStyle(fontWeight: FontWeight.w700)),
+              ],
+              if (gcashNumber.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text('GCash Number: ' + gcashNumber, style: const TextStyle(fontWeight: FontWeight.w700)),
+              ],
+              if (qrUrl.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(qrUrl, height: 190, width: 190, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Text('Unable to load GCash QR.')),
+                ),
+              ],
+              if (state == 'receipt_rejected') ...[
+                const SizedBox(height: 14),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
+                  child: Text('Receipt rejected' + (_currentOrder.pickupReceiptRejectionReason == null ? '.' : ': ' + _currentOrder.pickupReceiptRejectionReason!), style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w700)),
+                ),
+              ],
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton.icon(
+                  onPressed: _isUploadingReceipt ? null : _uploadDownpaymentReceipt,
+                  icon: _isUploadingReceipt ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.upload_file_rounded),
+                  label: Text(_isUploadingReceipt ? 'Uploading...' : 'Upload Receipt'),
+                ),
+              ),
+            ] else if (submitted) ...[
+              const SizedBox(height: 8),
+              const Text('Receipt submitted. Waiting for the restaurant to verify the downpayment.', style: TextStyle(height: 1.4, fontWeight: FontWeight.w600)),
+            ] else ...[
+              Text('Payment status: ' + _displayStatus(state)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
   }}
 
 // ============================================================
