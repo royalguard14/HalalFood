@@ -132,3 +132,38 @@
   - `69169e50c4c11c51e7cbad5a1a1acf5895a0f5d5` — Owner GCash Vault balance update
 - Live Supabase changes were applied and verified by querying the new RPC/table and RLS policies.
 - **Next:** pull `origin/main`, open Developer Console → Platform Operations → Restaurants, select a restaurant's **Restaurant Control • Cash & GCash Vault**, and test a small positive/negative adjustment. Verify the Owner Dashboard/GCash Vault reflects the adjustment.
+### 2026-09-22 — Current Checkpoint: Pickup Flow Before New Features
+
+- The last Owner ↔ Customer feature work was the **Pickup order/payment flow**.
+- The latest Pickup fixes covered:
+  - Customer Pickup Order Summary: original **Subtotal**, separate **Promo**, actual approved/paid **GCash Downpayment**, actual **Cash**, and remaining **Balance**.
+  - Owner Recent Orders Pickup tracking: **For Confirmation → Confirmed → Preparing → Ready to Pick Up → Full Payment → Claimed**.
+  - Pickup orders are hidden from Owner Recent Orders until the downpayment receipt is submitted/paid.
+  - Customer can read their own payment records through the new secure `payments` RLS policy.
+  - Customer Pickup Downpayment confirmation tile disappears after `pickup_downpayment_status = paid`.
+- Pickup runtime testing was still pending at the last checkpoint.
+
+### 2026-09-22 — Developer Restaurant Vault UI Polish
+
+- Developer Console → Platform Operations → Restaurants now uses compact side-by-side **Control** and **Delete** buttons on each restaurant card.
+- **Control** opens the Developer Restaurant Control screen for Cash/GCash Vault.
+- **Delete** remains the permanent restaurant deletion action with its existing confirmation and backend protection.
+- Developer Restaurant Control now has:
+  - **Adjust Vault** for signed Cash/GCash adjustments with notes.
+  - **Clear Entire Vault** in a compact Danger Zone section.
+- `developer_clear_entire_vault` removes Developer vault adjustment records and Owner GCash cashout records while preserving Orders, Payments, and Restaurant data.
+- Important: the Vault's **Received** amount is derived from historical paid Orders/Payments, so clearing vault adjustment/cashout records does not erase historical order/payment totals.
+- Latest UI commits:
+  - `8f5d0baea5ee382ab533975ee6d0ec690e6c393e` — Developer Restaurant Control UI polish.
+  - `d8ac0b009b674c7cfc7a20a955f34eb9e584bd1a` — compact Restaurants Control/Delete buttons.
+
+### 2026-09-22 — Next Testing Checkpoint
+
+- Before adding another major feature, test the complete flow end-to-end:
+  1. Developer → Restaurants → **Control**.
+  2. Add a small Cash/GCash vault adjustment.
+  3. Open the Owner side and verify the corresponding vault balance/adjustment.
+  4. Test **Clear Entire Vault**.
+  5. Verify adjustment/cashout records are cleared while Orders/Payments remain intact.
+  6. Separately finish runtime testing of the Owner ↔ Customer **Pickup** flow and its payment summary.
+- Do not delete real Orders/Payments during this test unless intentionally testing the Developer permanent-delete feature.
