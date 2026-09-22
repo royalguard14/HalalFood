@@ -210,23 +210,52 @@ class _DeveloperRestaurantManagementScreenState
             _Badge('★ ${restaurant['average_rating'] ?? 0} (${restaurant['review_count'] ?? 0})', Colors.amber.shade800),
           ]),
           const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: _deleting ? null : () => _openControl(restaurant),
-              icon: const Icon(Icons.account_balance_wallet_rounded),
-              label: const Text('Restaurant Control • Cash & GCash Vault', style: TextStyle(fontWeight: FontWeight.w800)),
-            ),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _deleting ? null : () => _deleteRestaurant(restaurant),
-              style: OutlinedButton.styleFrom(foregroundColor: Colors.red.shade700, side: BorderSide(color: Colors.red.shade300)),
-              icon: const Icon(Icons.delete_forever_rounded),
-              label: const Text('Permanently Delete Restaurant + Related Data', style: TextStyle(fontWeight: FontWeight.w800)),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: _deleting ? null : () => _openControl(restaurant),
+                  icon: const Icon(
+                    Icons.account_balance_wallet_rounded,
+                    size: 18,
+                  ),
+                  label: const Text(
+                    'Control',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _deleting ? null : () => _deleteRestaurant(restaurant),
+                  icon: const Icon(
+                    Icons.delete_outline_rounded,
+                    size: 18,
+                  ),
+                  label: const Text(
+                    'Delete',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red.shade700,
+                    side: BorderSide(
+                      color: Colors.red.shade300,
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ]),
       ),
