@@ -384,7 +384,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
           .from('delivery_assignments')
           .select(
             'id, order_id, status, restaurant_food_advance, '
-            'customer_collection_amount, assigned_at',
+            'customer_collection_amount, owner_paid_amount, assigned_at',
           )
           .eq('rider_id', userId)
           .neq('status', 'completed')
@@ -1087,19 +1087,36 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
         icon = Icons.storefront_rounded;
         break;
       case 'rider_at_restaurant':
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.orange.withValues(alpha: .08),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Text(
-            'At restaurant. Waiting for Owner payment before pickup.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-          ),
+        final ownerPaid = _toAmount(
+          _activeDeliveries
+              .where((item) => item['id'].toString() == assignmentId)
+              .map((item) => item['owner_paid_amount'])
+              .firstOrNull,
         );
+        if ((ownerPaid ?? 0) <= 0) {
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.orange.withValues(alpha: .08),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Text(
+              'At restaurant. Waiting for Owner payment before pickup.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+          );
+        }
+        nextStatus = 'picked_up';
+        label = 'Picked Up';
+        icon = Icons.inventory_2_rounded;
+        break;
+      case 'picked_up':
+        nextStatus = 'out_for_delivery';
+        label = 'Out for Delivery';
+        icon = Icons.local_shipping_rounded;
+        break;
       default:
         return const SizedBox.shrink();
     }
