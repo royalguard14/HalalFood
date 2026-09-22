@@ -1054,7 +1054,7 @@ class _AddressOption
   final bool selected;
   final String title;
   final String details;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const _AddressOption({
     required this.address,
