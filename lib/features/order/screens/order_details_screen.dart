@@ -428,7 +428,7 @@ class _OrderDetailsScreenState
             _deliveryAssignmentStatus != null
         ? _deliveryAssignmentStatus!
         : _currentOrder.status;
-    final status = _normalizeStatus(effectiveStatus);
+    final status = _normalizeStatus(effectiveStatus == 'available' ? 'rider_assigned' : effectiveStatus);
 
     if (isPickup) {
       if (rawStatus == 'completed' || rawStatus == 'delivered') {
