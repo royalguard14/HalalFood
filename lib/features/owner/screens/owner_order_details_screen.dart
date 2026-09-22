@@ -53,8 +53,9 @@ class _OwnerOrderDetailsScreenState extends State<OwnerOrderDetailsScreen> {
       if (!mounted || row == null) return;
       setState(() {
         _deliveryAssignmentStatus = row['status']?.toString();
-        if (_deliveryAssignmentStatus != null &&
-            _deliveryAssignmentStatus != 'available') {
+        if (_deliveryAssignmentStatus == 'available') {
+          _status = 'rider_assigned';
+        } else if (_deliveryAssignmentStatus != null) {
           _status = _deliveryAssignmentStatus!;
         }
       });
