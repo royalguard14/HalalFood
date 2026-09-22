@@ -125,9 +125,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _deliveryFee = null;
     });
 
-    if (_fulfillmentType == 'delivery') {
-      _calculateDelivery();
-    }
+    // Keep delivery eligibility calculated even while Pick-up is selected,
+    // so switching back to Delivery remains possible.
+    _calculateDelivery();
   }
 
   void _selectFulfillment(String? value) {
@@ -136,16 +136,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     setState(() {
       _fulfillmentType = value;
-      _selectedAddress = null;
-      _deliveryDistanceKm = null;
-      _deliveryFee = null;
     });
 
-    if (value == 'delivery') {
+    // Keep the selected/default address and calculated delivery eligibility
+    // when switching between Pick-up and Delivery.
+    if (_selectedAddress != null && _restaurant != null) {
+      _calculateDelivery();
+    } else {
       _addressesFuture.then((addresses) {
-        if (!mounted || _fulfillmentType != 'delivery') return;
+        if (!mounted) return;
         _selectDefaultAddress(addresses);
-        if (mounted) setState(() {});
+        if (_selectedAddress != null && _restaurant != null) {
+          _calculateDelivery();
+        } else {
+          setState(() {});
+        }
       });
     }
   }
@@ -456,6 +461,40 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return distance <= maximum;
   }
 
+  bool _isAddressWithinDeliveryRange(Address address) {
+    final maximum = _maximumDeliveryDistanceKm;
+    final restaurant = _restaurant;
+
+    if (maximum == null || maximum <= 0 || restaurant == null) {
+      return false;
+    }
+
+    final latitude = address.latitude;
+    final longitude = address.longitude;
+    final restaurantLatitude = restaurant.latitude;
+    final restaurantLongitude = restaurant.longitude;
+
+    if (latitude == null ||
+        longitude == null ||
+        restaurantLatitude == null ||
+        restaurantLongitude == null ||
+        !latitude.isFinite ||
+        !longitude.isFinite ||
+        !restaurantLatitude.isFinite ||
+        !restaurantLongitude.isFinite) {
+      return false;
+    }
+
+    final distance = DistanceUtils.distanceInKm(
+      latitude1: latitude,
+      longitude1: longitude,
+      latitude2: restaurantLatitude,
+      longitude2: restaurantLongitude,
+    );
+
+    return distance <= maximum;
+  }
+
   String get _deliveryUnavailableMessage {
     final distance = _deliveryDistanceKm;
     final maximum = _maximumDeliveryDistanceKm;
@@ -647,6 +686,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   else ...[
                     ...addresses.map((address) {
                       final selected = _selectedAddress?.id == address.id;
+                      final canSelectForDelivery =
+                          _isAddressWithinDeliveryRange(address);
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 10),
                         child: _AddressOption(
@@ -654,7 +695,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           selected: selected,
                           title: _addressTitle(address),
                           details: _addressDetails(address),
-                          onTap: () => _selectAddress(address),
+                          onTap: canSelectForDelivery
+                              ? () => _selectAddress(address)
+                              : null,
                         ),
                       );
                     }),
