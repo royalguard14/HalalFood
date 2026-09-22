@@ -1381,7 +1381,6 @@ class _OrderDetailsScreenState
       ),
     );
   }
-  }}
 
 // ============================================================
 // TRACKING STEP MODEL
