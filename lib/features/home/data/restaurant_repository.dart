@@ -74,6 +74,21 @@ class RestaurantRepository {
     return value;
   }
 
+  Future<double> getMaximumDeliveryDistanceKm() async {
+    final response = await _supabase.rpc(
+      'get_maximum_delivery_distance_km',
+    );
+
+    final value = (response as num?)?.toDouble() ?? 0;
+    if (!value.isFinite || value <= 0) {
+      throw Exception(
+        'Maximum delivery distance is not configured.',
+      );
+    }
+
+    return value;
+  }
+
   Future<Restaurant> getRestaurantById(
     String restaurantId,
   ) async {
