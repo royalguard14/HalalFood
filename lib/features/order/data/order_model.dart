@@ -14,6 +14,7 @@ class Order {
   final String? pickupReceiptRejectionReason;
   final double subtotal;
   final double deliveryFee;
+  final double promoDiscount;
   final double totalAmount;
   final String? notes;
   final DateTime createdAt;
@@ -34,6 +35,7 @@ class Order {
     required this.pickupReceiptRejectionReason,
     required this.subtotal,
     required this.deliveryFee,
+    required this.promoDiscount,
     required this.totalAmount,
     required this.notes,
     required this.createdAt,
@@ -70,6 +72,8 @@ class Order {
           (map['subtotal'] as num).toDouble(),
       deliveryFee:
           (map['delivery_fee'] as num).toDouble(),
+      promoDiscount:
+          (map['promo_discount'] as num?)?.toDouble() ?? 0,
       totalAmount:
           (map['total_amount'] as num).toDouble(),
       notes: map['notes'] as String?,
