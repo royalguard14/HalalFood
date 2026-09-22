@@ -1087,12 +1087,12 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
         icon = Icons.storefront_rounded;
         break;
       case 'rider_at_restaurant':
-        final ownerPaid = _toAmount(
-          _activeDeliveries
-              .where((item) => item['id'].toString() == assignmentId)
-              .map((item) => item['owner_paid_amount'])
-              .firstOrNull,
+        final activeDelivery = _activeDeliveries.where(
+          (item) => item['id'].toString() == assignmentId,
         );
+        final ownerPaid = activeDelivery.isEmpty
+            ? null
+            : _toAmount(activeDelivery.first['owner_paid_amount']);
         if ((ownerPaid ?? 0) <= 0) {
           return Container(
             width: double.infinity,
