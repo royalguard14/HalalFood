@@ -498,6 +498,28 @@ class _OwnerOrderDetailsScreenState extends State<OwnerOrderDetailsScreen> {
         default: return const SizedBox.shrink();
       }
     }
+    final deliveryPaymentState = _pickupPaymentState ?? widget.order['pickup_downpayment_status']?.toString() ?? 'pending';
+    if (deliveryPaymentState == 'receipt_submitted' && _status.toLowerCase() == 'pending') {
+      return const Card(child: Padding(padding: EdgeInsets.all(18), child: Row(children: [
+        Icon(Icons.hourglass_top_rounded, color: Colors.orange),
+        SizedBox(width: 12),
+        Expanded(child: Text('Waiting for downpayment receipt approval', style: TextStyle(fontWeight: FontWeight.w700))),
+      ])));
+    }
+    if (deliveryPaymentState == 'receipt_rejected' && _status.toLowerCase() == 'pending') {
+      return const Card(child: Padding(padding: EdgeInsets.all(18), child: Row(children: [
+        Icon(Icons.upload_file_rounded, color: Colors.orange),
+        SizedBox(width: 12),
+        Expanded(child: Text('Waiting for customer to upload a new receipt.', style: TextStyle(fontWeight: FontWeight.w700))),
+      ])));
+    }
+    if (deliveryPaymentState != 'paid' && _status.toLowerCase() == 'pending') {
+      return const Card(child: Padding(padding: EdgeInsets.all(18), child: Row(children: [
+        Icon(Icons.hourglass_top_rounded, color: Colors.orange),
+        SizedBox(width: 12),
+        Expanded(child: Text('Waiting for customer to submit downpayment receipt.', style: TextStyle(fontWeight: FontWeight.w700))),
+      ])));
+    }
     switch (_status.toLowerCase()) {
       case 'pending': return SizedBox(width: double.infinity, height: 54, child: ElevatedButton.icon(onPressed: _isUpdating ? null : () => _updateStatus('confirmed'), icon: _isUpdating ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.check_circle_outline_rounded), label: const Text('Confirm Order', style: TextStyle(fontWeight: FontWeight.w800))));
       case 'preparing': return SizedBox(width: double.infinity, height: 54, child: ElevatedButton.icon(onPressed: _isUpdating ? null : () => _updateStatus('ready'), icon: const Icon(Icons.check_circle_outline_rounded), label: const Text('Mark as Ready', style: TextStyle(fontWeight: FontWeight.w800))));
