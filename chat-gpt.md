@@ -499,3 +499,32 @@ Required Rider onboarding:
 - Rider Dashboard now loads Rider earnings from completed/in-settlement delivery assignments and updates its Today/Completed/Earnings stats.
 - `delivered_cash_collected → completed` remains the Rider's final completion action.
 - Pickup flow remains **LOCKED / untouched**.
+
+
+### 2026-09-22 — Delivery workflow checkpoint / Next tasks
+
+- Fixed the Rider assignment display regression: delivery assignment status `available` is now treated/displayed as **Rider Assigned** instead of falling back to **For Confirmation** in customer/owner delivery views.
+- Fixed the Rider `Delivered / Cash Collected` authorization issue. The `orders` update guard now allows the assigned Rider to finalize a delivery order to `delivered` + `paid` through the trusted Rider RPC.
+- Corrected the guard implementation to use `orders.fulfillment_type` as text; no nonexistent `public.fulfillment_type` enum cast remains.
+- Rider `Complete Delivery` now refreshes the Rider Dashboard statistics immediately after the RPC succeeds. Realtime delivery-assignment updates also refresh Rider stats.
+- Pickup flow remains **LOCKED / untouched**.
+
+#### Next work when continuing
+1. **Finish end-to-end Delivery testing** with the current test order:
+   - Owner queues delivery.
+   - Rider accepts.
+   - Rider goes to restaurant.
+   - Owner records exact full payment.
+   - Rider picks up.
+   - Rider goes out for delivery.
+   - Rider marks **Delivered / Cash Collected**.
+   - Rider marks **Complete Delivery**.
+   - Verify Customer, Owner, and Rider dashboards all show the final state and correct balances/earnings.
+2. **Verify Rider dashboard stats and earnings** against actual completed delivery records; confirm Today, Completed, and Earnings values are correct after reload and Realtime updates.
+3. **Verify Customer final payment state**: payment status paid, order delivered, cash collected amount shown, and balance reaches ₱0.00 without double-counting delivery fee.
+4. **Verify Owner final balance/state**: Cash Paid to Rider is shown and Owner balance is reduced correctly; no return to For Confirmation/Ready states.
+5. **Verify Rider online/offline rules** after completion: active deliveries prevent going offline; after all deliveries are completed, Rider can go offline normally.
+6. **Test multiple active deliveries** up to the temporary limit of 5 and confirm a taken delivery disappears from other Riders' Available list through Realtime.
+7. **Test GPS/location tracking** on the actual Android device/emulator, including online requirement, foreground tracking, and behavior while an active delivery exists.
+8. **Run `flutter analyze`** and keep the project at zero issues if possible before the next feature batch.
+9. After the Delivery flow is fully validated, move to the next planned module/features. Do **not** modify Pickup unless explicitly requested.
