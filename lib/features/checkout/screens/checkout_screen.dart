@@ -381,9 +381,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final address = _selectedAddress;
     final pickupPayableSubtotal =
         (widget.cart.total - _promoDiscount).clamp(0.0, double.infinity);
-    final pickupDownpayment = fulfillmentType == 'pickup'
-        ? pickupPayableSubtotal * (_pickupDownpaymentPercent / 100)
-        : 0.0;
+    final downpaymentBaseTotal =
+        (widget.cart.total +
+                (fulfillmentType == 'delivery' ? (deliveryFee ?? 0.0) : 0.0) -
+                _promoDiscount)
+            .clamp(0.0, double.infinity);
+    final downpaymentAmount =
+        downpaymentBaseTotal * (_pickupDownpaymentPercent / 100);
     final deliveryFee =
         fulfillmentType == 'delivery' ? _deliveryFee : 0.0;
 
@@ -432,7 +436,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         fulfillmentType: fulfillmentType,
         promoCode: _selectedPromo?.code,
         pickupDownpaymentPercent: _pickupDownpaymentPercent,
-        pickupDownpaymentAmount: pickupDownpayment,
+        pickupDownpaymentAmount: downpaymentAmount,
+        promoDiscount: _promoDiscount,
       );
 
       if (!mounted) return;
@@ -441,7 +446,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       await Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => OrderSuccessScreen(orderId: orderId, fulfillmentType: fulfillmentType, pickupDownpaymentAmount: pickupDownpayment),
+          builder: (_) => OrderSuccessScreen(orderId: orderId, fulfillmentType: fulfillmentType, pickupDownpaymentAmount: downpaymentAmount),
         ),
       );
     } catch (e) {
@@ -595,10 +600,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         _fulfillmentType == 'delivery' ? (_deliveryFee ?? 0.0) : 0.0;
     final promoDiscount = _promoDiscount;
     final total = subtotal + deliveryFee - promoDiscount;
-    final pickupPayableSubtotal = (subtotal - promoDiscount).clamp(0.0, double.infinity);
-    final pickupDownpayment = _fulfillmentType == 'pickup'
-        ? pickupPayableSubtotal * (_pickupDownpaymentPercent / 100)
-        : 0.0;
+    final downpaymentBaseTotal =
+        (subtotal +
+                (_fulfillmentType == 'delivery' ? deliveryFee : 0.0) -
+                promoDiscount)
+            .clamp(0.0, double.infinity);
+    final downpaymentAmount =
+        downpaymentBaseTotal * (_pickupDownpaymentPercent / 100);
 
     return Scaffold(
       appBar: AppBar(
@@ -779,7 +787,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
                 ],
 
-                if (_fulfillmentType == 'pickup') ...[
+                if (_fulfillmentType != null) ...[
                   const SizedBox(height: 18),
                   Card(
                     child: Padding(
@@ -794,12 +802,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Pickup downpayment: ${_pickupDownpaymentPercent.toStringAsFixed(0)}%',
+                                  '${_fulfillmentType == 'delivery' ? 'Delivery' : 'Pickup'} downpayment: ${_pickupDownpaymentPercent.toStringAsFixed(0)}%',
                                   style: const TextStyle(fontWeight: FontWeight.w800),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  'Required before the restaurant processes a pickup order. Amount: ₱${pickupDownpayment.toStringAsFixed(2)}. This downpayment is non-refundable under the pickup no-show rule.',
+                                  _fulfillmentType == 'delivery'
+                                      ? 'Required before the restaurant processes a delivery order. Amount: ₱${downpaymentAmount.toStringAsFixed(2)}. The remaining balance already includes the delivery fee.'
+                                      : 'Required before the restaurant processes a pickup order. Amount: ₱${downpaymentAmount.toStringAsFixed(2)}. This downpayment is non-refundable under the pickup no-show rule.',
                                   style: const TextStyle(
                                     fontSize: 12,
                                     color: HalalFoodTheme.textSecondary,
