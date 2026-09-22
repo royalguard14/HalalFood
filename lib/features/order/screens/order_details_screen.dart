@@ -1312,13 +1312,8 @@ class _OrderDetailsScreenState
               ),
               _summaryRow(
                 'Balance',
-                '₱' + (_currentOrder.paymentStatus.toLowerCase() == 'paid'
-                    ? 0
-                    : (_currentOrder.totalAmount -
-                        (_currentOrder.pickupDownpaymentStatus.toLowerCase() == 'paid'
-                            ? _currentOrder.pickupDownpaymentAmount
-                            : 0)).clamp(0, double.infinity)).toStringAsFixed(2),
-                isTotal: true,
+                '₱${(_currentOrder.paymentStatus.toLowerCase() == 'paid' ? 0 : (_currentOrder.totalAmount - (_currentOrder.pickupDownpaymentStatus.toLowerCase() == 'paid' ? _currentOrder.pickupDownpaymentAmount : 0)).clamp(0, double.infinity)).toStringAsFixed(2)}',
+                 isTotal: true,
               ),
             ],
           ],
