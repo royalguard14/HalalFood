@@ -167,3 +167,32 @@
   5. Verify adjustment/cashout records are cleared while Orders/Payments remain intact.
   6. Separately finish runtime testing of the Owner ↔ Customer **Pickup** flow and its payment summary.
 - Do not delete real Orders/Payments during this test unless intentionally testing the Developer permanent-delete feature.
+
+### 2026-09-22 — Delivery Payment Model Confirmed
+
+For **Delivery**, the required downpayment is calculated from the **entire order total (food + delivery fee)**.
+
+Example:
+- Food subtotal: **₱2,000**
+- Delivery fee: **₱135**
+- Total order: **₱2,135**
+- Required DP: **50%**
+- Customer DP: **₱1,067** (example rounded amount)
+- Remaining balance: **₱1,068**
+
+The remaining ₱1,068 already includes the delivery fee:
+- **₱933** = remaining amount needed to complete the ₱2,000 food payment at the restaurant.
+- **₱135** = delivery fee.
+
+Rider flow:
+1. Customer pays **₱1,067 DP**.
+2. Rider goes to the restaurant and advances **₱933**.
+3. Restaurant has received **₱1,067 + ₱933 = ₱2,000** for the food.
+4. Rider delivers the order.
+5. Customer pays the rider **₱1,068 only**.
+6. That ₱1,068 consists of **₱933 reimbursement to the rider + ₱135 delivery fee**.
+7. Customer's total out-of-pocket is exactly **₱1,067 + ₱1,068 = ₱2,135**.
+
+**Important rule:** Never add the ₱135 delivery fee again on top of the remaining balance. The delivery fee is already included in the remaining balance.
+
+Delivery is therefore different from Pickup mainly in the final collection flow: for Delivery, the rider advances the remaining restaurant food amount and collects the customer's remaining balance (which already contains the delivery fee) upon delivery.
