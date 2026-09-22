@@ -291,3 +291,16 @@ Delivery is therefore different from Pickup mainly in the final collection flow:
 - Removed the misplaced old GCash form that was accidentally inside the error-state UI; GCash settings now appear in the normal Owner Restaurant Profile form.
 - GitHub commit: `1085924458937f8500efbb92fb15643f416b942f`.
 - Next: pull and test Owner GCash Information first. After confirming the Owner can save/upload the details, verify the Customer downpayment requirement screen displays the same Owner GCash information.
+
+
+### 2026-09-22 — Owner GCash Displayed on Customer Downpayment Required Screen
+
+- Updated `lib/features/checkout/screens/checkout_screen.dart` in the existing `OrderSuccessScreen`.
+- The Customer **Downpayment Required** screen now loads the restaurant attached to the newly created order and displays the Owner's saved GCash information directly on that screen:
+  - GCash Account Name
+  - GCash Number
+  - GCash QR Code
+- The GCash section appears only when the restaurant has GCash information configured; otherwise the existing downpayment screen remains unchanged.
+- The existing **Continue to Downpayment** and receipt-upload flow was preserved.
+- GitHub commit: `4f0d44d3f32f09675e5abed5c54e591700b616e9`.
+- Next: `git pull origin main`, place a new Pickup or Delivery downpayment order, and verify the Owner's GCash details appear on the **Downpayment Required** screen before continuing to receipt upload.
