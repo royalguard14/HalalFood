@@ -250,3 +250,14 @@ Delivery is therefore different from Pickup mainly in the final collection flow:
 - Verified the new RPC: anon cannot execute it; authenticated can execute it.
 - Customer Order model now exposes promo_discount so summaries can show the actual promo separately.
 - Runtime test is still pending. Next: pull latest main, run Customer Delivery checkout, verify Subtotal + Delivery Fee - Promo = Total, verify 50% Delivery Downpayment, place the order, open Customer Order Details, and verify the Delivery Downpayment GCash/QR receipt upload flow. Do not move to Owner yet until this Customer flow is verified.
+
+
+### 2026-09-22 — Customer Delivery Downpayment Success Screen Corrected
+- User caught that after placing a Delivery order, the app showed the generic **Order Placed!** success state instead of immediately directing the customer into the downpayment flow.
+- Updated `lib/features/checkout/screens/checkout_screen.dart`.
+- `OrderSuccessScreen` now treats any order with a required downpayment amount as a **Downpayment Required** state for both Pickup and Delivery.
+- It shows the applicable **Pickup Downpayment** or **Delivery Downpayment** amount and a **Continue to Downpayment** button that opens Customer Order Details where the GCash/receipt flow is handled.
+- Generic **Back to Home** remains available as **Do This Later** for downpayment orders.
+- Pickup flow was preserved; the change generalizes the existing working Pickup success behavior to Delivery.
+- **Commit:** `a8b51b743bd5624a23ea45d4112a852dff7f7b6f`
+- Next: `git pull origin main`, place a Delivery order again, and verify it lands on **Downpayment Required → Continue to Downpayment** instead of the generic success state.
