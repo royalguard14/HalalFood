@@ -20,6 +20,7 @@ class _DeliveryPricingScreenState extends State<DeliveryPricingScreen> {
   final _fuelAdjustment = TextEditingController();
   final _minimumFee = TextEditingController();
   final _maximumDistance = TextEditingController();
+  final _restaurantSearchRadius = TextEditingController();
   final _pickupDownpaymentPercent = TextEditingController();
   final _rainSurcharge = TextEditingController();
   final _peakHourSurcharge = TextEditingController();
@@ -44,6 +45,7 @@ class _DeliveryPricingScreenState extends State<DeliveryPricingScreen> {
       _fuelAdjustment,
       _minimumFee,
       _maximumDistance,
+      _restaurantSearchRadius,
       _pickupDownpaymentPercent,
       _rainSurcharge,
       _peakHourSurcharge,
@@ -72,6 +74,7 @@ class _DeliveryPricingScreenState extends State<DeliveryPricingScreen> {
       _fuelAdjustment.text = _numberText(pricing?['fuel_adjustment']);
       _minimumFee.text = _numberText(pricing?['minimum_fee']);
       _maximumDistance.text = _numberText(pricing?['maximum_delivery_distance_km']);
+      _restaurantSearchRadius.text = _numberText(pricing?['restaurant_search_radius_km'] ?? 15);
       _pickupDownpaymentPercent.text = _numberText(pricing?['pickup_downpayment_percent'] ?? 50);
       _rainSurcharge.text = _numberText(pricing?['rain_surcharge']);
       _peakHourSurcharge.text = _numberText(pricing?['peak_hour_surcharge']);
@@ -109,6 +112,7 @@ class _DeliveryPricingScreenState extends State<DeliveryPricingScreen> {
         fuelAdjustment: _value(_fuelAdjustment),
         minimumFee: _value(_minimumFee),
         maximumDeliveryDistanceKm: _value(_maximumDistance),
+        restaurantSearchRadiusKm: _value(_restaurantSearchRadius),
         pickupDownpaymentPercent: _value(_pickupDownpaymentPercent),
         rainSurcharge: _value(_rainSurcharge),
         peakHourSurcharge: _value(_peakHourSurcharge),
@@ -166,8 +170,14 @@ class _DeliveryPricingScreenState extends State<DeliveryPricingScreen> {
                           _moneyField(_fuelAdjustment, 'Fuel Adjustment'),
                           _moneyField(_minimumFee, 'Minimum Delivery Fee'),
                           _distanceField(
+                            _restaurantSearchRadius,
+                            'Restaurant Search Radius',
+                            helper: 'Maximum distance from the customer location for restaurants to appear in restaurant discovery.',
+                          ),
+                          _distanceField(
                             _maximumDistance,
-                            'Maximum Customer & Delivery Distance',
+                            'Maximum Delivery Distance',
+                            helper: 'Maximum distance from the restaurant to the customer delivery address.',
                           ),
                           _percentageField(
                             _pickupDownpaymentPercent,
@@ -262,7 +272,11 @@ class _DeliveryPricingScreenState extends State<DeliveryPricingScreen> {
     );
   }
 
-  Widget _distanceField(TextEditingController controller, String label) {
+  Widget _distanceField(
+    TextEditingController controller,
+    String label, {
+    String? helper,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextFormField(
@@ -272,6 +286,7 @@ class _DeliveryPricingScreenState extends State<DeliveryPricingScreen> {
         decoration: InputDecoration(
           labelText: label,
           suffixText: 'km',
+          helperText: helper,
           prefixIcon: const Icon(Icons.route_outlined),
         ),
         validator: _numberValidator,
@@ -316,7 +331,7 @@ class _IntroCard extends StatelessWidget {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'These settings control delivery charges and the maximum distance customers can discover and order from restaurants.',
+                  'These settings control delivery charges, restaurant discovery radius, and the maximum distance allowed for delivery.',
                   style: TextStyle(
                     fontSize: 12,
                     color: HalalFoodTheme.textSecondary,
