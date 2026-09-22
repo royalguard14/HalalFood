@@ -313,3 +313,15 @@ Delivery is therefore different from Pickup mainly in the final collection flow:
 - This confirms the same Owner GCash details are presented for both Pickup and Delivery downpayment orders.
 - Existing payment and receipt-upload behavior was not changed.
 - GitHub commit: `9bef9e78ec781d59d8f3fec67c5c1ede4dc8f237`.
+
+
+### 2026-09-22 — Owner Delivery Flow Corrected
+
+- Updated `lib/features/owner/screens/owner_order_details_screen.dart` so Owner Order Details now uses a shared horizontal order-flow tracker for Pickup and Delivery.
+- Pickup flow: **For Confirmation → Confirmed → Preparing → Ready to Pick Up → Full Payment → Claimed**.
+- Delivery flow: **For Confirmation → Confirmed → Preparing → Ready for Pickup → Rider Assigned → Rider Going to Restaurant → Rider at Restaurant → Full Payment → Picked Up → Out for Delivery → Delivered / Cash Collected → Completed**.
+- Delivery action flow was corrected so it no longer jumps from **Preparing → Completed**. Owner can move Delivery through **Confirm Order → Preparing → Ready for Pickup**; after Ready for Pickup, the order is handed to the rider flow instead of being incorrectly completed by the Owner.
+- The existing shared downpayment receipt/payment review card remains above the order items for both Pickup and Delivery, including **View Receipt / Reject / Accept** when a receipt is submitted.
+- Horizontal tracker is scrollable so the complete Delivery sequence remains readable on smaller screens.
+- **GitHub commit:** aeaf24f6fe63ad92d105983724d34f4434598d32
+- Next: pull latest `main` and runtime-test one Pickup and one Delivery order in Owner Order Details. Verify Delivery starts at **For Confirmation**, receipt review works, then **Confirmed → Preparing → Ready for Pickup**, and that it does not incorrectly mark the delivery as completed.
