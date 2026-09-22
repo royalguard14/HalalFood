@@ -482,3 +482,20 @@ Required Rider onboarding:
   6. Finish Rider Delivered/Cash Collected → Completed.
   7. Update Customer Delivery tracking to the agreed sequence.
   8. Create a proper approved Rider test account and test the full flow.
+
+
+### 2026-09-22 — Delivery Cash Collection / Settlement Completed
+
+- Rider `Delivered / Cash Collected` now performs the server-side settlement checkpoint.
+- Added `delivery_assignments.customer_collected_amount` and `rider_earning_amount`.
+- At `out_for_delivery → delivered_cash_collected`:
+  - `customer_collected_amount` is recorded from the server-calculated `customer_collection_amount`.
+  - `customer_collected_at` is recorded.
+  - `rider_earning_amount` is populated from the order's delivery fee.
+  - Customer order `payment_status` becomes `paid`.
+  - Customer order status becomes `delivered`.
+- Customer Order Summary now shows **Cash Paid to Rider** and subtracts it from Balance; once collected, Balance becomes **₱0.00**.
+- Owner Order Summary now shows **Cash Paid to Rider** and subtracts it from Balance; Owner receives the delivery assignment update through Realtime.
+- Rider Dashboard now loads Rider earnings from completed/in-settlement delivery assignments and updates its Today/Completed/Earnings stats.
+- `delivered_cash_collected → completed` remains the Rider's final completion action.
+- Pickup flow remains **LOCKED / untouched**.
