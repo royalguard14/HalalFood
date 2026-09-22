@@ -444,10 +444,38 @@ class _OwnerOrderDetailsScreenState extends State<OwnerOrderDetailsScreen> {
     final color = _statusColor(_status);
     return Column(
       children: [
-        Card(child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Current Status', style: TextStyle(fontSize: 13, color: HalalFoodTheme.textSecondary)), const SizedBox(height: 10),
-          Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9), decoration: BoxDecoration(color: color.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(20)), child: Text(_displayStatus(_status), style: TextStyle(color: color, fontWeight: FontWeight.w800))),
-        ])),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Current Status',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: HalalFoodTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    _displayStatus(_status),
+                    style: TextStyle(
+                      color: color,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
         const SizedBox(height: 12),
         _buildOrderFlow(),
       ],
