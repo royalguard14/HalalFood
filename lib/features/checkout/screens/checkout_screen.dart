@@ -2245,7 +2245,7 @@ class OrderSuccessScreen extends StatelessWidget {
                                 Icon(Icons.account_balance_wallet_outlined),
                                 SizedBox(width: 8),
                                 Text(
-                                  'GCash Information',
+                                  '$fulfillmentLabel GCash Information',
                                   style: TextStyle(
                                     fontSize: 17,
                                     fontWeight: FontWeight.w900,
@@ -2296,7 +2296,7 @@ class OrderSuccessScreen extends StatelessWidget {
                             ],
                             const SizedBox(height: 12),
                             const Text(
-                              'Send the downpayment to this GCash account, then upload your payment receipt.',
+                              'Send the $fulfillmentLabel downpayment to this GCash account, then upload your payment receipt.',
                               style: TextStyle(
                                 fontSize: 13,
                                 height: 1.35,
