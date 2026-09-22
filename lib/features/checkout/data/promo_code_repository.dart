@@ -82,9 +82,9 @@ class PromoCode {
     switch (discountType.toLowerCase()) {
       case 'percentage':
       case 'percent':
-        return discountValue.toStringAsFixed(0) + '% OFF';
+        return '${discountValue.toStringAsFixed(0)}% OFF';
       default:
-        return '₱' + discountValue.toStringAsFixed(2) + ' OFF';
+        return '₱${discountValue.toStringAsFixed(2)} OFF';
     }
   }
 }
