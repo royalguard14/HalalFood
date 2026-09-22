@@ -209,7 +209,6 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
           _riderPosition = position;
         });
         await _startLocationTracking();
-        _startQueueRefresh();
         await _loadAvailableDeliveries();
       } else {
         await Supabase.instance.client.rpc(
@@ -467,7 +466,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
       if (!mounted) return;
       setState(() => _deliveryError = e.toString());
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to take delivery: ' + e.toString())),
+        SnackBar(content: Text('Unable to take delivery: $e')),
       );
     } finally {
       if (mounted) setState(() => _takingDelivery = false);
@@ -862,18 +861,18 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                           style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
                     ),
                     const Spacer(),
-                    Text('#' + shortOrderId,
+                    Text('#${shortOrderId}',
                         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                   ],
                 ),
                 const SizedBox(height: 14),
                 if (advance != null) _deliveryAmountRow(
                   'Restaurant advance',
-                  '₱' + advance.toStringAsFixed(2),
+                  '₱${advance.toStringAsFixed(2)}',
                 ),
                 if (collection != null) _deliveryAmountRow(
                   'Customer collection',
-                  '₱' + collection.toStringAsFixed(2),
+                  '₱${collection.toStringAsFixed(2)}',
                 ),
                 const Divider(height: 20),
                 _deliveryAmountRow(
@@ -1005,7 +1004,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                     ),
                     const Spacer(),
                     Text(
-                      '#' + shortOrderId,
+                      '#${shortOrderId}',
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
@@ -1026,12 +1025,12 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                 if (advance != null)
                   _deliveryAmountRow(
                     'Restaurant advance',
-                    '₱' + advance.toStringAsFixed(2),
+                    '₱${advance.toStringAsFixed(2)}',
                   ),
                 if (collection != null)
                   _deliveryAmountRow(
                     'Customer collection',
-                    '₱' + collection.toStringAsFixed(2),
+                    '₱${collection.toStringAsFixed(2)}',
                   ),
               ],
             ),
