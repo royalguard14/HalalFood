@@ -379,8 +379,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
 
     final address = _selectedAddress;
-    final pickupPayableSubtotal =
-        (widget.cart.total - _promoDiscount).clamp(0.0, double.infinity);
+    final deliveryFee =
+        fulfillmentType == 'delivery' ? _deliveryFee : 0.0;
     final downpaymentBaseTotal =
         (widget.cart.total +
                 (fulfillmentType == 'delivery' ? (deliveryFee ?? 0.0) : 0.0) -
@@ -388,8 +388,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             .clamp(0.0, double.infinity);
     final downpaymentAmount =
         downpaymentBaseTotal * (_pickupDownpaymentPercent / 100);
-    final deliveryFee =
-        fulfillmentType == 'delivery' ? _deliveryFee : 0.0;
 
     if (fulfillmentType == 'delivery') {
       if (address == null) {
