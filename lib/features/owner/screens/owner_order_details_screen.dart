@@ -1,3 +1,39 @@
+  Widget _buildStatusCard() {
+    final color = _statusColor(_status);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Current Status',
+              style: TextStyle(
+                fontSize: 13,
+                color: HalalFoodTheme.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                _displayStatus(_status),
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -306,180 +342,6 @@ class _OwnerOrderDetailsScreenState extends State<OwnerOrderDetailsScreen> {
         ]),
       ] else if (state == 'receipt_rejected') const Padding(padding: EdgeInsets.only(top: 10), child: Text('Waiting for customer to upload a new receipt.')),
     ])));
-  }
-
-  List<String> _trackingSteps() {
-    final isPickup = widget.order['fulfillment_type']?.toString().toLowerCase() == 'pickup';
-    return isPickup
-        ? const [
-            'For Confirmation',
-            'Confirmed',
-            'Preparing',
-            'Ready to Pick Up',
-            'Full Payment',
-            'Claimed',
-          ]
-        : const [
-            'For Confirmation',
-            'Confirmed',
-            'Preparing',
-            'Ready for Pickup',
-            'Rider Assigned',
-            'Rider Going to Restaurant',
-            'Rider at Restaurant',
-            'Full Payment',
-            'Picked Up',
-            'Out for Delivery',
-            'Delivered / Cash Collected',
-            'Completed',
-          ];
-  }
-
-  int _trackingIndex() {
-    final s = _status.toLowerCase();
-    final isPickup = widget.order['fulfillment_type']?.toString().toLowerCase() == 'pickup';
-
-    if (isPickup) {
-      if (s == 'pending') return 0;
-      if (s == 'confirmed') return 1;
-      if (s == 'preparing') return 2;
-      if (s == 'ready' || s == 'ready_to_pick_up') return 3;
-      if (s == 'full_payment' || s == 'payment_due') return 4;
-      if (s == 'claimed' || s == 'delivered' || s == 'completed') return 5;
-      return 0;
-    }
-
-    if (s == 'pending') return 0;
-    if (s == 'confirmed') return 1;
-    if (s == 'preparing') return 2;
-    if (s == 'ready' || s == 'ready_for_pickup') return 3;
-    if (s == 'rider_assigned') return 4;
-    if (s == 'rider_going_to_restaurant' || s == 'rider_to_restaurant') return 5;
-    if (s == 'rider_at_restaurant' || s == 'at_restaurant') return 6;
-    if (s == 'full_payment' || s == 'payment_due') return 7;
-    if (s == 'picked_up' || s == 'pickedup') return 8;
-    if (s == 'out_for_delivery' || s == 'on_the_way') return 9;
-    if (s == 'delivered' || s == 'cash_collected') return 10;
-    if (s == 'completed') return 11;
-    return 0;
-  }
-
-  Widget _buildOrderFlow() {
-    final steps = _trackingSteps();
-    final current = _trackingIndex();
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Order Flow', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 14),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: List.generate(steps.length, (index) {
-                  final isDone = index < current;
-                  final isCurrent = index == current;
-                  final color = isDone || isCurrent ? HalalFoodTheme.primaryGreen : Colors.grey.shade400;
-
-                  return Row(
-                    children: [
-                      SizedBox(
-                        width: 92,
-                        child: Column(
-                          children: [
-                            Container(
-                              width: 34,
-                              height: 34,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: isDone || isCurrent
-                                    ? color.withValues(alpha: 0.12)
-                                    : Colors.grey.withValues(alpha: 0.08),
-                                border: Border.all(color: color, width: isCurrent ? 2 : 1),
-                              ),
-                              child: Icon(
-                                isDone ? Icons.check_rounded : (isCurrent ? Icons.radio_button_checked_rounded : Icons.circle_outlined),
-                                size: 18,
-                                color: color,
-                              ),
-                            ),
-                            const SizedBox(height: 7),
-                            Text(
-                              steps[index],
-                              textAlign: TextAlign.center,
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
-                                color: isCurrent ? HalalFoodTheme.textPrimary : HalalFoodTheme.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (index < steps.length - 1)
-                        Container(
-                          width: 28,
-                          height: 2,
-                          margin: const EdgeInsets.only(bottom: 38),
-                          color: index < current ? HalalFoodTheme.primaryGreen : Colors.grey.shade300,
-                        ),
-                    ],
-                  );
-                }),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatusCard() {
-    final color = _statusColor(_status);
-    return Column(
-      children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Current Status',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: HalalFoodTheme.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    _displayStatus(_status),
-                    style: TextStyle(
-                      color: color,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        _buildOrderFlow(),
-      ],
-    );
   }
 
   Widget _buildItemCard(Map<String, dynamic> item) {
