@@ -1304,9 +1304,7 @@ class _OrderDetailsScreenState
               const SizedBox(height: 10),
               _summaryRow(
                 'Downpayment',
-                '-₱' + (_currentOrder.pickupDownpaymentStatus.toLowerCase() == 'paid'
-                    ? _currentOrder.pickupDownpaymentAmount
-                    : 0).toStringAsFixed(2),
+                '-₱${(_currentOrder.pickupDownpaymentStatus.toLowerCase() == 'paid' ? _currentOrder.pickupDownpaymentAmount : 0).toStringAsFixed(2)}',
               ),
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 14),
