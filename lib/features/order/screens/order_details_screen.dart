@@ -468,16 +468,16 @@ class _OrderDetailsScreenState
       case 'rider_at_restaurant':
         return 6;
       case 'full_payment':
-        return 7;
+        return 6;
       case 'picked_up':
-        return 8;
+        return 7;
       case 'out_for_delivery':
-        return 9;
+        return 8;
       case 'delivered_cash_collected':
       case 'delivered':
-        return 10;
+        return 9;
       case 'completed':
-        return 11;
+        return 10;
       default:
         return 0;
     }
@@ -886,11 +886,6 @@ class _OrderDetailsScreenState
               title: 'Rider at Restaurant',
               subtitle: 'Your rider has arrived at the restaurant.',
               icon: Icons.storefront_outlined,
-            ),
-            _TrackingStep(
-              title: 'Full Payment',
-              subtitle: 'The rider has completed the restaurant payment step.',
-              icon: Icons.payments_outlined,
             ),
             _TrackingStep(
               title: 'Picked Up',
