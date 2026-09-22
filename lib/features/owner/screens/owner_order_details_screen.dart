@@ -382,9 +382,6 @@ class _OwnerOrderDetailsScreenState extends State<OwnerOrderDetailsScreen> {
   }
 
   Future<void> _recordDeliveryFullPayment() async {
-    final expectedAmount = _deliveryOwnerPaidAmount == null
-        ? null
-        : _deliveryOwnerPaidAmount;
     final assignmentId = await _getDeliveryAssignmentId();
     if (assignmentId == null) return;
 
